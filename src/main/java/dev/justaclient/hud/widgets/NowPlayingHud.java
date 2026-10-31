@@ -18,6 +18,7 @@ import dev.justaclient.media.MediaState;
 import dev.justaclient.media.NowPlaying;
 import dev.justaclient.render.Draw;
 import dev.justaclient.render.Icons;
+import dev.justaclient.render.Projection;
 import dev.justaclient.render.SmoothTexture;
 import dev.justaclient.render.text.JacText;
 import dev.justaclient.ui.Theme;
@@ -25,6 +26,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Vector2f;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -55,12 +58,30 @@ public final class NowPlayingHud extends HudFeature {
 		}
 	}
 
+	public enum SkyMode implements ChoiceSetting.Named {
+		OFF("Off"), LYRICS("Lyrics"), NOTES("Music notes");
+
+		private final String label;
+
+		SkyMode(String label) {
+			this.label = label;
+		}
+
+		@Override
+		public String label() {
+			return label;
+		}
+	}
+
 	private final NumberSetting cardWidth = number("width", "Width", 184, 150, 260, 2, NumberSetting.unit(" px"));
 	private final BoolSetting spotifyOnly = bool("spotify_only", "Spotify only (ignore browsers and other players)", true);
 	private final BoolSetting artColors = bool("art_colors", "Colours from the album cover", true);
 	private final BoolSetting backdrop = bool("backdrop", "Blurred cover behind the card", true);
 	private final ChoiceSetting<LyricsMode> lyrics = choice("lyrics", "Synced lyrics (from lrclib.net)", LyricsMode.TWO);
 	private final BoolSetting karaoke = bool("karaoke", "Fill lyrics as they are sung", true).visibleWhen(() -> lyrics.get() != LyricsMode.OFF);
+	private final ChoiceSetting<SkyMode> sky = choice("sky", "In the sky", SkyMode.OFF);
+	private final NumberSetting skySize = number("sky_size", "Sky text size", 1.0, 0.5, 2.0, 0.1, v -> String.format("%.1fx", v))
+		.visibleWhen(() -> sky.get() != SkyMode.OFF);
 	private final BoolSetting equalizer = bool("equalizer", "Moving bars while playing", true);
 	private final BoolSetting showPaused = bool("show_paused", "Keep showing while paused", true);
 	private final KeySetting playKey = key("play_key", "Play / pause key", KeySetting.NONE);
@@ -75,6 +96,13 @@ public final class NowPlayingHud extends HudFeature {
 	private int accent = 0xFF4C8DFF;
 	private long lastFrame = System.nanoTime();
 	private int lyricIndex = -2;
+	private final Animation skyAlpha = new Animation(Easing.CUBIC_OUT, 600, 0f);
+	private final Animation skySlide = new Animation(Easing.CUBIC_OUT, 450, 0f);
+	private int skyIndex = -2;
+	private String skyTrack = "";
+	private float skyYaw;
+	private final float[][] notes = new float[10][4];
+	private long skyLast;
 	private final Animation lyricSlide = new Animation(Easing.CUBIC_OUT, 320, 0f);
 	private final Animation appear = new Animation(Easing.CUBIC_OUT, 260, 0f);
 	private final Animation playing = new Animation(Easing.CUBIC_OUT, 200, 0f);
@@ -90,7 +118,7 @@ public final class NowPlayingHud extends HudFeature {
 
 	@Override
 	protected void onEnable() {
-		NowPlaying.start(spotifyOnly.on(), lyrics.get() != LyricsMode.OFF);
+		NowPlaying.start(spotifyOnly.on(), wantsLyrics());
 	}
 
 	@Override
@@ -100,7 +128,7 @@ public final class NowPlayingHud extends HudFeature {
 
 	@Override
 	public void tick() {
-		NowPlaying.start(spotifyOnly.on(), lyrics.get() != LyricsMode.OFF);
+		NowPlaying.start(spotifyOnly.on(), wantsLyrics());
 		Minecraft mc = Minecraft.getInstance();
 		KeySetting[] keys = {playKey, nextKey, previousKey};
 		MediaSource.Command[] commands = {MediaSource.Command.TOGGLE, MediaSource.Command.NEXT, MediaSource.Command.PREVIOUS};
@@ -111,6 +139,10 @@ public final class NowPlayingHud extends HudFeature {
 			}
 			keyWasDown[i] = down;
 		}
+	}
+
+	private boolean wantsLyrics() {
+		return lyrics.get() != LyricsMode.OFF || sky.get() == SkyMode.LYRICS;
 	}
 
 	private boolean showLyrics(boolean preview) {
@@ -356,6 +388,108 @@ public final class NowPlayingHud extends HudFeature {
 				JacText.Weight.REGULAR);
 		}
 		g.disableScissor();
+	}
+
+	// Sky
+
+	/**
+	 * Draws the current lyric line (or drifting notes) high in the sky, anchored to where you were facing when the song
+	 * started, so it stays put as you look around. Called from the HUD pass with the world's camera.
+	 */
+	public void drawSky(GuiGraphics g) {
+		Minecraft mc = Minecraft.getInstance();
+		if (!isEnabled() || sky.get() == SkyMode.OFF || mc.player == null || mc.level == null) {
+			return;
+		}
+		MediaState s = NowPlaying.state();
+		boolean playing = s.hasTrack() && s.status() == MediaState.Status.PLAYING;
+		boolean lyricsReady = sky.get() == SkyMode.NOTES || NowPlaying.lyrics().status() == Lyrics.Status.SYNCED;
+		float a = skyAlpha.animateTo(playing && lyricsReady ? 1f : 0f).get();
+		if (a < 0.01f) {
+			return;
+		}
+		if (!s.trackKey().equals(skyTrack)) {
+			skyTrack = s.trackKey();
+			skyYaw = mc.gameRenderer.getMainCamera().yRot();
+		}
+		double yaw = Math.toRadians(skyYaw);
+		double pitch = Math.toRadians(30);
+		Vec3 dir = new Vec3(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+		Vec3 right = new Vec3(-Math.cos(yaw), 0, -Math.sin(yaw));
+		Vec3 center = Projection.camera().add(dir.scale(100));
+		Vector2f at = Projection.toGui(center, g.guiWidth(), g.guiHeight());
+		Vector2f side = Projection.toGui(center.add(right.scale(10)), g.guiWidth(), g.guiHeight());
+		if (at == null || side == null) {
+			return;
+		}
+		float perBlock = (float) Math.hypot(side.x - at.x, side.y - at.y) / 10f;
+		int glow = Colors.lerp(accent, 0xFFFFFFFF, 0.55f);
+		if (sky.get() == SkyMode.NOTES) {
+			drawNotes(g, at.x, at.y, perBlock, a, glow);
+			return;
+		}
+		long pos = NowPlaying.position();
+		Lyrics.Result result = NowPlaying.lyrics();
+		int index = result.indexAt(pos);
+		Lyrics.Line line = index >= 0 ? result.lines().get(index) : null;
+		Lyrics.Line after = index + 1 < result.lines().size() ? result.lines().get(index + 1) : null;
+		String current = line == null || line.text().isBlank() ? "♪" : line.text();
+		float fill = 1f;
+		if (line != null && after != null) {
+			long span = Math.min(8000L, Math.max(1L, after.timeMs() - line.timeMs()));
+			fill = Math.min(1f, (pos - line.timeMs()) / (float) span);
+		}
+		if (index != skyIndex) {
+			if (skyIndex != -2) {
+				skySlide.snap(1f);
+			}
+			skyIndex = index;
+		}
+		float slide = skySlide.animateTo(0f).get();
+		float size = Math.max(8f, Math.min(72f, perBlock * 7f * skySize.f()));
+		float w = JacText.width(current, size, JacText.Weight.SEMIBOLD);
+		float x = at.x - w / 2f;
+		float y = at.y - JacText.lineHeight(size) / 2f + slide * size * 0.6f;
+		float la = a * (1f - slide * 0.8f);
+		// A soft dark halo keeps the words readable against a bright sky.
+		Draw.shadow(g, x - size * 0.3f, y + size * 0.1f, w + size * 0.6f, size * 0.9f, size * 0.45f, size * 1.2f, Colors.fade(0x78000000, la));
+		JacText.draw(g, current, x + size * 0.04f, y + size * 0.06f, Colors.fade(0x60000000, la), size, JacText.Weight.SEMIBOLD);
+		JacText.draw(g, current, x, y, Colors.fade(Colors.withAlpha(0xFFFFFF, 0xB0), la), size, JacText.Weight.SEMIBOLD);
+		if (fill > 0f) {
+			g.enableScissor((int) x - 1, (int) (y - size), (int) Math.ceil(x + w * fill), (int) (y + size * 2));
+			JacText.draw(g, current, x, y, Colors.fade(glow, la), size, JacText.Weight.SEMIBOLD);
+			g.disableScissor();
+		}
+		if (after != null && !after.text().isBlank()) {
+			float ns = size * 0.55f;
+			float nw = JacText.width(after.text(), ns, JacText.Weight.REGULAR);
+			JacText.draw(g, after.text(), at.x - nw / 2f, y + JacText.lineHeight(size) + 2f, Colors.fade(Colors.withAlpha(0xFFFFFF, 0x90), a * (1f - slide)),
+				ns, JacText.Weight.REGULAR);
+		}
+	}
+
+	/** Music notes that rise and sway around the anchor, one burst per beat-ish interval. */
+	private void drawNotes(GuiGraphics g, float cx, float cy, float perBlock, float a, int color) {
+		long now = System.nanoTime();
+		float dt = skyLast == 0 ? 0f : Math.min(0.1f, (now - skyLast) / 1e9f);
+		skyLast = now;
+		float spread = perBlock * 30f;
+		for (float[] n : notes) {
+			// n = {x offset, rise, life 0..1, phase}
+			n[2] += dt * 0.25f;
+			if (n[2] >= 1f || n[2] == 0f) {
+				n[0] = (float) (Math.random() - 0.5) * 2f;
+				n[1] = 0f;
+				n[2] = (float) Math.random() * 0.3f + 0.0001f;
+				n[3] = (float) (Math.random() * Math.PI * 2);
+			}
+			float life = n[2];
+			float fade = Math.min(1f, life * 5f) * Math.min(1f, (1f - life) * 3f);
+			float x = cx + n[0] * spread + (float) Math.sin(life * 6f + n[3]) * perBlock * 3f;
+			float y = cy + spread * 0.3f - life * spread * 0.9f;
+			float size = Math.max(5f, Math.min(48f, perBlock * 4f * skySize.f()));
+			JacText.icon(g, Icons.MUSIC, x - size / 2f, y - size / 2f, size, Colors.fade(color, a * fade * 0.9f));
+		}
 	}
 
 	/** Shrinks long lines a little before cutting them. */

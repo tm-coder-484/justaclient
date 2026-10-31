@@ -8,9 +8,11 @@ import dev.justaclient.anim.Easing;
 import dev.justaclient.anim.Spring;
 import dev.justaclient.config.JacConfig;
 import dev.justaclient.feature.Features;
+import dev.justaclient.feature.impl.PerformanceModeFeature;
 import dev.justaclient.feature.impl.TitleScreenFeature;
 import dev.justaclient.render.Draw;
 import dev.justaclient.render.Icons;
+import dev.justaclient.render.ImageBackground;
 import dev.justaclient.render.text.JacText;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,6 +50,9 @@ public final class JacTitleScreen extends Screen {
 	private record Row(Icons icon, String label, @Nullable String badge, boolean enabled, Runnable action) {
 	}
 
+	/** The player's own background picture. Kept between title screens, freed on joining a world. */
+	private static final ImageBackground PICTURE = new ImageBackground("title");
+
 	private final List<Row> rows = new ArrayList<>();
 	private final Animation intro = new Animation(Easing.CUBIC_OUT, 650, 0f);
 	private final Spring marker = Spring.ui(0f);
@@ -63,6 +68,11 @@ public final class JacTitleScreen extends Screen {
 
 	public JacTitleScreen() {
 		super(Component.translatable("narrator.screen.title"));
+	}
+
+	/** Frees the background picture's textures; it is decoded again when the title screen next shows it. */
+	public static void freeBackground() {
+		PICTURE.unload();
 	}
 
 	@Override
@@ -122,6 +132,20 @@ public final class JacTitleScreen extends Screen {
 	public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
 		TitleScreenFeature feature = Features.get(TitleScreenFeature.class);
 		TitleScreenFeature.Background bg = feature.background();
+		if (bg == TitleScreenFeature.Background.IMAGE) {
+			PICTURE.use(feature.imagePath(), PerformanceModeFeature.imageSize(), feature.imageBlur());
+			if (PICTURE.ready()) {
+				PICTURE.drawCover(g, width, height, 0xFFFFFFFF);
+				Draw.rect(g, 0, 0, width, height, 0, Colors.withAlpha(0x000000, (int) (feature.dim() * 255)));
+				Draw.horizontalGradient(g, 0, 0, width * 0.6f, height, 0, 0x70000000, 0x00000000);
+				return;
+			}
+			drawGradient(g);
+			String note = PICTURE.loading() ? "Loading your picture" : PICTURE.error() != null ? "Could not read the picture: " + PICTURE.error()
+				: "Put a PNG, JPG or GIF in config/justaclient/backgrounds";
+			JacText.draw(g, note, width - JacText.width(note, Theme.SMALL, JacText.Weight.REGULAR) - 8, 6, Theme.TEXT_DIM, Theme.SMALL, JacText.Weight.REGULAR);
+			return;
+		}
 		if (bg == TitleScreenFeature.Background.GRADIENT) {
 			drawGradient(g);
 			return;

@@ -28,10 +28,12 @@ public final class SessionStats {
 
 	public static void onKill() {
 		kills++;
+		LifetimeStats.onKill();
 	}
 
 	public static void onBlockBroken() {
 		blocks++;
+		LifetimeStats.onBlockBroken();
 	}
 
 	public static void tick() {
@@ -43,6 +45,7 @@ public final class SessionStats {
 		boolean dead = player.isDeadOrDying();
 		if (dead && !wasDead) {
 			deaths++;
+			LifetimeStats.onDeath();
 		}
 		wasDead = dead;
 		if (!Double.isNaN(lastX)) {
@@ -52,6 +55,7 @@ public final class SessionStats {
 			// Ignore teleports and respawns.
 			if (step < 10) {
 				distance += step;
+				LifetimeStats.onMoved(step);
 			}
 		}
 		lastX = player.getX();

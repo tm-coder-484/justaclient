@@ -47,6 +47,10 @@ import dev.justaclient.feature.impl.TotemPopFeature;
 import dev.justaclient.feature.impl.TrailsFeature;
 import dev.justaclient.feature.impl.WaypointsFeature;
 import dev.justaclient.feature.impl.WeatherToastFeature;
+import dev.justaclient.feature.impl.BlockFoundFeature;
+import dev.justaclient.feature.impl.TiersFeature;
+import dev.justaclient.feature.impl.PerformanceModeFeature;
+import dev.justaclient.feature.impl.TrinketFeature;
 import dev.justaclient.feature.impl.WindowFeature;
 import dev.justaclient.feature.impl.ZoomFeature;
 import dev.justaclient.hud.HudFeature;
@@ -100,6 +104,7 @@ public final class Features {
 		register(new MinimapHud());
 		register(new GpsHud());
 		register(new NowPlayingHud());
+		register(new TrinketFeature());
 		register(new SessionStatsHud());
 		register(new LowHealthFeature());
 		register(new BossBarFeature());
@@ -149,6 +154,9 @@ public final class Features {
 		register(new TitleScreenFeature());
 		register(new LoadingScreenFeature());
 		register(new WeatherToastFeature());
+		register(new BlockFoundFeature());
+		register(new TiersFeature());
+		register(new PerformanceModeFeature());
 		register(new WindowFeature());
 	}
 

@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.justaclient.anim.Colors;
 import dev.justaclient.feature.Feature;
+import dev.justaclient.feature.impl.PerformanceModeFeature;
 import dev.justaclient.hud.FrameCost;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -65,7 +66,7 @@ public final class WorldFx {
 
 	/** One glowing dot that flies, falls and fades. Velocity is in blocks per second. */
 	public static void particle(double x, double y, double z, double vx, double vy, double vz, float size, int color, float life, float gravity, float drag) {
-		if (PARTICLES.size() >= MAX_PARTICLES) {
+		if (PARTICLES.size() >= PerformanceModeFeature.particleCap(MAX_PARTICLES)) {
 			PARTICLES.removeFirst();
 		}
 		Particle p = new Particle();

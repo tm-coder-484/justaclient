@@ -4,6 +4,7 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import dev.justaclient.feature.impl.CleanWorldFeature;
 import dev.justaclient.feature.impl.FriendsFeature;
+import dev.justaclient.feature.impl.TiersFeature;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
@@ -23,7 +24,8 @@ abstract class EntityRendererMixin {
 	@ModifyReturnValue(method = "getNameTag", at = @At("RETURN"))
 	private Component justaclient$friendTag(Component tag, Entity entity) {
 		if (tag != null && entity instanceof Player player) {
-			return FriendsFeature.get().tint(tag, player.getGameProfile().name(), true);
+			Component tinted = FriendsFeature.get().tint(tag, player.getGameProfile().name(), true);
+			return TiersFeature.get().decorate(tinted, player.getUUID(), true);
 		}
 		return tag;
 	}
