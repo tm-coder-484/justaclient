@@ -53,6 +53,19 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 
 ## What is in this build
 
+### Fixes (v0.7.1)
+
+- **Spotify web player**: on Windows the Spotify card now finds the web player playing in a browser (Chrome, Edge,
+  Firefox, Brave, Opera and others) with "Spotify only" on, not just the desktop app.
+- **Arrow hits**: hits from your own arrows, tridents and other projectiles now trigger hit particles, bubbles, sounds,
+  the crosshair pulse, the target HUD and kill effects, the same as a melee hit.
+- **Map memory**: the minimap and the M map remember terrain from every chunk you have had loaded, per world and
+  dimension, and keep it between sessions (`config/justaclient/maps/`). Places you have left stay on the map.
+- **Players and mobs on the maps**: the minimap and the M map show players (as their face) and mobs (red hostile,
+  amber neutral, green passive) that you can currently see. Point at one on the M map, or on the minimap with the chat
+  open, for its name, health and distance. Only entities in your line of sight show, so nothing behind walls is
+  revealed.
+
 ### M6: the rest of the feature list (v0.7.0)
 
 ![Spotify card with the album cover, and the current lyric drawn in the sky](docs/screenshots/spotify.png)
@@ -61,7 +74,8 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
   progress bar, previous / play / next buttons, an equaliser while playing, and time-synced lyrics from
   [lrclib.net](https://lrclib.net) that fill in as they are sung. The card takes its colours from the cover. Open the
   chat to click the buttons, or bind media keys in its settings. Works with the Spotify app on Windows (system media
-  controls), macOS and Linux (`playerctl`); turn off "Spotify only" to follow any player, such as a browser tab.
+  controls, which also covers the Spotify web player in a browser), macOS and Linux (`playerctl`); turn off "Spotify
+  only" to follow any player, such as a YouTube tab.
 - **Lyrics in the sky**: the current line (or drifting music notes) drawn high in the sky where you were looking when
   the song started (Spotify > In the sky).
 - **World**: time of day (presets or any time, plus moon phase), light colour (tint block light and sky light), water

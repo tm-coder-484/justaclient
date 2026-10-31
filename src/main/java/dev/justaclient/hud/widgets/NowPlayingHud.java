@@ -33,8 +33,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * The Spotify card: album cover, title and artist, a progress bar with media buttons, and time-synced lyrics that fill
  * in as they are sung. The card takes its colours from the cover and lays a blurred copy of it behind everything.
- * Works with the Spotify desktop app on Windows, macOS and Linux (and, if allowed, any other player Windows or Linux
- * can see).
+ * Works with the Spotify desktop app on Windows, macOS and Linux and the Spotify web player on Windows (and, if allowed,
+ * any other player Windows or Linux can see).
  */
 public final class NowPlayingHud extends HudFeature {
 	private static final Identifier COVER = Justaclient.id("now_playing/cover");
@@ -76,7 +76,7 @@ public final class NowPlayingHud extends HudFeature {
 	}
 
 	private final NumberSetting cardWidth = number("width", "Width", 184, 150, 260, 2, NumberSetting.unit(" px"));
-	private final BoolSetting spotifyOnly = bool("spotify_only", "Spotify only (ignore browsers and other players)", true);
+	private final BoolSetting spotifyOnly = bool("spotify_only", "Spotify only (app or web player, ignore other players)", true);
 	private final BoolSetting artColors = bool("art_colors", "Colours from the album cover", true);
 	private final BoolSetting backdrop = bool("backdrop", "Blurred cover behind the card", true);
 	private final ChoiceSetting<LyricsMode> lyrics = choice("lyrics", "Synced lyrics (from lrclib.net)", LyricsMode.TWO);

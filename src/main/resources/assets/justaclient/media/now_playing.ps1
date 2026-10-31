@@ -35,6 +35,38 @@ try {
 	exit 1
 }
 
+# The Spotify web player plays inside a browser, so its media session belongs to the browser, not to Spotify. A
+# browser session counts as Spotify when a browser window title mentions Spotify or shows the web player's
+# "Track * Artist" title, or failing that when it carries an album (YouTube and most video sites leave it empty).
+$browserPattern = 'chrome|msedge|firefox|brave|opera|vivaldi|chromium|TheBrowserCompany|librewolf|floorp|zen|waterfox|yandex'
+$bullet = [string][char]0x2022
+$browserTitles = @()
+$titlesAt = [DateTime]::MinValue
+
+function BrowserTitles {
+	if (([DateTime]::Now - $script:titlesAt).TotalSeconds -ge 2) {
+		$script:titlesAt = [DateTime]::Now
+		$script:browserTitles = @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
+			$_.ProcessName -match $browserPattern -and $_.MainWindowTitle
+		} | ForEach-Object { $_.MainWindowTitle })
+	}
+	return $script:browserTitles
+}
+
+function FindSpotifyWeb($sessions) {
+	$fallback = $null
+	foreach ($s in $sessions) {
+		if ($s.SourceAppUserModelId -notmatch $browserPattern) { continue }
+		try { $p = Await ($s.TryGetMediaPropertiesAsync()) $propsType } catch { continue }
+		if ($null -eq $p -or [string]::IsNullOrEmpty($p.Title)) { continue }
+		foreach ($t in (BrowserTitles)) {
+			if ($t -like '*Spotify*' -or $t.StartsWith($p.Title + ' ' + $bullet + ' ')) { return $s }
+		}
+		if ($null -eq $fallback -and -not [string]::IsNullOrEmpty($p.AlbumTitle)) { $fallback = $s }
+	}
+	return $fallback
+}
+
 $lastKey = $null
 $artPath = ''
 $artIndex = 0
@@ -43,8 +75,14 @@ while ($true) {
 	if ($ParentPid -gt 0 -and -not (Get-Process -Id $ParentPid -ErrorAction SilentlyContinue)) { exit 0 }
 	try {
 		$session = $null
-		foreach ($s in $manager.GetSessions()) {
+		$web = $false
+		$sessions = @($manager.GetSessions())
+		foreach ($s in $sessions) {
 			if ($s.SourceAppUserModelId -like '*Spotify*') { $session = $s; break }
+		}
+		if ($null -eq $session -and $Only -eq 'spotify') {
+			$session = FindSpotifyWeb $sessions
+			$web = $null -ne $session
 		}
 		if ($null -eq $session -and $Only -ne 'spotify') { $session = $manager.GetCurrentSession() }
 
@@ -101,7 +139,7 @@ while ($true) {
 				position = [long]$position
 				duration = [long]$timeline.EndTime.TotalMilliseconds
 				art = $artPath
-				player = [string]$session.SourceAppUserModelId
+				player = $(if ($web) { 'Spotify web player (' + $session.SourceAppUserModelId + ')' } else { [string]$session.SourceAppUserModelId })
 			}
 		}
 	} catch {

@@ -3,6 +3,7 @@ package dev.justaclient.feature.impl;
 import dev.justaclient.feature.Features;
 import dev.justaclient.hud.SessionStats;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import org.jspecify.annotations.Nullable;
@@ -50,14 +51,37 @@ public final class CombatTracker {
 		Features.get(SlashTrailFeature.class).onAttack();
 	}
 
-	/** The server says {@code entity} took damage. */
-	public static void onDamage(Entity entity) {
-		if (entity == target && System.nanoTime() - lastAttack < HIT_WINDOW_NANOS) {
-			lastHit = System.nanoTime();
-			Features.get(HitParticlesFeature.class).onHit(target);
-			Features.get(HitBubblesFeature.class).onHit(target);
-			Features.get(HitSoundsFeature.class).onHit();
+	/**
+	 * The server says {@code entity} took damage. {@code causeId} is whoever dealt it and {@code directId} what touched
+	 * the entity (the arrow, trident or the attacker itself); both are -1 when unknown. A hit caused by the local player
+	 * counts wherever it came from, so arrows, tridents and other projectiles get the same feedback as a melee hit.
+	 */
+	public static void onDamage(Entity entity, int causeId, int directId) {
+		Minecraft mc = Minecraft.getInstance();
+		LocalPlayer player = mc.player;
+		long now = System.nanoTime();
+		if (player != null && causeId == player.getId() && entity != player && entity instanceof LivingEntity living) {
+			if (living != target) {
+				reportedDeath = false;
+			}
+			target = living;
+			lastAttack = now;
+			if (directId != causeId) {
+				// A projectile hit: there was no swing, so pulse the crosshair now as a hit marker.
+				Features.get(CrosshairFeature.class).onAttack();
+			}
+			hit(living, now);
+		} else if (causeId < 0 && entity == target && now - lastAttack < HIT_WINDOW_NANOS) {
+			// No source sent (some servers strip it): fall back to timing against the last swing.
+			hit(target, now);
 		}
+	}
+
+	private static void hit(LivingEntity entity, long now) {
+		lastHit = now;
+		Features.get(HitParticlesFeature.class).onHit(entity);
+		Features.get(HitBubblesFeature.class).onHit(entity);
+		Features.get(HitSoundsFeature.class).onHit();
 	}
 
 	/** Someone used a totem of undying. */

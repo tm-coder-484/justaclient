@@ -10,7 +10,9 @@ import dev.justaclient.feature.setting.ChoiceSetting;
 import dev.justaclient.feature.setting.NumberSetting;
 import dev.justaclient.hud.HudFeature;
 import dev.justaclient.render.Draw;
+import dev.justaclient.render.ExploredMap;
 import dev.justaclient.render.Icons;
+import dev.justaclient.render.MapEntities;
 import dev.justaclient.render.TerrainMap;
 import dev.justaclient.render.text.JacText;
 import dev.justaclient.ui.Theme;
@@ -18,11 +20,15 @@ import dev.justaclient.waypoint.Waypoints;
 import dev.justaclient.waypoint.Waypoints.Waypoint;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.LivingEntity;
+import org.joml.Matrix3x2f;
+import org.joml.Vector2f;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -54,6 +60,7 @@ public final class MinimapHud extends HudFeature {
 	private final ChoiceSetting<Zoom> zoom = choice("zoom", "Zoom", Zoom.NEAR);
 	private final BoolSetting rotate = bool("rotate", "Rotate with view", true);
 	private final BoolSetting waypoints = bool("waypoints", "Show waypoints", true);
+	private final BoolSetting entities = bool("entities", "Players and mobs in view", true);
 	private final BoolSetting coords = bool("coords", "Coordinates under the map", true);
 	private @Nullable DynamicTexture texture;
 	private int centerX = Integer.MIN_VALUE;
@@ -63,7 +70,7 @@ public final class MinimapHud extends HudFeature {
 	private @Nullable ClientLevel builtLevel;
 
 	public MinimapHud() {
-		super("minimap", "Minimap", "Top-down terrain map with waypoints", Icons.GLOBE, false, 1f, 0f);
+		super("minimap", "Minimap", "Top-down terrain map with waypoints, players and mobs", Icons.GLOBE, false, 1f, 0f);
 		background.set(true);
 	}
 
@@ -161,9 +168,55 @@ public final class MinimapHud extends HudFeature {
 				Draw.circle(g, s / 2f + rx, s / 2f + rz, 2.2f, w.color);
 			}
 		}
+		LivingEntity hovered = null;
+		float hoverX = 0f, hoverY = 0f;
+		if (entities.on()) {
+			Vector2f mouse = mouseLocal(g);
+			float c = (float) Math.cos(angle), sn = (float) Math.sin(angle);
+			float limit = s / 2f - 4f;
+			float best = 4.5f * 4.5f;
+			for (LivingEntity e : MapEntities.visible()) {
+				float dx = (float) ((e.getX(partial) - px) / blocks * scale);
+				float dz = (float) ((e.getZ(partial) - pz) / blocks * scale);
+				float rx = dx * c - dz * sn;
+				float rz = dx * sn + dz * c;
+				if (Math.abs(rx) > limit || Math.abs(rz) > limit) {
+					continue;
+				}
+				float x = s / 2f + rx;
+				float y = s / 2f + rz;
+				if (mouse != null) {
+					float d = (mouse.x - x) * (mouse.x - x) + (mouse.y - y) * (mouse.y - y);
+					if (d < best) {
+						best = d;
+						hovered = e;
+						hoverX = x;
+						hoverY = y;
+					}
+				}
+				MapEntities.draw(g, e, x, y, 2f, 1f, false);
+			}
+			if (hovered != null) {
+				MapEntities.draw(g, hovered, hoverX, hoverY, 2f, 1f, true);
+			}
+		}
 		g.disableScissor();
 		drawPlayer(g, s / 2f, s / 2f, rotate.on() ? 0f : (float) Math.toRadians(yaw + 180f));
 		drawCoords(g, false, s);
+		if (hovered != null) {
+			MapEntities.tooltip(g, hovered, hoverX, hoverY - 2f, 1f);
+		}
+	}
+
+	/** The mouse in this widget's coordinates while the chat frees the cursor, else null. */
+	private static @Nullable Vector2f mouseLocal(GuiGraphicsExtractor g) {
+		Minecraft mc = Minecraft.getInstance();
+		if (!(mc.gui.screen() instanceof ChatScreen)) {
+			return null;
+		}
+		float mx = (float) mc.mouseHandler.getScaledXPos(mc.getWindow());
+		float my = (float) mc.mouseHandler.getScaledYPos(mc.getWindow());
+		return new Matrix3x2f(g.pose()).invert().transformPosition(mx, my, new Vector2f());
 	}
 
 	private static void drawPlayer(GuiGraphicsExtractor g, float x, float y, float angle) {
