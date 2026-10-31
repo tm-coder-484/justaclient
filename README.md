@@ -53,7 +53,7 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 
 ## What is in this build
 
-### Fixes (v0.7.1 to v0.7.4)
+### Fixes (v0.7.1 to v0.7.5)
 
 - **Spotify web player**: on Windows the Spotify card now finds the web player playing in a browser (Chrome, Edge,
   Firefox, Brave, Opera and others) with "Spotify only" on, not just the desktop app.
@@ -89,6 +89,7 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
   - *Reacting to the music*: Minecraft cannot hear the audio, so the beat comes from the song's tempo (looked up on
     the Deezer API) plus a kick on every new lyric line: a glow behind the cover swells and the cover pops on the beat.
     The moving equaliser bars now show after the song name in the sky too. "Pulse to the beat" turns it off.
+  - *Sky height* (v0.7.5): how high above the horizon the whole sky player sits, 5 to 75 degrees (default 30).
 
 ### M6: the rest of the feature list (v0.7.0)
 

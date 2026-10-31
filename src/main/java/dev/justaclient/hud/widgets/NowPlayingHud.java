@@ -115,6 +115,8 @@ public final class NowPlayingHud extends HudFeature {
 	private final ChoiceSetting<SkyMode> sky = choice("sky", "In the sky", SkyMode.OFF);
 	private final NumberSetting skySize = number("sky_size", "Sky text size", 1.0, 0.5, 2.0, 0.1, v -> String.format("%.1fx", v))
 		.visibleWhen(() -> sky.get() != SkyMode.OFF);
+	private final NumberSetting skyHeight = number("sky_height", "Sky height (degrees above the horizon)", 30, 5, 75, 1, NumberSetting.unit("°"))
+		.visibleWhen(() -> sky.get() != SkyMode.OFF);
 	private final ChoiceSetting<SkyLayout> skyLayout = choice("sky_layout", "Sky text layout", SkyLayout.FLAT).visibleWhen(() -> sky.get() == SkyMode.LYRICS);
 	private final ChoiceSetting<SkyAnchor> skyAnchor = choice("sky_anchor", "Sky position", SkyAnchor.CARDINAL).visibleWhen(() -> sky.get() != SkyMode.OFF);
 	private final BoolSetting skyPulse = bool("sky_pulse", "Pulse to the beat (tempo from Deezer)", true).visibleWhen(() -> sky.get() != SkyMode.OFF);
@@ -467,7 +469,7 @@ public final class NowPlayingHud extends HudFeature {
 		skyFrame = now;
 		updateAnchor(mc, dt);
 		double yaw = Math.toRadians(skyYaw);
-		double pitch = Math.toRadians(30);
+		double pitch = Math.toRadians(skyHeight.get());
 		Vec3 dir = new Vec3(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
 		Vec3 right = new Vec3(-Math.cos(yaw), 0, -Math.sin(yaw));
 		Vec3 center = Projection.camera().add(dir.scale(100));
