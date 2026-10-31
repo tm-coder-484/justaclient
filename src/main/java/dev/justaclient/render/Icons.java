@@ -64,7 +64,8 @@ public enum Icons {
 	TARGET(0xe184),
 	SWORDS(0xe2b4),
 	ORBIT(0xe3eb),
-	CPU(0xe0ad);
+	CPU(0xe0ad),
+	NAVIGATION(0xe128);
 
 	public final String glyph;
 

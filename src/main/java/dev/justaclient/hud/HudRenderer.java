@@ -5,6 +5,7 @@ import dev.justaclient.feature.Features;
 import dev.justaclient.feature.impl.BossBarFeature;
 import dev.justaclient.feature.impl.CrosshairFeature;
 import dev.justaclient.feature.impl.LowHealthFeature;
+import dev.justaclient.feature.impl.WaypointsFeature;
 import dev.justaclient.feature.impl.ScoreboardFeature;
 import dev.justaclient.hud.widgets.PotionsHud;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
@@ -24,6 +25,14 @@ public final class HudRenderer {
 
 	public static void init() {
 		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Justaclient.id("hud"), HudRenderer::render);
+		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Justaclient.id("waypoint_labels"), (g, delta) -> {
+			WaypointsFeature waypoints = Features.get(WaypointsFeature.class);
+			if (waypoints.isEnabled() && !editing) {
+				waypoints.cost.begin();
+				waypoints.renderLabels(g);
+				waypoints.cost.end();
+			}
+		});
 		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, Justaclient.id("screen_glow"), (g, delta) -> {
 			LowHealthFeature glow = Features.get(LowHealthFeature.class);
 			if (glow.isEnabled() && !editing) {

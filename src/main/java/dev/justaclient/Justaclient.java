@@ -1,15 +1,20 @@
 package dev.justaclient;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import dev.justaclient.command.JacCommands;
 import dev.justaclient.config.JacConfig;
 import dev.justaclient.feature.Features;
 import dev.justaclient.feature.impl.AmbientParticlesFeature;
+import dev.justaclient.feature.impl.AutoReconnectFeature;
 import dev.justaclient.feature.impl.BlockHighlightFeature;
 import dev.justaclient.feature.impl.CombatTracker;
+import dev.justaclient.feature.impl.CosmeticsFeature;
 import dev.justaclient.feature.impl.HotbarFeature;
 import dev.justaclient.feature.impl.TargetMarkerFeature;
 import dev.justaclient.feature.impl.TrailsFeature;
+import dev.justaclient.feature.impl.WaypointsFeature;
 import dev.justaclient.hud.HudRenderer;
+import dev.justaclient.hud.SessionStats;
 import dev.justaclient.profile.Profiles;
 import dev.justaclient.render.JacPipelines;
 import dev.justaclient.render.WorldFx;
@@ -17,6 +22,7 @@ import dev.justaclient.ui.ClickGuiScreen;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 import net.minecraft.client.KeyMapping;
@@ -49,9 +55,15 @@ public final class Justaclient implements ClientModInitializer {
 		TargetMarkerFeature.init();
 		TrailsFeature.init();
 		AmbientParticlesFeature.init();
+		CosmeticsFeature.init();
+		WaypointsFeature.init();
+		AutoReconnectFeature.init();
+		JacCommands.init();
+		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> SessionStats.reset());
 		KeyBindingHelper.registerKeyBinding(OPEN_MENU);
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			CombatTracker.tick();
+			SessionStats.tick();
 			Features.tick(client);
 			while (OPEN_MENU.consumeClick()) {
 				if (client.screen == null) {

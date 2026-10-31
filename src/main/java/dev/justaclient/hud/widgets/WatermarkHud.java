@@ -1,6 +1,7 @@
 package dev.justaclient.hud.widgets;
 
 import dev.justaclient.config.JacConfig;
+import dev.justaclient.feature.impl.StreamModeFeature;
 import dev.justaclient.feature.setting.BoolSetting;
 import dev.justaclient.feature.setting.TextSetting;
 import dev.justaclient.hud.HudFeature;
@@ -45,7 +46,7 @@ public final class WatermarkHud extends HudFeature {
 		if (time.on()) {
 			parts.add(LocalTime.now().format(CLOCK));
 		}
-		if (server.on()) {
+		if (server.on() && (preview || !StreamModeFeature.hidesServer())) {
 			ServerData data = mc.getCurrentServer();
 			parts.add(preview ? "play.example.net" : data != null ? data.ip : "Singleplayer");
 		}

@@ -1,6 +1,7 @@
 package dev.justaclient.feature.impl;
 
 import dev.justaclient.feature.Features;
+import dev.justaclient.hud.SessionStats;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -74,6 +75,7 @@ public final class CombatTracker {
 		if (!reportedDeath && t.isDeadOrDying()) {
 			reportedDeath = true;
 			Features.get(KillEffectsFeature.class).onKill(t);
+			SessionStats.onKill();
 		}
 	}
 }
