@@ -38,12 +38,60 @@ macOS / Linux: `./start.sh` to play, `./start.sh build` to build.
 | **Theme** | Accent, panel opacity, corners, blur, outline, font and motion. Everything follows these. |
 | **Performance** (menu, or click the frame cost in the footer) | What each feature costs per frame, against the 5% budget. |
 | **C** (hold) | Zoom. Scroll while zooming to go further. The key is in Camera > Zoom. |
+| **I** | Inspect the held item (First person > Hand). |
+| **B** | Save a waypoint where you stand. `/jwp list`, `/jwp gps <name>`, `/jwp remove <name>` manage them. |
+| **Middle click** a player | Add or remove a friend. `/jfriend add <name>` and `/jfriend list` work too. |
 
 ![HUD widgets in game](docs/screenshots/hud.png)
 
 ![HUD editor with a snap guide](docs/screenshots/hud-editor.png)
 
 ## What is in this build
+
+### M5: utility and cosmetics
+
+![Minimap, GPS and session stats](docs/screenshots/minimap.png)
+
+- **Waypoints**: light beams and labels with distance, an automatic death point, saved per world or server in
+  `config/justaclient/waypoints.json`. Press B or use `/jwp add <name>`; `/jwp set <name> <x> <y> <z>` for coordinates.
+- **GPS**: an arrow, name and distance for the waypoint you track (`/jwp gps <name>`, or "track nearest").
+- **Minimap**: terrain only, coloured like vanilla maps, north-up or rotating, with waypoint dots. No players, mobs or
+  caves; in the Nether it maps the floor you stand on.
+- **Friends**: friends' name tags and tab list entries in your friend colour.
+- **Stream mode**: one switch that hides your name, friends' names, coordinates and the server address on your screen.
+- **Toggle sprint**, **auto reconnect** (a countdown button on the disconnect screen) and a **session stats** widget
+  (play time, kills, deaths, K/D, blocks mined, distance).
+- **Cosmetics**: a halo and orbs on springs around you in third person. Only you see them.
+
+![Halo and orbs in third person](docs/screenshots/cosmetics.png)
+- **Discord status**: shows singleplayer, server and dimension on your profile. Create an application at
+  discord.com/developers (its name is what Discord shows as the game) and paste its Application ID into the setting.
+
+### M4: HUD and UI polish
+
+![Glass boss bar, scoreboard, consumables and fireflies](docs/screenshots/hud-m4.png)
+
+- **New widgets**: watermark, module list (sliding, gradient), keybinds, inventory and consumables (totems, pearls,
+  gapples, food, arrows, wind charges).
+- **Low health glow** at the screen edges, pulsing below a threshold you pick.
+- **Boss bars and scoreboard** on glass panels with smooth bars.
+- **Loading screen**: a glass card with a spinner and progress bar over the blurred panorama.
+- **Ambient particles**: fireflies, drifting motes or linked dots around you.
+- **Camera**: aspect ratio (4:3, 5:4, 16:10 or custom) and a separate hand FOV.
+- **Weather toasts** and a **borderless window** option.
+
+### M3: extras
+
+![Hand glow, graded colours and name protect in chat](docs/screenshots/hand-glow.png)
+
+- **Color grading**: exposure, contrast, saturation, vibrance, temperature and tint with presets, plus a vignette.
+- **Motion blur**, frame-rate independent.
+- **Hand**: position, rotation, scale, swing style and speed, no equip dip, and an item **inspect** animation (I).
+- **Hand glow**: a soft glow and gradient, chroma, outline or invert styles on your hand only. Off while a shader pack
+  is on.
+- **Enchant glint colour and speed**, separately for items and armour.
+- **Overlays**: hide the pumpkin blur, powder snow and nausea wobble.
+- **Name protect**: show another name in place of yours everywhere on your screen.
 
 ### M2: release
 
@@ -116,6 +164,8 @@ The world effects (sky, fog, trails, jump circles, hit sounds) start off; turn t
 | `src/main/java/dev/justaclient/feature/` | Feature and setting framework, the feature list, non-HUD features (`impl/`) |
 | `src/main/java/dev/justaclient/hud/` | HUD renderer, widget base classes and the widgets (`widgets/`) |
 | `src/main/java/dev/justaclient/profile/` | Profile files |
+| `src/main/java/dev/justaclient/waypoint/` | Waypoint storage |
+| `src/main/java/dev/justaclient/command/` | Client commands (`/jwp`, `/jfriend`) |
 | `src/main/java/dev/justaclient/ui/` | Click GUI, HUD editor, theme and performance pages, title screen, controls |
 | `src/main/java/dev/justaclient/mixin/` | Small hooks: zoom FOV and mouse, CPS, fire overlay, hit pulse, blur capture, combat events, item decorations, sky, fog, title screen |
 | `src/main/resources/assets/justaclient/shaders/` | GLSL for shapes, glass, text, blur, world effects and the aurora |
