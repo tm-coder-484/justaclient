@@ -8,6 +8,7 @@ on:
 
 jobs:
   build:
+    name: Minecraft 1.21.11
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +22,27 @@ jobs:
       - name: Upload mod jar
         uses: actions/upload-artifact@v4
         with:
-          name: justaclient-jar
+          name: justaclient-jar-1.21.11
           path: |
             build/libs/*.jar
             !build/libs/*-sources.jar
+
+  build-26-3:
+    name: Minecraft 26.3
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build
+        run: ./gradlew -p mc26.3 build
+      - name: Upload mod jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: justaclient-jar-26.3
+          path: |
+            mc26.3/build/libs/*.jar
+            !mc26.3/build/libs/*-sources.jar

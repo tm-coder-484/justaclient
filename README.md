@@ -1,6 +1,6 @@
 # Justaclient
 
-A visuals-only Fabric client for Minecraft Java **1.21.11**. Smooth animated UI, frosted-glass panels, crisp fonts and a
+A visuals-only Fabric client for Minecraft Java **1.21.11** and **26.3**. Smooth animated UI, frosted-glass panels, crisp fonts and a
 look you can fully re-theme. No cheats: nothing that reveals hidden information or automates play.
 
 Requires **Fabric API** and **Sodium**.
@@ -9,21 +9,23 @@ Requires **Fabric API** and **Sodium**.
 
 ## Quick start (Windows)
 
-1. Install **Java 21** (Temurin): https://adoptium.net/temurin/releases/?version=21
-2. Double-click **`start.bat`** and pick:
+1. Install Java (Temurin): **Java 25** runs both versions: https://adoptium.net/temurin/releases/?version=25
+   (Java 21 is enough if you only want 1.21.11.)
+2. Double-click **`start.bat`**, pick the Minecraft version (**1** = 1.21.11, **2** = 26.3), then:
    - **1 Play**: launches Minecraft with Justaclient, Fabric API and Sodium already loaded. The first launch downloads
      Minecraft and takes a few minutes; later launches are quick. It runs offline as a dev player, so use singleplayer.
-   - **2 Build**: makes the mod jar in `build\libs\` for your normal launcher.
+   - **2 Build**: makes the mod jar for your normal launcher (`build\libs\` for 1.21.11, `mc26.3\build\libs\` for 26.3).
 3. In game (or on the title screen), press **Right Shift** to open the Justaclient menu. Hold **C** to zoom.
 
-macOS / Linux: `./start.sh` to play, `./start.sh build` to build.
+macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `build` to build instead
+(`./start.sh 26.3 build`).
 
 ## Install into your own launcher
 
-1. Build with `start.bat` option 2 (or `gradlew build`).
-2. Copy `build/libs/justaclient-<version>.jar` (not the `-sources` jar) into your `.minecraft/mods` folder.
-3. Also put in `mods`: [Fabric API](https://modrinth.com/mod/fabric-api) and [Sodium](https://modrinth.com/mod/sodium),
-   both for 1.21.11, and run the Fabric 1.21.11 profile.
+1. Build with `start.bat` option 2 (or `gradlew build` for 1.21.11, `gradlew -p mc26.3 build` for 26.3).
+2. Copy `justaclient-<version>+<minecraft version>.jar` (not the `-sources` jar) into your `.minecraft/mods` folder.
+3. Also put in `mods`: [Fabric API](https://modrinth.com/mod/fabric-api) and [Sodium](https://modrinth.com/mod/sodium)
+   for the same Minecraft version, and run that version's Fabric profile.
 
 ## Using it
 
@@ -175,7 +177,22 @@ The world effects (sky, fog, trails, jump circles, hit sounds) start off; turn t
 
 - `gradlew runClient` launches the dev client; `gradlew build` makes the jar.
 - `gradlew genSources` decompiles Minecraft (official Mojang names) for reading.
-- Java 21, Fabric Loom 1.16, official Mojang mappings.
+- 1.21.11: Java 21+, Fabric Loom 1.16, official Mojang mappings.
+
+### The 26.3 build (`mc26.3/`)
+
+Minecraft 26.x is unobfuscated and replaced the renderer (the new `renderpearl` GPU API, with Vulkan or OpenGL),
+windowing and input (SDL instead of GLFW) and the GUI (`GuiGraphicsExtractor`). Rather than bend one source tree
+around both, `mc26.3/` is its own Gradle build with a ported copy of the Java sources:
+
+- `gradlew -p mc26.3 runClient` / `gradlew -p mc26.3 build`. Needs Java 25 (Loom 1.19, Fabric API 0.165, Sodium 0.9.2).
+- Fonts, icons, textures and lang files come from the root `src/main/resources`. Files in `mc26.3/src/main/resources`
+  win over the root ones: `fabric.mod.json`, the mixin config and the shaders (26.x needs `layout(location)` on every
+  shader input and output, and `#include` instead of `#moj_import`).
+- A change to a feature usually needs making in both trees. The render code differs most: `render/` (pipelines,
+  post FX, hand glow, blur, world effects) and the mixins are rewritten for 26.3, most of the rest is the same with
+  renamed Minecraft classes.
+- Release jars are named `justaclient-<version>+<minecraft version>.jar`. CI builds both.
 
 ## Credits
 

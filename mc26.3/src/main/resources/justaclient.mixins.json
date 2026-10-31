@@ -1,0 +1,35 @@
+{
+	"required": true,
+	"package": "dev.justaclient.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"BossHealthOverlayAccessor",
+		"CameraMixin",
+		"ClientPacketListenerMixin",
+		"EntityRendererMixin",
+		"FirstPersonHandsMixin",
+		"FogRendererMixin",
+		"FontMixin",
+		"GameRendererMixin",
+		"GuiGraphicsMixin",
+		"GuiMixin",
+		"GuiRendererMixin",
+		"HudMixin",
+		"KeyboardInputMixin",
+		"LevelExtractorMixin",
+		"LevelLoadingScreenMixin",
+		"LevelRendererMixin",
+		"LivingEntityMixin",
+		"MouseHandlerMixin",
+		"MultiPlayerGameModeAccessor",
+		"MultiPlayerGameModeMixin",
+		"PlayerTabOverlayMixin",
+		"RenderSetupMixin",
+		"ScreenEffectRendererMixin",
+		"SkyRendererMixin",
+		"TextureTransformMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

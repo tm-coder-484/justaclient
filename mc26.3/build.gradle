@@ -1,0 +1,87 @@
+// The Minecraft 26.3 build. 26.x replaced the renderer and windowing that the 1.21.11 code is built on, so the Java
+// sources here are a port that lives beside the main ones. Assets (shaders, fonts, icons) are shared with the root
+// project; a file in this project's resources overrides the root one with the same path.
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+version = "${project.mod_version}+${project.minecraft_version}"
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	exclusiveContent {
+		forRepository {
+			maven {
+				name = 'Modrinth'
+				url = 'https://api.modrinth.com/maven'
+			}
+		}
+		filter {
+			includeGroup 'maven.modrinth'
+		}
+	}
+}
+
+sourceSets {
+	main {
+		resources {
+			srcDirs = ['src/main/resources', '../src/main/resources']
+		}
+	}
+}
+
+loom {
+	mods {
+		"justaclient" {
+			sourceSet sourceSets.main
+		}
+	}
+	runs {
+		configureEach {
+			runDir = '../run-26.3'
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// Sodium is required at runtime and is put on the dev client so runClient matches real play.
+	implementation "maven.modrinth:sodium:${project.sodium_version}"
+}
+
+processResources {
+	// This project's copies of fabric.mod.json, the mixin config and any overridden shader win over the root ones.
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+}
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+
+	from("../LICENSE") {
+		rename { "${it}_$projectName" }
+	}
+}

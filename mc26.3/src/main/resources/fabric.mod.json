@@ -1,0 +1,32 @@
+{
+	"schemaVersion": 1,
+	"id": "justaclient",
+	"version": "${version}",
+	"name": "Justaclient",
+	"description": "A visuals-only Fabric client: smooth animated UI, blur, sharp fonts and a fully themeable look. No cheats.",
+	"authors": [
+		"tm-coder-484"
+	],
+	"contact": {
+		"sources": "https://github.com/tm-coder-484/justaclient",
+		"issues": "https://github.com/tm-coder-484/justaclient/issues"
+	},
+	"license": "MIT",
+	"icon": "assets/justaclient/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"dev.justaclient.Justaclient"
+		]
+	},
+	"mixins": [
+		"justaclient.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.17.0",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*",
+		"sodium": ">=0.9.0"
+	}
+}
