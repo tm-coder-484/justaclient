@@ -247,7 +247,23 @@ public final class JacTitleScreen extends Screen {
 	}
 
 	private String accountKind() {
-		return minecraft.getUser().getXuid().isPresent() ? "Microsoft account" : "Offline account";
+		return isOnlineAccount() ? "Microsoft account" : "Offline account";
+	}
+
+	/**
+	 * Most launchers (Prism, MultiMC, Modrinth, CurseForge) never pass an Xbox user id, so that alone is not a sign of an
+	 * offline account. A signed-in account always has a real access token, which is a JWT; offline ones get a
+	 * placeholder like "0".
+	 */
+	private boolean isOnlineAccount() {
+		if (minecraft.isOfflineDeveloperMode()) {
+			return false;
+		}
+		if (minecraft.getUser().getXuid().isPresent()) {
+			return true;
+		}
+		String token = minecraft.getUser().getAccessToken();
+		return token != null && token.length() > 100 && token.chars().filter(c -> c == '.').count() == 2;
 	}
 
 	private void drawAccount(GuiGraphics g, float a) {
