@@ -53,7 +53,7 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 
 ## What is in this build
 
-### Fixes (v0.7.1 and v0.7.2)
+### Fixes (v0.7.1 to v0.7.3)
 
 - **Spotify web player**: on Windows the Spotify card now finds the web player playing in a browser (Chrome, Edge,
   Firefox, Brave, Opera and others) with "Spotify only" on, not just the desktop app.
@@ -68,6 +68,12 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
   lookup is retried instead of being remembered as "no lyrics" for a day. Players that report no timeline (some
   browsers) get a clock started at the track change. The Windows helper keeps trying for the cover when a player
   sends it late, which the web player does.
+- **Lyrics and covers when a source is down**: lyrics fall back to NetEase Cloud Music when lrclib.net is down or has
+  no synced lyrics, and the cover falls back to the iTunes Search API when the player sends none or it cannot be read.
+  Type `/jmedia` to see what the Spotify card sees (player, timeline, cover and lyrics, and where each came from).
+- **Minimap underground mode**: Auto (when you are well below the ground), Always or Off. Shows the cave layer at your
+  height: open floor, darker the deeper it is, and rock walls. "Only mobs on your layer" hides cave mobs while you are on
+  the surface (under trees and roofs still counts as surface) and surface mobs while you are underground.
 - **Sky-only mode**: Spotify > "Show the card" off hides the HUD card while the sky keeps the lyrics, plus the album
   cover and song name ("Cover and song name in the sky").
 

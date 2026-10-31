@@ -12,6 +12,7 @@ import net.minecraft.client.gui.components.PlayerFaceExtractor;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.NeutralMob;
@@ -30,6 +31,8 @@ public final class MapEntities {
 	public static final double RANGE = 128.0;
 	private static final int MAX = 160;
 	private static final List<LivingEntity> visible = new ArrayList<>();
+	private static final java.util.Set<Integer> buried = new java.util.HashSet<>();
+	private static boolean playerBuried;
 	private static long builtTick = Long.MIN_VALUE;
 	private static @Nullable ClientLevel builtLevel;
 
@@ -82,7 +85,38 @@ public final class MapEntities {
 		}
 		visible.clear();
 		visible.addAll(shown);
+		// Which layer each one is on (surface or underground), for the minimap's "only mobs on your layer".
+		buried.clear();
+		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+		for (LivingEntity e : visible) {
+			if (TerrainMap.underground(level, pos, e.getBlockX(), e.getBlockY(), e.getBlockZ())) {
+				buried.add(e.getId());
+			}
+		}
+		playerBuried = TerrainMap.underground(level, pos, player.getBlockX(), player.getBlockY(), player.getBlockZ());
 		return visible;
+	}
+
+	/** True if the player is underground (well below the ground of their column). Updated with {@link #visible}. */
+	public static boolean playerUnderground() {
+		visible();
+		return playerBuried;
+	}
+
+	/**
+	 * True if {@code e} is on the same layer as the player: both on the surface (including under trees and roofs), or both
+	 * underground and within 24 blocks up or down. Always true in dimensions with a roof, such as the Nether.
+	 */
+	public static boolean onPlayerLayer(LivingEntity e) {
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.level == null || mc.player == null || mc.level.dimensionType().hasCeiling()) {
+			return true;
+		}
+		boolean under = buried.contains(e.getId());
+		if (under != playerBuried) {
+			return false;
+		}
+		return !under || Math.abs(e.getY() - mc.player.getY()) <= 24;
 	}
 
 	public static int color(Entity e) {

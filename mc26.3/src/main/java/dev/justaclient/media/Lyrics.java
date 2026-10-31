@@ -27,10 +27,12 @@ import net.fabricmc.loader.api.FabricLoader;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Time-synced lyrics from lrclib.net, a free open lyrics database. Only the title, artist, album and length are sent.
+ * Time-synced lyrics from lrclib.net, a free open lyrics database, with NetEase Cloud Music as a fallback when lrclib is
+ * down or has no synced lyrics. Only the title, artist, album and length are sent.
  * Answers are cached on disk so a song is looked up once.
  */
 public final class Lyrics {
+	private static final Pattern CREDIT = Pattern.compile("^\\s*[^:\\uFF1A\\s][^:\\uFF1A]{0,15}\\s*[:\\uFF1A]\\s*\\S");
 	private static final Pattern STAMP = Pattern.compile("\\[(\\d{1,3}):(\\d{1,2})(?:[.:](\\d{1,3}))?]");
 	private static final Path CACHE = FabricLoader.getInstance().getConfigDir().resolve("justaclient").resolve("cache").resolve("lyrics");
 	private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(6)).followRedirects(HttpClient.Redirect.NORMAL).build();
@@ -73,6 +75,8 @@ public final class Lyrics {
 		}
 	}
 
+	private static volatile String note = "";
+
 	/** lrclib answered with an error or could not be reached, as opposed to "no such song". */
 	private static final class Unreachable extends Exception {
 		Unreachable() {
@@ -94,17 +98,39 @@ public final class Lyrics {
 				// "Not found" answers are retried after a day, since lrclib grows.
 				boolean fresh = !cached.has("missing") || System.currentTimeMillis() - Files.getLastModifiedTime(file).toMillis() < 86_400_000L;
 				if (fresh) {
+					note = cached.has("missing") ? "no lyrics found (cached)" : "from cache (" + (cached.has("source") ? cached.get("source").getAsString() : "lrclib.net") + ")";
 					return toResult(cached);
 				}
 			}
 		} catch (IOException | RuntimeException e) {
 			// Fall through to the network.
 		}
-		JsonObject found;
+		JsonObject found = null;
+		boolean failed = false;
 		try {
 			found = lookup(track);
+			note = found != null ? "lrclib.net" : "lrclib.net: no match";
 		} catch (Unreachable e) {
-			Justaclient.LOGGER.debug("lrclib.net could not be reached; trying again later");
+			failed = true;
+			note = "lrclib.net could not be reached";
+		}
+		if (found == null || !found.has("syncedLyrics") || found.get("syncedLyrics").isJsonNull()) {
+			// lrclib is down now and then, and misses some songs: NetEase Cloud Music has synced lyrics for most of them.
+			try {
+				JsonObject other = netease(track);
+				if (other != null) {
+					found = other;
+					note = note + ", found on NetEase";
+				} else {
+					note = note + ", NetEase: no match";
+				}
+			} catch (Unreachable e) {
+				failed = true;
+				note = note + ", NetEase could not be reached";
+			}
+		}
+		if (found == null && failed) {
+			// Not cached: a source was down, so try again in a little while.
 			return Result.ERROR;
 		}
 		JsonObject store = found != null ? found : new JsonObject();
@@ -118,6 +144,101 @@ public final class Lyrics {
 			Justaclient.LOGGER.debug("Could not cache lyrics", e);
 		}
 		return toResult(store);
+	}
+
+	/** Where the last lyrics came from, or why there were none. For {@code /jmedia}. */
+	public static String note() {
+		return note;
+	}
+
+	/** Searches NetEase Cloud Music for the same title, artist and length, and turns its LRC into an lrclib-style answer. */
+	private static @Nullable JsonObject netease(MediaState track) throws Unreachable {
+		String artist = firstArtist(track.artist());
+		JsonElement search = get("https://music.163.com/api/search/get?s=" + enc(artist + " " + track.title()) + "&type=1&limit=10");
+		if (search == null || !search.isJsonObject() || !search.getAsJsonObject().has("result")) {
+			return null;
+		}
+		JsonElement result = search.getAsJsonObject().get("result");
+		if (!result.isJsonObject() || !result.getAsJsonObject().has("songs") || !result.getAsJsonObject().get("songs").isJsonArray()) {
+			return null;
+		}
+		String wantTitle = simplify(track.title());
+		String wantArtist = simplify(artist);
+		long bestId = -1;
+		double bestOff = Double.MAX_VALUE;
+		for (JsonElement e : result.getAsJsonObject().getAsJsonArray("songs")) {
+			if (!e.isJsonObject()) {
+				continue;
+			}
+			JsonObject song = e.getAsJsonObject();
+			if (!song.has("id") || !song.has("name") || !simplify(song.get("name").getAsString()).equals(wantTitle)) {
+				continue;
+			}
+			boolean artistMatches = false;
+			if (song.has("artists") && song.get("artists").isJsonArray()) {
+				for (JsonElement a : song.getAsJsonArray("artists")) {
+					if (a.isJsonObject() && a.getAsJsonObject().has("name") && simplify(a.getAsJsonObject().get("name").getAsString()).equals(wantArtist)) {
+						artistMatches = true;
+					}
+				}
+			}
+			if (!artistMatches) {
+				continue;
+			}
+			double length = song.has("duration") ? song.get("duration").getAsDouble() / 1000.0 : 0;
+			double off = track.durationMs() > 0 && length > 0 ? Math.abs(length - track.durationMs() / 1000.0) : 0;
+			if (off <= 5 && off < bestOff) {
+				bestOff = off;
+				bestId = song.get("id").getAsLong();
+			}
+		}
+		if (bestId < 0) {
+			return null;
+		}
+		JsonElement lyric = get("https://music.163.com/api/song/lyric?id=" + bestId + "&lv=1");
+		if (lyric == null || !lyric.isJsonObject()) {
+			return null;
+		}
+		JsonObject o = lyric.getAsJsonObject();
+		JsonObject answer = new JsonObject();
+		answer.addProperty("source", "NetEase");
+		if (o.has("pureMusic") && o.get("pureMusic").getAsBoolean()) {
+			answer.addProperty("instrumental", true);
+			return answer;
+		}
+		if (!o.has("lrc") || !o.get("lrc").isJsonObject() || !o.getAsJsonObject("lrc").has("lyric")) {
+			return null;
+		}
+		List<Line> lines = new ArrayList<>();
+		for (Line line : parse(o.getAsJsonObject("lrc").get("lyric").getAsString())) {
+			// NetEase starts most songs with credit lines such as "作词 : Name".
+			if (CREDIT.matcher(line.text()).find() && (line.timeMs() < 30_000L || line.text().codePoints().anyMatch(c -> c >= 0x3000))) {
+				continue;
+			}
+			lines.add(line);
+		}
+		if (lines.size() < 4) {
+			return null;
+		}
+		StringBuilder lrc = new StringBuilder();
+		for (Line line : lines) {
+			lrc.append(String.format(Locale.ROOT, "[%02d:%02d.%02d]%s%n", line.timeMs() / 60_000L, line.timeMs() / 1000L % 60, line.timeMs() % 1000 / 10,
+				line.text()));
+		}
+		answer.addProperty("syncedLyrics", lrc.toString());
+		return answer;
+	}
+
+	/** Lower case letters and digits only, without "(feat. ...)" or " - Remastered" style endings. */
+	static String simplify(String s) {
+		String t = s.toLowerCase(Locale.ROOT);
+		for (String cut : new String[] {" - ", " (", " [", " feat. ", " ft. "}) {
+			int i = t.indexOf(cut);
+			if (i > 0) {
+				t = t.substring(0, i);
+			}
+		}
+		return t.replaceAll("[^\\p{L}\\p{N}]", "");
 	}
 
 	private static @Nullable JsonObject lookup(MediaState track) throws Unreachable {
@@ -175,7 +296,7 @@ public final class Lyrics {
 	}
 
 	/** Players list several artists as "A, B" or "A; B"; lrclib matches best on the first. */
-	private static String firstArtist(String artist) {
+	static String firstArtist(String artist) {
 		int cut = artist.length();
 		for (String sep : new String[] {", ", "; ", " & ", " feat. ", " ft. "}) {
 			int i = artist.toLowerCase(Locale.ROOT).indexOf(sep.toLowerCase(Locale.ROOT));

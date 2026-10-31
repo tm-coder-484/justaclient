@@ -22,6 +22,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.DynamicTexture;
@@ -58,16 +59,35 @@ public final class MinimapHud extends HudFeature {
 		}
 	}
 
+	public enum Underground implements ChoiceSetting.Named {
+		AUTO("Auto"), ALWAYS("Always"), OFF("Off");
+
+		private final String label;
+
+		Underground(String label) {
+			this.label = label;
+		}
+
+		@Override
+		public String label() {
+			return label;
+		}
+	}
+
 	private final NumberSetting size = number("size", "Size", 96, 64, 160, 4, NumberSetting.unit(" px"));
 	private final ChoiceSetting<Zoom> zoom = choice("zoom", "Zoom", Zoom.NEAR);
 	private final BoolSetting rotate = bool("rotate", "Rotate with view", true);
 	private final BoolSetting waypoints = bool("waypoints", "Show waypoints", true);
+	private final ChoiceSetting<Underground> underground = choice("underground", "Underground mode (caves at your height)", Underground.AUTO);
 	private final BoolSetting entities = bool("entities", "Players and mobs", true);
+	private final BoolSetting sameLayer = bool("same_layer", "Only mobs on your layer (surface or underground)", true).visibleWhen(entities::on);
 	private final BoolSetting coords = bool("coords", "Coordinates under the map", true);
 	private @Nullable DynamicTexture texture;
 	private int centerX = Integer.MIN_VALUE;
 	private int centerZ;
 	private int builtZoom;
+	private boolean builtCave;
+	private int builtY;
 	private long lastBuild;
 	private @Nullable ClientLevel builtLevel;
 
@@ -96,14 +116,20 @@ public final class MinimapHud extends HudFeature {
 		int blocks = zoom.get().blocks;
 		int px = player.getBlockX();
 		int pz = player.getBlockZ();
-		// Rebuild after moving a couple of pixels' worth, when the zoom or world changes, or every few seconds for new chunks.
-		boolean moved = Math.abs(px - centerX) >= 2 * blocks || Math.abs(pz - centerZ) >= 2 * blocks;
-		if (moved || blocks != builtZoom || mc.level != builtLevel || System.currentTimeMillis() - lastBuild > 3000) {
-			build(mc.level, player, px, pz, blocks);
+		boolean cave = switch (underground.get()) {
+			case ALWAYS -> !mc.level.dimensionType().hasCeiling();
+			case OFF -> false;
+			case AUTO -> MapEntities.playerUnderground();
+		};
+		// Rebuild after moving a couple of pixels' worth (or a couple of blocks up or down in a cave), when the zoom,
+		// mode or world changes, or every few seconds for new chunks.
+		boolean moved = Math.abs(px - centerX) >= 2 * blocks || Math.abs(pz - centerZ) >= 2 * blocks || cave && Math.abs(player.getBlockY() - builtY) >= 2;
+		if (moved || blocks != builtZoom || cave != builtCave || mc.level != builtLevel || System.currentTimeMillis() - lastBuild > 3000) {
+			build(mc.level, player, px, pz, blocks, cave);
 		}
 	}
 
-	private void build(ClientLevel level, LocalPlayer player, int cx, int cz, int blocks) {
+	private void build(ClientLevel level, LocalPlayer player, int cx, int cz, int blocks, boolean cave) {
 		if (texture == null) {
 			texture = new DynamicTexture(() -> "Justaclient minimap", SIZE, SIZE, true);
 			Minecraft.getInstance().getTextureManager().register(TEXTURE, texture);
@@ -112,8 +138,14 @@ public final class MinimapHud extends HudFeature {
 		if (image == null) {
 			return;
 		}
-		TerrainMap.fill(image, SIZE, level, player.getBlockY() + 1, cx, cz, blocks);
+		if (cave) {
+			TerrainMap.fillCave(image, SIZE, level, player.getBlockY(), cx, cz, blocks);
+		} else {
+			TerrainMap.fill(image, SIZE, level, player.getBlockY() + 1, cx, cz, blocks);
+		}
 		texture.upload();
+		builtCave = cave;
+		builtY = player.getBlockY();
 		centerX = cx;
 		centerZ = cz;
 		builtZoom = blocks;
@@ -178,6 +210,9 @@ public final class MinimapHud extends HudFeature {
 			float limit = s / 2f - 4f;
 			float best = 4.5f * 4.5f;
 			for (LivingEntity e : MapEntities.visible()) {
+				if (sameLayer.on() && !(e instanceof AbstractClientPlayer) && !MapEntities.onPlayerLayer(e)) {
+					continue;
+				}
 				float dx = (float) ((e.getX(partial) - px) / blocks * scale);
 				float dz = (float) ((e.getZ(partial) - pz) / blocks * scale);
 				float rx = dx * c - dz * sn;
