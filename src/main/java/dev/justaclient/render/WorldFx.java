@@ -202,7 +202,8 @@ public final class WorldFx {
 		public final float partialTick;
 		public final Vec3 camera;
 		private final PoseStack.Pose pose;
-		private final VertexConsumer out;
+		private VertexConsumer out;
+		private final net.minecraft.client.renderer.MultiBufferSource consumers;
 		private final Vector3f right;
 		private final Vector3f up;
 
@@ -212,6 +213,7 @@ public final class WorldFx {
 			this.camera = context.worldState().cameraRenderState.pos;
 			this.pose = context.matrices().last();
 			this.out = context.consumers().getBuffer(FX);
+			this.consumers = context.consumers();
 			Quaternionf rotation = context.worldState().cameraRenderState.orientation;
 			this.right = rotation.transform(new Vector3f(1f, 0f, 0f));
 			this.up = rotation.transform(new Vector3f(0f, 1f, 0f));
@@ -232,6 +234,19 @@ public final class WorldFx {
 			vertex(cx + rx - ux, cy + ry - uy, cz + rz - uz, 1f, -1f, color);
 			vertex(cx + rx + ux, cy + ry + uy, cz + rz + uz, 1f, 1f, color);
 			vertex(cx - rx + ux, cy - ry + uy, cz - rz + uz, -1f, 1f, color);
+		}
+
+		/**
+		 * A flat-coloured solid quad (corners in absolute world positions, in order), depth tested. Used for small models
+		 * such as hats; shade the colour per face for a lit look.
+		 */
+		public void solidQuad(Vec3 a, Vec3 b, Vec3 c, Vec3 d, int color) {
+			VertexConsumer q = consumers.getBuffer(net.minecraft.client.renderer.rendertype.RenderTypes.debugQuads());
+			for (Vec3 p : new Vec3[] {a, b, c, d}) {
+				q.addVertex(pose, (float) (p.x - camera.x), (float) (p.y - camera.y), (float) (p.z - camera.z)).setColor(color);
+			}
+			// Asking the buffer source for another render type finishes the glow buffer; pick it up again for later sprites.
+			out = consumers.getBuffer(FX);
 		}
 
 		/** A camera-facing bubble: a clear body with a coloured rim and a highlight. Flagged to the shader by V above 2. */

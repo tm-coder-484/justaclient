@@ -12,6 +12,8 @@ import dev.justaclient.feature.impl.CrosshairFeature;
 import dev.justaclient.feature.impl.DiscordPresenceFeature;
 import dev.justaclient.feature.impl.FireOverlayFeature;
 import dev.justaclient.feature.impl.FogFeature;
+import dev.justaclient.feature.impl.HatsFeature;
+import dev.justaclient.feature.impl.SkinFeature;
 import dev.justaclient.feature.impl.HitBubblesFeature;
 import dev.justaclient.feature.impl.SlashTrailFeature;
 import dev.justaclient.feature.impl.EndCrystalFeature;
@@ -132,6 +134,8 @@ public final class Features {
 		register(new GlintFeature());
 		register(new AmbientParticlesFeature());
 		register(new CosmeticsFeature());
+		register(new HatsFeature());
+		register(new SkinFeature());
 		register(new ZoomFeature());
 		register(new CameraFeature());
 		register(new CopyCoordinatesFeature());

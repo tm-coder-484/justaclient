@@ -3,6 +3,7 @@
 	"package": "dev.justaclient.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
+		"AbstractClientPlayerMixin",
 		"BiomeMixin",
 		"BossHealthOverlayAccessor",
 		"ClientPacketListenerMixin",
