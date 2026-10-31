@@ -53,7 +53,7 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 
 ## What is in this build
 
-### Fixes (v0.7.1)
+### Fixes (v0.7.1 and v0.7.2)
 
 - **Spotify web player**: on Windows the Spotify card now finds the web player playing in a browser (Chrome, Edge,
   Firefox, Brave, Opera and others) with "Spotify only" on, not just the desktop app.
@@ -61,10 +61,15 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
   the crosshair pulse, the target HUD and kill effects, the same as a melee hit.
 - **Map memory**: the minimap and the M map remember terrain from every chunk you have had loaded, per world and
   dimension, and keep it between sessions (`config/justaclient/maps/`). Places you have left stay on the map.
-- **Players and mobs on the maps**: the minimap and the M map show players (as their face) and mobs (red hostile,
-  amber neutral, green passive) that you can currently see. Point at one on the M map, or on the minimap with the chat
-  open, for its name, health and distance. Only entities in your line of sight show, so nothing behind walls is
-  revealed.
+- **Players and mobs on the maps**: the minimap and the M map show mobs around you (red hostile, amber neutral, green
+  passive) and other players (as their face) while they are in your line of sight. Point at one on the M map, or on
+  the minimap with the chat open, for its name, health and distance.
+- **Sky lyrics and album art**: lyrics are fetched again when you switch them on mid-song, and a failed lrclib.net
+  lookup is retried instead of being remembered as "no lyrics" for a day. Players that report no timeline (some
+  browsers) get a clock started at the track change. The Windows helper keeps trying for the cover when a player
+  sends it late, which the web player does.
+- **Sky-only mode**: Spotify > "Show the card" off hides the HUD card while the sky keeps the lyrics, plus the album
+  cover and song name ("Cover and song name in the sky").
 
 ### M6: the rest of the feature list (v0.7.0)
 

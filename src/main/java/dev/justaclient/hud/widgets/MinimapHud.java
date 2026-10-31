@@ -33,8 +33,8 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * A small top-down map of the terrain around you, coloured like vanilla maps, remembering places you have been (see
- * {@link ExploredMap}). Players and mobs show only while you can see them (see {@link MapEntities}); with the chat open
- * you can point at one to see its name, health and distance. No caves. In dimensions with a roof it maps the floor you
+ * {@link ExploredMap}). Mobs show all around you, other players only while you can see them (see {@link MapEntities});
+ * with the chat open you can point at one to see its name, health and distance. No caves. In dimensions with a roof it maps the floor you
  * are standing on instead.
  */
 public final class MinimapHud extends HudFeature {
@@ -62,7 +62,7 @@ public final class MinimapHud extends HudFeature {
 	private final ChoiceSetting<Zoom> zoom = choice("zoom", "Zoom", Zoom.NEAR);
 	private final BoolSetting rotate = bool("rotate", "Rotate with view", true);
 	private final BoolSetting waypoints = bool("waypoints", "Show waypoints", true);
-	private final BoolSetting entities = bool("entities", "Players and mobs in view", true);
+	private final BoolSetting entities = bool("entities", "Players and mobs", true);
 	private final BoolSetting coords = bool("coords", "Coordinates under the map", true);
 	private @Nullable DynamicTexture texture;
 	private int centerX = Integer.MIN_VALUE;

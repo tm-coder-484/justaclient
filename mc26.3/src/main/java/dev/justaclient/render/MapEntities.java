@@ -21,14 +21,14 @@ import net.minecraft.world.entity.monster.Enemy;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Players and mobs for the minimap and the full map. Only what the player could see from where they stand: an entity
- * shows when it is in direct line of sight and not invisible, so the maps never reveal anything behind walls. Worked out
- * once per tick and shared by both maps. Fish are left out; a sea of dots hides everything else.
+ * Players and mobs for the minimap and the full map. Mobs show wherever they are; other players only while they are in
+ * your line of sight, so the maps never give away a player hiding behind a wall. Invisible entities never show. Worked
+ * out once per tick and shared by both maps. Fish are left out; a sea of dots hides everything else.
  */
 public final class MapEntities {
-	/** Vanilla's line-of-sight check gives up past this many blocks anyway. */
+	/** Blocks from the player; about as far as the server sends entities anyway. */
 	public static final double RANGE = 128.0;
-	private static final int MAX = 96;
+	private static final int MAX = 160;
 	private static final List<LivingEntity> visible = new ArrayList<>();
 	private static long builtTick = Long.MIN_VALUE;
 	private static @Nullable ClientLevel builtLevel;
@@ -65,18 +65,23 @@ public final class MapEntities {
 			visible.add(living);
 		}
 		visible.sort(Comparator.comparingDouble(e -> e.distanceToSqr(player)));
-		// Line of sight is a raycast, so only test the nearest few.
-		List<LivingEntity> seen = new ArrayList<>();
+		// Mobs always show; other players only while you can see them. Line of sight is a raycast, so only the nearest
+		// few players are tested.
+		List<LivingEntity> shown = new ArrayList<>();
+		int tested = 0;
 		for (LivingEntity e : visible) {
-			if (seen.size() >= MAX) {
+			if (shown.size() >= MAX) {
 				break;
 			}
-			if (player.hasLineOfSight(e)) {
-				seen.add(e);
+			if (e instanceof AbstractClientPlayer) {
+				if (tested++ >= 32 || !player.hasLineOfSight(e)) {
+					continue;
+				}
 			}
+			shown.add(e);
 		}
 		visible.clear();
-		visible.addAll(seen);
+		visible.addAll(shown);
 		return visible;
 	}
 

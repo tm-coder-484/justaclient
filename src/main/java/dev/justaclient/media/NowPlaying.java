@@ -109,6 +109,9 @@ public final class NowPlaying {
 		try (MediaSource source = MediaSource.create(onlySpotify)) {
 			String lastKey = "";
 			String lastArt = "";
+			// The track the current lyrics belong to, and when they were last asked for.
+			String lyricsKey = "";
+			long lyricsAt = 0L;
 			while (gen == generation) {
 				MediaSource.Command command;
 				while ((command = COMMANDS.poll()) != null) {
@@ -125,18 +128,31 @@ public final class NowPlaying {
 					break;
 				}
 				boolean changed = !next.trackKey().equals(lastKey);
-				// Keep the smoothed clock unless the reading disagrees by more than a moment (a seek, a pause, a new song).
-				long reading = next.positionNow();
 				boolean running = next.status() == MediaState.Status.PLAYING;
+				// Some players (browsers among them) report no timeline at all: run our own clock from the track change.
+				boolean noTimeline = next.durationMs() <= 0 && next.positionMs() <= 0;
+				long reading = noTimeline ? (changed ? 0L : position()) : next.positionNow();
+				// Keep the smoothed clock unless the reading disagrees by more than a moment (a seek, a pause, a new song).
 				if (changed || running != clockRunning || Math.abs(position() - reading) > 700) {
 					rebase(reading, running);
 				}
 				state = next;
 				if (next.hasTrack() && changed) {
 					lastKey = next.trackKey();
-					lyrics = wantLyrics ? Lyrics.Result.LOADING : Lyrics.Result.NONE;
-					MediaState track = next;
-					if (wantLyrics) {
+				} else if (!next.hasTrack()) {
+					lastKey = "";
+				}
+				// Lyrics: on a new track, when they are switched on mid-song, and again a little later if lrclib was unreachable.
+				if (next.hasTrack() && wantLyrics) {
+					long nowMs = System.currentTimeMillis();
+					boolean retry = lyrics.status() == Lyrics.Status.ERROR && nowMs - lyricsAt > 20_000L;
+					if (!lyricsKey.equals(next.trackKey()) || retry) {
+						lyricsKey = next.trackKey();
+						lyricsAt = nowMs;
+						if (!retry) {
+							lyrics = Lyrics.Result.LOADING;
+						}
+						MediaState track = next;
 						LOADER.submit(() -> {
 							Lyrics.Result result = Lyrics.fetch(track);
 							if (track.trackKey().equals(state.trackKey())) {
@@ -144,8 +160,9 @@ public final class NowPlaying {
 							}
 						});
 					}
-				} else if (!next.hasTrack()) {
-					lastKey = "";
+				} else if (!wantLyrics && !lyricsKey.isEmpty()) {
+					lyricsKey = "";
+					lyrics = Lyrics.Result.NONE;
 				}
 				String artRef = next.art() == null ? "" : next.art();
 				if (next.hasTrack() && !artRef.equals(lastArt)) {

@@ -75,6 +75,7 @@ public final class NowPlayingHud extends HudFeature {
 		}
 	}
 
+	private final BoolSetting showCard = bool("card", "Show the card (off: only what is in the sky)", true);
 	private final NumberSetting cardWidth = number("width", "Width", 184, 150, 260, 2, NumberSetting.unit(" px"));
 	private final BoolSetting spotifyOnly = bool("spotify_only", "Spotify only (app or web player, ignore other players)", true);
 	private final BoolSetting artColors = bool("art_colors", "Colours from the album cover", true);
@@ -84,6 +85,7 @@ public final class NowPlayingHud extends HudFeature {
 	private final ChoiceSetting<SkyMode> sky = choice("sky", "In the sky", SkyMode.OFF);
 	private final NumberSetting skySize = number("sky_size", "Sky text size", 1.0, 0.5, 2.0, 0.1, v -> String.format("%.1fx", v))
 		.visibleWhen(() -> sky.get() != SkyMode.OFF);
+	private final BoolSetting skyInfo = bool("sky_info", "Cover and song name in the sky", true).visibleWhen(() -> sky.get() != SkyMode.OFF);
 	private final BoolSetting equalizer = bool("equalizer", "Moving bars while playing", true);
 	private final BoolSetting showPaused = bool("show_paused", "Keep showing while paused", true);
 	private final KeySetting playKey = key("play_key", "Play / pause key", KeySetting.NONE);
@@ -168,7 +170,7 @@ public final class NowPlayingHud extends HudFeature {
 	@Override
 	public boolean hasContent() {
 		MediaState s = NowPlaying.state();
-		return s.hasTrack() && (s.status() == MediaState.Status.PLAYING || showPaused.on());
+		return showCard.on() && s.hasTrack() && (s.status() == MediaState.Status.PLAYING || showPaused.on());
 	}
 
 	// Textures
@@ -404,9 +406,16 @@ public final class NowPlayingHud extends HudFeature {
 			return;
 		}
 		MediaState s = NowPlaying.state();
+		if (!showCard.on()) {
+			// The card is not drawing, so keep the cover texture and its colours up to date from here.
+			upload(Math.min(5f, Math.min(6f, JacConfig.get().style.cornerRadius)));
+			AlbumArt cover = NowPlaying.art();
+			accent = hasArt && artColors.on() && cover != null ? cover.accent() : JacConfig.accent();
+		}
 		boolean playing = s.hasTrack() && s.status() == MediaState.Status.PLAYING;
 		boolean lyricsReady = sky.get() == SkyMode.NOTES || NowPlaying.lyrics().status() == Lyrics.Status.SYNCED;
-		float a = skyAlpha.animateTo(playing && lyricsReady ? 1f : 0f).get();
+		boolean info = skyInfo.on() && s.hasTrack();
+		float a = skyAlpha.animateTo(playing && (lyricsReady || info) ? 1f : 0f).get();
 		if (a < 0.01f) {
 			return;
 		}
@@ -426,6 +435,17 @@ public final class NowPlayingHud extends HudFeature {
 		}
 		float perBlock = (float) Math.hypot(side.x - at.x, side.y - at.y) / 10f;
 		int glow = Colors.lerp(accent, 0xFFFFFFFF, 0.55f);
+		float size = Math.max(8f, Math.min(72f, perBlock * 7f * skySize.f()));
+		if (info && (!lyricsReady || sky.get() == SkyMode.NOTES)) {
+			// No lyric line: the cover and song name take its place.
+			drawSkyInfo(g, s, at.x, at.y - size * 0.85f, size, a);
+		} else if (info) {
+			// Under the lyric and the line after it, so the words stay where the eye goes first.
+			drawSkyInfo(g, s, at.x, at.y + JacText.lineHeight(size) / 2f + JacText.lineHeight(size * 0.55f) + size * 0.45f, size, a);
+		}
+		if (!lyricsReady) {
+			return;
+		}
 		if (sky.get() == SkyMode.NOTES) {
 			drawNotes(g, at.x, at.y, perBlock, a, glow);
 			return;
@@ -448,7 +468,6 @@ public final class NowPlayingHud extends HudFeature {
 			skyIndex = index;
 		}
 		float slide = skySlide.animateTo(0f).get();
-		float size = Math.max(8f, Math.min(72f, perBlock * 7f * skySize.f()));
 		float w = JacText.width(current, size, JacText.Weight.SEMIBOLD);
 		float x = at.x - w / 2f;
 		float y = at.y - JacText.lineHeight(size) / 2f + slide * size * 0.6f;
@@ -468,6 +487,42 @@ public final class NowPlayingHud extends HudFeature {
 			JacText.draw(g, after.text(), at.x - nw / 2f, y + JacText.lineHeight(size) + 2f, Colors.fade(Colors.withAlpha(0xFFFFFF, 0x90), a * (1f - slide)),
 				ns, JacText.Weight.REGULAR);
 		}
+	}
+
+	/** The cover with the title and artist beside it, centred on {@code cx} with its top edge at {@code top}. */
+	private void drawSkyInfo(GuiGraphicsExtractor g, MediaState s, float cx, float top, float size, float a) {
+		float coverSize = size * 1.7f;
+		float titleSize = size * 0.5f;
+		float artistSize = size * 0.38f;
+		float gap = size * 0.3f;
+		String artist = s.artist();
+		float textW = Math.max(JacText.width(s.title(), titleSize, JacText.Weight.SEMIBOLD), JacText.width(artist, artistSize, JacText.Weight.REGULAR));
+		float rowW = coverSize + gap + textW;
+		float left = cx - rowW / 2f;
+		Draw.shadow(g, left - size * 0.3f, top, rowW + size * 0.6f, coverSize, size * 0.4f, size * 1.2f, Colors.fade(0x66000000, a));
+		if (hasArt && cover != null) {
+			Draw.shadow(g, left, top + 1f, coverSize, coverSize, coverSize * 0.12f, size * 0.25f, Colors.fade(0x70000000, a));
+			g.pose().pushMatrix();
+			g.pose().translate(left, top);
+			g.pose().scale(coverSize / AlbumArt.COVER, coverSize / AlbumArt.COVER);
+			g.blit(RenderPipelines.GUI_TEXTURED, COVER, 0, 0, 0f, 0f, AlbumArt.COVER, AlbumArt.COVER, AlbumArt.COVER, AlbumArt.COVER, AlbumArt.COVER,
+				AlbumArt.COVER, Colors.fade(0xFFFFFFFF, a));
+			g.pose().popMatrix();
+		} else {
+			float r = coverSize * 0.12f;
+			Draw.gradient(g, left, top, coverSize, coverSize, r, Colors.fade(Colors.lerp(accent, 0xFF000000, 0.15f), a),
+				Colors.fade(Colors.lerp(accent, 0xFF000000, 0.45f), a), Colors.fade(Colors.lerp(accent, 0xFF000000, 0.7f), a),
+				Colors.fade(Colors.lerp(accent, 0xFF000000, 0.4f), a));
+			float icon = coverSize * 0.4f;
+			JacText.icon(g, Icons.MUSIC, left + (coverSize - icon) / 2f, top + (coverSize - icon) / 2f, icon, Colors.fade(0xD0FFFFFF, a));
+		}
+		float tx = left + coverSize + gap;
+		float textH = JacText.lineHeight(titleSize) + JacText.lineHeight(artistSize);
+		float ty = top + (coverSize - textH) / 2f;
+		JacText.draw(g, s.title(), tx + titleSize * 0.05f, ty + titleSize * 0.07f, Colors.fade(0x60000000, a), titleSize, JacText.Weight.SEMIBOLD);
+		JacText.draw(g, s.title(), tx, ty, Colors.fade(0xFFFFFFFF, a), titleSize, JacText.Weight.SEMIBOLD);
+		JacText.draw(g, artist, tx, ty + JacText.lineHeight(titleSize), Colors.fade(Colors.lerp(accent, 0xFFFFFFFF, 0.6f), a * 0.9f), artistSize,
+			JacText.Weight.REGULAR);
 	}
 
 	/** Music notes that rise and sway around the anchor, one burst per beat-ish interval. */

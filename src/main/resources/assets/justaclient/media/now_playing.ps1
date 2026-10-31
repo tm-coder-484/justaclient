@@ -69,7 +69,11 @@ function FindSpotifyWeb($sessions) {
 
 $lastKey = $null
 $artPath = ''
+$artHash = ''
 $artIndex = 0
+$keyAt = [DateTime]::Now
+$artCheckAt = [DateTime]::MinValue
+$md5 = [System.Security.Cryptography.MD5]::Create()
 while ($true) {
 	# Stop with the game, even if it crashed without closing us.
 	if ($ParentPid -gt 0 -and -not (Get-Process -Id $ParentPid -ErrorAction SilentlyContinue)) { exit 0 }
@@ -115,20 +119,35 @@ while ($true) {
 			if ($key -ne $lastKey) {
 				$lastKey = $key
 				$artPath = ''
-				if ($null -ne $props.Thumbnail) {
-					try {
-						$stream = Await ($props.Thumbnail.OpenReadAsync()) $streamType
-						$net = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($stream)
-						$artIndex++
-						$file = Join-Path $ArtDir ('art' + ($artIndex % 4) + '.img')
-						$out = [IO.File]::Create($file)
-						$net.CopyTo($out)
-						$out.Close()
-						$net.Dispose()
-						$artPath = $file
-					} catch {
-						$artPath = ''
+				$artHash = ''
+				$keyAt = [DateTime]::Now
+				$artCheckAt = [DateTime]::MinValue
+			}
+			# The cover can arrive after the title (browsers download it first), and the last song's cover can linger for
+			# a moment: keep reading it for 4 seconds after a change, then every 2 seconds for a minute while there is none.
+			$since = ([DateTime]::Now - $keyAt).TotalSeconds
+			$due = ($since -lt 4) -or ($artPath -eq '' -and $since -lt 60 -and ([DateTime]::Now - $artCheckAt).TotalSeconds -ge 2)
+			if ($due -and $null -ne $props.Thumbnail) {
+				$artCheckAt = [DateTime]::Now
+				try {
+					$stream = Await ($props.Thumbnail.OpenReadAsync()) $streamType
+					$net = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($stream)
+					$mem = New-Object System.IO.MemoryStream
+					$net.CopyTo($mem)
+					$net.Dispose()
+					$bytes = $mem.ToArray()
+					if ($bytes.Length -gt 0) {
+						$hash = [Convert]::ToBase64String($md5.ComputeHash($bytes))
+						if ($hash -ne $artHash) {
+							$artHash = $hash
+							$artIndex++
+							$file = Join-Path $ArtDir ('art' + ($artIndex % 4) + '.img')
+							[IO.File]::WriteAllBytes($file, $bytes)
+							$artPath = $file
+						}
 					}
+				} catch {
+					# Not ready yet; the next check tries again.
 				}
 			}
 			Say @{

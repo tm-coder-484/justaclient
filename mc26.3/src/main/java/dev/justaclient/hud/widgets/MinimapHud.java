@@ -60,7 +60,7 @@ public final class MinimapHud extends HudFeature {
 	private final ChoiceSetting<Zoom> zoom = choice("zoom", "Zoom", Zoom.NEAR);
 	private final BoolSetting rotate = bool("rotate", "Rotate with view", true);
 	private final BoolSetting waypoints = bool("waypoints", "Show waypoints", true);
-	private final BoolSetting entities = bool("entities", "Players and mobs in view", true);
+	private final BoolSetting entities = bool("entities", "Players and mobs", true);
 	private final BoolSetting coords = bool("coords", "Coordinates under the map", true);
 	private @Nullable DynamicTexture texture;
 	private int centerX = Integer.MIN_VALUE;

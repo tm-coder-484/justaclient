@@ -45,12 +45,15 @@ public final class Lyrics {
 		/** Words without timings; shown as a hint that only plain lyrics exist. */
 		PLAIN,
 		INSTRUMENTAL,
-		NONE
+		NONE,
+		/** lrclib could not be reached; not cached, and tried again shortly. */
+		ERROR
 	}
 
 	public record Result(Status status, List<Line> lines) {
 		public static final Result LOADING = new Result(Status.LOADING, List.of());
 		public static final Result NONE = new Result(Status.NONE, List.of());
+		public static final Result ERROR = new Result(Status.ERROR, List.of());
 
 		/** The line playing at {@code positionMs}, or -1 before the first. */
 		public int indexAt(long positionMs) {
@@ -70,12 +73,20 @@ public final class Lyrics {
 		}
 	}
 
+	/** lrclib answered with an error or could not be reached, as opposed to "no such song". */
+	private static final class Unreachable extends Exception {
+		Unreachable() {
+			super(null, null, false, false);
+		}
+	}
+
 	private Lyrics() {
 	}
 
 	/** Looks the track up, from the disk cache when possible. Blocks; call off the render thread. */
 	public static Result fetch(MediaState track) {
-		String key = hash(track.title() + '|' + track.artist() + '|' + track.album() + '|' + track.durationMs() / 1000);
+		// "v2": answers cached before network errors were told apart from "not found" are not trusted.
+		String key = hash("v2|" + track.title() + '|' + track.artist() + '|' + track.album() + '|' + track.durationMs() / 1000);
 		Path file = CACHE.resolve(key + ".json");
 		try {
 			if (Files.exists(file)) {
@@ -89,7 +100,13 @@ public final class Lyrics {
 		} catch (IOException | RuntimeException e) {
 			// Fall through to the network.
 		}
-		JsonObject found = lookup(track);
+		JsonObject found;
+		try {
+			found = lookup(track);
+		} catch (Unreachable e) {
+			Justaclient.LOGGER.debug("lrclib.net could not be reached; trying again later");
+			return Result.ERROR;
+		}
 		JsonObject store = found != null ? found : new JsonObject();
 		if (found == null) {
 			store.addProperty("missing", true);
@@ -103,7 +120,7 @@ public final class Lyrics {
 		return toResult(store);
 	}
 
-	private static @Nullable JsonObject lookup(MediaState track) {
+	private static @Nullable JsonObject lookup(MediaState track) throws Unreachable {
 		String artist = firstArtist(track.artist());
 		StringBuilder q = new StringBuilder("https://lrclib.net/api/get?track_name=").append(enc(track.title())).append("&artist_name=").append(enc(artist));
 		if (!track.album().isBlank()) {
@@ -169,19 +186,25 @@ public final class Lyrics {
 		return artist.substring(0, cut).trim();
 	}
 
-	private static @Nullable JsonElement get(String url) {
+	/** The parsed answer, or null when lrclib says there is no such song (404). */
+	private static @Nullable JsonElement get(String url) throws Unreachable {
 		try {
 			HttpRequest request = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(10)).header("User-Agent", AGENT).GET().build();
 			HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-			if (response.statusCode() != 200) {
+			if (response.statusCode() == 404) {
 				return null;
 			}
+			if (response.statusCode() != 200) {
+				throw new Unreachable();
+			}
 			return JsonParser.parseString(response.body());
-		} catch (IOException | RuntimeException e) {
+		} catch (IOException e) {
+			throw new Unreachable();
+		} catch (RuntimeException e) {
 			return null;
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
-			return null;
+			throw new Unreachable();
 		}
 	}
 
