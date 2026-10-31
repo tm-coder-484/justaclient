@@ -18,8 +18,18 @@ public final class KeySetting extends Setting<Integer> {
 	}
 
 	/** True while the key is physically held. */
+	/**
+	 * True while the key is physically held. Ignored while F3 is held, so vanilla's F3 combinations (F3 + B for hitboxes,
+	 * F3 + C, ...) don't also trigger a feature bound to the same letter.
+	 */
 	public boolean isDown() {
-		return isBound() && InputConstants.isKeyDown(value);
+		if (!isBound()) {
+			return false;
+		}
+		if (value != InputConstants.KEY_F3 && InputConstants.isKeyDown(InputConstants.KEY_F3)) {
+			return false;
+		}
+		return InputConstants.isKeyDown(value);
 	}
 
 	public String keyName() {

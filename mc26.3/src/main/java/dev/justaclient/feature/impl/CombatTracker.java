@@ -47,6 +47,7 @@ public final class CombatTracker {
 			target = living;
 			lastAttack = System.nanoTime();
 		}
+		Features.get(SlashTrailFeature.class).onAttack();
 	}
 
 	/** The server says {@code entity} took damage. */
@@ -54,6 +55,7 @@ public final class CombatTracker {
 		if (entity == target && System.nanoTime() - lastAttack < HIT_WINDOW_NANOS) {
 			lastHit = System.nanoTime();
 			Features.get(HitParticlesFeature.class).onHit(target);
+			Features.get(HitBubblesFeature.class).onHit(target);
 			Features.get(HitSoundsFeature.class).onHit();
 		}
 	}

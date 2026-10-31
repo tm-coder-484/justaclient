@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.justaclient.anim.Colors;
 import dev.justaclient.feature.Feature;
+import dev.justaclient.feature.impl.PerformanceModeFeature;
 import dev.justaclient.hud.FrameCost;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -14,6 +15,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -30,6 +32,7 @@ public final class WorldFx {
 	private static final List<Particle> PARTICLES = new ArrayList<>();
 	private static final List<Ring> RINGS = new ArrayList<>();
 	private static final List<Layer> LAYERS = new ArrayList<>();
+	private static final List<Layer> SOLID_LAYERS = new ArrayList<>();
 	private static final FrameCost.Section COST = FrameCost.section("Effect particles");
 	private static long lastNanos = -1;
 
@@ -43,6 +46,9 @@ public final class WorldFx {
 		double x, y, z, vx, vy, vz;
 		float size, life, age, gravity, drag;
 		int color;
+		/** Drawn as a see-through bubble that wobbles as it rises and pops at the end. */
+		boolean bubble;
+		float phase;
 	}
 
 	private static final class Ring {
@@ -62,7 +68,7 @@ public final class WorldFx {
 
 	/** One glowing dot that flies, falls and fades. Velocity is in blocks per second. */
 	public static void particle(double x, double y, double z, double vx, double vy, double vz, float size, int color, float life, float gravity, float drag) {
-		if (PARTICLES.size() >= MAX_PARTICLES) {
+		if (PARTICLES.size() >= PerformanceModeFeature.particleCap(MAX_PARTICLES)) {
 			PARTICLES.removeFirst();
 		}
 		Particle p = new Particle();
@@ -78,6 +84,14 @@ public final class WorldFx {
 		p.gravity = gravity;
 		p.drag = drag;
 		PARTICLES.add(p);
+	}
+
+	/** A soap bubble that rises with a wobble, then pops. Velocity is in blocks per second. */
+	public static void bubble(double x, double y, double z, double vx, double vy, double vz, float size, int color, float life) {
+		particle(x, y, z, vx, vy, vz, size, color, life, -0.6f, 1.8f);
+		Particle p = PARTICLES.getLast();
+		p.bubble = true;
+		p.phase = (float) (Math.random() * Math.PI * 2);
 	}
 
 	/** A flat ring on the ground that grows from {@code from} to {@code to} blocks and fades out. */
@@ -102,7 +116,31 @@ public final class WorldFx {
 		RINGS.clear();
 	}
 
+	/**
+	 * Like {@link #layer}, but the frame draws flat solid quads ({@link Frame#solidQuad}) with depth, for small models.
+	 * On 26.3 each render type gets its own geometry submission, so solid shapes have their own layer list.
+	 */
+	public static void solidLayer(Feature owner, Consumer<Frame> draw) {
+		SOLID_LAYERS.add(new Layer(owner, draw));
+	}
+
 	private static void collect(LevelRenderContext context) {
+		boolean anySolid = false;
+		for (Layer layer : SOLID_LAYERS) {
+			anySolid |= layer.owner.isEnabled();
+		}
+		if (anySolid && Minecraft.getInstance().level != null) {
+			context.submitNodeCollector().submitCustomGeometry(context.poseStack(), RenderTypes.debugQuads(), (pose, buffer) -> {
+				Frame frame = new Frame(context, pose, buffer, 0f);
+				for (Layer layer : SOLID_LAYERS) {
+					if (layer.owner.isEnabled()) {
+						layer.owner.cost.begin();
+						layer.draw.accept(frame);
+						layer.owner.cost.end();
+					}
+				}
+			});
+		}
 		boolean anyLayer = false;
 		for (Layer layer : LAYERS) {
 			anyLayer |= layer.owner.isEnabled();
@@ -157,6 +195,15 @@ public final class WorldFx {
 			p.y += p.vy * dt;
 			p.z += p.vz * dt;
 			float t = p.age / p.life;
+			if (p.bubble) {
+				// Grow in, drift with a wobble, then swell and vanish in the last moment: the pop.
+				double wobble = Math.sin(p.age * 7f + p.phase) * 0.04;
+				float grow = Math.min(1f, t * 6f);
+				float pop = t > 0.88f ? (t - 0.88f) / 0.12f : 0f;
+				f.bubble(p.x + wobble, p.y, p.z + Math.cos(p.age * 6f + p.phase) * 0.03, p.size * grow * (1f + pop * 0.6f),
+					Colors.fade(p.color, 1f - pop));
+				continue;
+			}
 			// Pop in quickly, then shrink and fade.
 			float scale = Math.min(1f, t * 8f) * (1f - t * t);
 			f.sprite(p.x, p.y, p.z, p.size * scale, Colors.fade(p.color, 1f - t * t));
@@ -215,6 +262,34 @@ public final class WorldFx {
 			vertex(cx + rx - ux, cy + ry - uy, cz + rz - uz, 1f, -1f, color);
 			vertex(cx + rx + ux, cy + ry + uy, cz + rz + uz, 1f, 1f, color);
 			vertex(cx - rx + ux, cy - ry + uy, cz - rz + uz, -1f, 1f, color);
+		}
+
+		/**
+		 * A flat-coloured solid quad (corners in absolute world positions, in order), depth tested. Used for small models
+		 * such as hats; shade the colour per face for a lit look.
+		 */
+		public void solidQuad(Vec3 a, Vec3 b, Vec3 c, Vec3 d, int color) {
+			// Only valid in a frame given to a solidLayer, whose buffer takes position and colour.
+			for (Vec3 p : new Vec3[] {a, b, c, d}) {
+				out.addVertex(pose, (float) (p.x - camera.x), (float) (p.y - camera.y), (float) (p.z - camera.z)).setColor(color);
+			}
+		}
+
+		/** A camera-facing bubble: a clear body with a coloured rim and a highlight. Flagged to the shader by V above 2. */
+		public void bubble(double x, double y, double z, float size, int color) {
+			if (size <= 0.001f || (color >>> 24) == 0) {
+				return;
+			}
+			float cx = (float) (x - camera.x);
+			float cy = (float) (y - camera.y);
+			float cz = (float) (z - camera.z);
+			float h = size / 2f;
+			float rx = right.x * h, ry = right.y * h, rz = right.z * h;
+			float ux = up.x * h, uy = up.y * h, uz = up.z * h;
+			vertex(cx - rx - ux, cy - ry - uy, cz - rz - uz, -1f, 3f, color);
+			vertex(cx + rx - ux, cy + ry - uy, cz + rz - uz, 1f, 3f, color);
+			vertex(cx + rx + ux, cy + ry + uy, cz + rz + uz, 1f, 5f, color);
+			vertex(cx - rx + ux, cy - ry + uy, cz - rz + uz, -1f, 5f, color);
 		}
 
 		/**

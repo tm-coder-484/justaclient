@@ -1,6 +1,7 @@
 package dev.justaclient.mixin;
 
 import dev.justaclient.feature.Features;
+import dev.justaclient.feature.impl.BlockFoundFeature;
 import dev.justaclient.feature.impl.CombatTracker;
 import dev.justaclient.feature.impl.CrosshairFeature;
 import dev.justaclient.hud.SessionStats;
@@ -23,10 +24,16 @@ abstract class MultiPlayerGameModeMixin {
 		CombatTracker.onAttack(target);
 	}
 
+	@Inject(method = "destroyBlock", at = @At("HEAD"))
+	private void justaclient$beforeBlockBroken(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
+		BlockFoundFeature.beforeBreak(pos);
+	}
+
 	@Inject(method = "destroyBlock", at = @At("RETURN"))
 	private void justaclient$onBlockBroken(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
 		if (cir.getReturnValueZ()) {
 			SessionStats.onBlockBroken();
+			BlockFoundFeature.afterBreak(pos);
 		}
 	}
 }

@@ -59,6 +59,8 @@ dependencies {
 processResources {
 	// This project's copies of fabric.mod.json, the mixin config and any overridden shader win over the root ones.
 	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+	// 26.3's lightmap already takes block and sky tints, so Light colour needs no replacement lightmap shader here.
+	exclude "assets/justaclient/shaders/core/lightmap.fsh"
 
 	def version = project.version
 	inputs.property "version", version

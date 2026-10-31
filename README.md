@@ -41,7 +41,9 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 | **Performance** (menu, or click the frame cost in the footer) | What each feature costs per frame, against the 5% budget. |
 | **C** (hold) | Zoom. Scroll while zooming to go further. The key is in Camera > Zoom. |
 | **I** | Inspect the held item (First person > Hand). |
-| **M** | Open the map. Drag to move, scroll to zoom, right-click to drop a waypoint, and click one to rename, move, recolour, track, hide or delete it. |
+| **M** | Open the map. Drag (or arrow keys) to move, scroll to zoom, Space to find yourself, right-click to drop a waypoint, and click one to rename, move, recolour, track, hide or delete it. |
+| **Stats** (menu sidebar) | Lifetime play time, kills, deaths, blocks and records. |
+| **T** (chat) over the Spotify card | Click its previous, play and next buttons. With the chat open you can also grab and throw the physics trinket. |
 | **B** | Save a waypoint where you stand. `/jwp list`, `/jwp gps <name>`, `/jwp remove <name>` manage them too. |
 | **Middle click** a player | Add or remove a friend. `/jfriend add <name>` and `/jfriend list` work too. |
 
@@ -50,6 +52,53 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 ![HUD editor with a snap guide](docs/screenshots/hud-editor.png)
 
 ## What is in this build
+
+### M6: the rest of the feature list (v0.7.0)
+
+![Spotify card with the album cover, and the current lyric drawn in the sky](docs/screenshots/spotify.png)
+
+- **Spotify card**: album cover (rounded, with a blurred copy of the cover behind the card), title and artist, a
+  progress bar, previous / play / next buttons, an equaliser while playing, and time-synced lyrics from
+  [lrclib.net](https://lrclib.net) that fill in as they are sung. The card takes its colours from the cover. Open the
+  chat to click the buttons, or bind media keys in its settings. Works with the Spotify app on Windows (system media
+  controls), macOS and Linux (`playerctl`); turn off "Spotify only" to follow any player, such as a browser tab.
+- **Lyrics in the sky**: the current line (or drifting music notes) drawn high in the sky where you were looking when
+  the song started (Spotify > In the sky).
+- **World**: time of day (presets or any time, plus moon phase), light colour (tint block light and sky light), water
+  colour presets, clean world (hide falling blocks, fire on entities, rain and snow), end crystal size, spin, bob and a
+  glow ring, and restyled F3 + B hitboxes (same information as vanilla).
+- **Combat**: hit bubbles and a slash trail on swings. Four more hand styles: glass, smoke, snow and stripes.
+- **Cosmetics**: hats (crown, top hat, cone, beanie) in your accent colour, and a client-side skin swap from a 64 x 64
+  PNG in `config/justaclient/skins/`. Only you see them.
+
+![Title screen with an animated GIF background](docs/screenshots/title-gif.png)
+
+- **Your own title background**: put PNG, JPG or animated GIF files in `config/justaclient/backgrounds/` and pick
+  "Your picture or GIF" under Utility > Title screen. Optional soft blur and darkening.
+- **Stats page** (menu sidebar): lifetime play time with a two-week chart, kills, deaths, K/D, blocks mined, distance,
+  diamonds, ancient debris and a few records, saved in `config/justaclient/stats.json`.
+
+![Stats page](docs/screenshots/stats.png)
+
+- **Block-found toasts**: a toast when you mine (or look at) diamonds, ancient debris, emeralds, spawners and more.
+  Only blocks already on your screen; nothing is scanned through walls.
+- **Physics trinket** (HUD): an item that falls, bounces, swings as you turn, and can be grabbed and thrown with the
+  chat open.
+
+![Grabbing the trinket, then throwing it](docs/screenshots/trinket.png)
+
+- **Performance mode** (Utility): no blur behind HUD widgets, lighter menu blur, a quarter of the effect particles,
+  smaller background pictures, optional pause of screen shaders, and blur buffers freed when nothing uses them.
+- **Tier badges** (Utility): PvP tiers from the public MC Tiers list (for example `HT3`) in name tags and the tab list,
+  best tier or one game mode. The API address is a setting, since MC Tiers has moved API versions before.
+- **Map polish**: the map glides when you zoom or jump to a waypoint, shows chunk lines up close, draws a dotted route
+  to the selected waypoint with its distance, and has a find-me button (or Space). Arrow keys pan.
+
+![Map with a route to the selected waypoint](docs/screenshots/map.png)
+
+On 26.3 everything above works the same; light colour and time of day hook 26.3's new lightmap and world clocks.
+
+![26.3: crown and custom skin in third person](docs/screenshots/hats-26.3.png)
 
 ### M5: utility and cosmetics
 
@@ -63,7 +112,6 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 - **Map (M)**: a full-screen version of the minimap over every loaded chunk, with this world's waypoints beside it.
   Right-click the map to add one; pick one to edit its name, coordinates and colour, track it, hide it or delete it.
 
-![Map screen with a waypoint being edited](docs/screenshots/map.png)
 - **Friends**: friends' name tags and tab list entries in your friend colour.
 - **Stream mode**: one switch that hides your name, friends' names, coordinates and the server address on your screen.
 - **Toggle sprint**, **auto reconnect** (a countdown button on the disconnect screen) and a **session stats** widget
@@ -169,7 +217,8 @@ The world effects (sky, fog, trails, jump circles, hit sounds) start off; turn t
 | `src/main/java/dev/justaclient/anim/` | `Easing`, `Animation`, `Spring`, `Colors` |
 | `src/main/java/dev/justaclient/config/` | Style tokens and JSON config |
 | `src/main/java/dev/justaclient/feature/` | Feature and setting framework, the feature list, non-HUD features (`impl/`) |
-| `src/main/java/dev/justaclient/hud/` | HUD renderer, widget base classes and the widgets (`widgets/`) |
+| `src/main/java/dev/justaclient/hud/` | HUD renderer, widget base classes and the widgets (`widgets/`), session and lifetime stats |
+| `src/main/java/dev/justaclient/media/` | Now playing: Spotify / media sources per OS, album art, synced lyrics |
 | `src/main/java/dev/justaclient/profile/` | Profile files |
 | `src/main/java/dev/justaclient/waypoint/` | Waypoint storage |
 | `src/main/java/dev/justaclient/command/` | Client commands (`/jwp`, `/jfriend`) |

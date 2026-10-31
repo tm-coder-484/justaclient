@@ -9,6 +9,7 @@ import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.renderpearl.api.textures.FilterMode;
 import com.mojang.renderpearl.api.textures.GpuTextureView;
 import dev.justaclient.config.JacConfig;
+import dev.justaclient.feature.impl.PerformanceModeFeature;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +32,7 @@ public final class BlurEngine {
 	private static int width = -1;
 	private static int height = -1;
 	private static boolean requested;
+	private static int idleFrames;
 
 	private BlurEngine() {
 	}
@@ -45,8 +47,15 @@ public final class BlurEngine {
 	/** Blurs the main render target if a glass panel was submitted this frame. Runs on the render thread. */
 	public static void capture() {
 		if (!requested) {
+			// Performance mode: give the blur targets back after ten seconds without glass.
+			if (++idleFrames > 600 && !down.isEmpty() && PerformanceModeFeature.freeMemory()) {
+				close();
+				width = -1;
+				height = -1;
+			}
 			return;
 		}
+		idleFrames = 0;
 		requested = false;
 		RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
 		if (main.width != width || main.height != height) {
@@ -78,7 +87,7 @@ public final class BlurEngine {
 	}
 
 	private static int passes() {
-		return Math.max(1, Math.min(MAX_PASSES, JacConfig.get().style.blurStrength));
+		return Math.max(1, Math.min(Math.min(MAX_PASSES, PerformanceModeFeature.maxBlurPasses()), JacConfig.get().style.blurStrength));
 	}
 
 	private static void ensureTargets() {

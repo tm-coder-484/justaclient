@@ -15,6 +15,7 @@ import dev.justaclient.anim.Colors;
 import dev.justaclient.feature.Features;
 import dev.justaclient.feature.impl.ColorGradingFeature;
 import dev.justaclient.feature.impl.MotionBlurFeature;
+import dev.justaclient.feature.impl.PerformanceModeFeature;
 import java.util.Optional;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MappableRingBuffer;
@@ -41,8 +42,9 @@ public final class PostFx {
 	public static void apply() {
 		ColorGradingFeature grading = Features.get(ColorGradingFeature.class);
 		MotionBlurFeature motion = Features.get(MotionBlurFeature.class);
-		boolean grade = grading.isEnabled();
-		boolean blur = motion.isEnabled();
+		boolean paused = PerformanceModeFeature.pauseShaders();
+		boolean grade = grading.isEnabled() && !paused;
+		boolean blur = motion.isEnabled() && !paused;
 		long now = System.nanoTime();
 		float dt = lastNanos < 0 ? 1f / 60f : Math.min(0.25f, (now - lastNanos) / 1e9f);
 		lastNanos = now;

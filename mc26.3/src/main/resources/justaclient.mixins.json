@@ -3,10 +3,16 @@
 	"package": "dev.justaclient.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
+		"AbstractClientPlayerMixin",
+		"BiomeMixin",
 		"BossHealthOverlayAccessor",
 		"CameraMixin",
+		"ClientClockInstanceMixin",
 		"ClientPacketListenerMixin",
+		"EndCrystalRendererMixin",
+		"EntityHitboxDebugRendererMixin",
 		"EntityRendererMixin",
+		"FallingBlockRendererMixin",
 		"FirstPersonHandsMixin",
 		"FogRendererMixin",
 		"FontMixin",
@@ -19,6 +25,7 @@
 		"LevelExtractorMixin",
 		"LevelLoadingScreenMixin",
 		"LevelRendererMixin",
+		"LightmapRenderStateExtractorMixin",
 		"LivingEntityMixin",
 		"MouseHandlerMixin",
 		"MultiPlayerGameModeAccessor",
@@ -27,7 +34,8 @@
 		"RenderSetupMixin",
 		"ScreenEffectRendererMixin",
 		"SkyRendererMixin",
-		"TextureTransformMixin"
+		"TextureTransformMixin",
+		"WeatherEffectRendererMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

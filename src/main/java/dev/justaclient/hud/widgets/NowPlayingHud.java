@@ -42,6 +42,8 @@ public final class NowPlayingHud extends HudFeature {
 	private static final float ART = 42f;
 	private static final float GAP = 6f;
 	private static final float LYRICS_H = 24f;
+	/** Shown for instrumental breaks. The client font has no music note glyph, so three dots stand in. */
+	private static final String BREAK = "•  •  •";
 
 	public enum LyricsMode implements ChoiceSetting.Named {
 		OFF("Off"), LINE("Current line"), TWO("Current and next");
@@ -345,8 +347,8 @@ public final class NowPlayingHud extends HudFeature {
 			index = result.indexAt(pos);
 			Lyrics.Line line = index >= 0 ? result.lines().get(index) : null;
 			Lyrics.Line after = index + 1 < result.lines().size() ? result.lines().get(index + 1) : null;
-			current = line == null ? "♪" : line.text().isBlank() ? "♪" : line.text();
-			next = after == null ? "" : after.text().isBlank() ? "♪" : after.text();
+			current = line == null ? BREAK : line.text().isBlank() ? BREAK : line.text();
+			next = after == null ? "" : after.text().isBlank() ? BREAK : after.text();
 			if (line != null && after != null) {
 				long span = Math.min(8000L, Math.max(1L, after.timeMs() - line.timeMs()));
 				fill = Math.min(1f, (pos - line.timeMs()) / (float) span);
@@ -433,7 +435,7 @@ public final class NowPlayingHud extends HudFeature {
 		int index = result.indexAt(pos);
 		Lyrics.Line line = index >= 0 ? result.lines().get(index) : null;
 		Lyrics.Line after = index + 1 < result.lines().size() ? result.lines().get(index + 1) : null;
-		String current = line == null || line.text().isBlank() ? "♪" : line.text();
+		String current = line == null || line.text().isBlank() ? BREAK : line.text();
 		float fill = 1f;
 		if (line != null && after != null) {
 			long span = Math.min(8000L, Math.max(1L, after.timeMs() - line.timeMs()));

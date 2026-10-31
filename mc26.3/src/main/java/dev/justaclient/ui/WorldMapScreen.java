@@ -64,14 +64,20 @@ public final class WorldMapScreen extends Screen {
 	private static int lastZoom = 2;
 
 	private final Animation open = new Animation(Easing.CUBIC_OUT, 240, 0f);
+	private final Animation locateAnim = new Animation(Easing.CUBIC_OUT, 160, 0f);
 	private boolean closing;
 	private float alpha;
 	private float originX;
 	private float originY;
 	private float scale = 1f;
 
+	/** Where the view is heading; {@code shown*} glide towards it so zooming and jumping to a waypoint animate. */
 	private double viewX;
 	private double viewZ;
+	private double shownX;
+	private double shownZ;
+	private float shownPpb = -1f;
+	private long lastFrame;
 	private int zoom = lastZoom;
 	private boolean dragging;
 	private double dragLastX;
@@ -238,7 +244,35 @@ public final class WorldMapScreen extends Screen {
 	// Terrain
 
 	private float ppb() {
-		return ZOOMS[zoom];
+		return shownPpb > 0 ? shownPpb : ZOOMS[zoom];
+	}
+
+	/** Eases the shown view towards the target. Dragging moves both at once so the map sticks to the cursor. */
+	private void glide() {
+		long now = System.nanoTime();
+		float dt = lastFrame == 0 ? 1f : Math.min(0.1f, (now - lastFrame) / 1e9f);
+		lastFrame = now;
+		if (shownPpb < 0 || dragging) {
+			shownX = viewX;
+			shownZ = viewZ;
+			if (shownPpb < 0) {
+				shownPpb = ZOOMS[zoom];
+			}
+			return;
+		}
+		float k = 1f - (float) Math.exp(-dt * 14f);
+		shownX += (viewX - shownX) * k;
+		shownZ += (viewZ - shownZ) * k;
+		// Zoom eases in log space so each step feels the same speed.
+		double logNow = Math.log(shownPpb);
+		shownPpb = (float) Math.exp(logNow + (Math.log(ZOOMS[zoom]) - logNow) * k);
+	}
+
+	private void centerOnPlayer() {
+		if (minecraft.player != null) {
+			viewX = minecraft.player.getX();
+			viewZ = minecraft.player.getZ();
+		}
 	}
 
 	private static int blocksFor(int zoom) {
@@ -280,19 +314,19 @@ public final class WorldMapScreen extends Screen {
 	}
 
 	private float screenX(double blockX) {
-		return MAP_X + MAP_W / 2f + (float) ((blockX - viewX) * ppb());
+		return MAP_X + MAP_W / 2f + (float) ((blockX - shownX) * ppb());
 	}
 
 	private float screenY(double blockZ) {
-		return MAP_Y + MAP_H / 2f + (float) ((blockZ - viewZ) * ppb());
+		return MAP_Y + MAP_H / 2f + (float) ((blockZ - shownZ) * ppb());
 	}
 
 	private double blockX(double localX) {
-		return viewX + (localX - MAP_X - MAP_W / 2f) / ppb();
+		return shownX + (localX - MAP_X - MAP_W / 2f) / ppb();
 	}
 
 	private double blockZ(double localY) {
-		return viewZ + (localY - MAP_Y - MAP_H / 2f) / ppb();
+		return shownZ + (localY - MAP_Y - MAP_H / 2f) / ppb();
 	}
 
 	private static boolean onMap(double mx, double my) {
@@ -329,6 +363,7 @@ public final class WorldMapScreen extends Screen {
 			return;
 		}
 		applyFields();
+		glide();
 		rebuildIfNeeded();
 		float fit = Math.min(1f, Math.min((width - 16f) / W, (height - 16f) / H));
 		scale = fit * (0.94f + 0.06f * t);
@@ -364,6 +399,20 @@ public final class WorldMapScreen extends Screen {
 			g.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, 0, 0, 0f, 0f, SIZE, SIZE, SIZE, SIZE, Colors.fade(0xFFFFFFFF, t));
 			g.pose().popMatrix();
 		}
+		// Chunk lines fade in once a chunk is big enough to read.
+		float grid = Math.max(0f, Math.min(1f, (ppb() - 1.2f) / 1.5f));
+		if (grid > 0.01f) {
+			int lineColor = Colors.fade(0x22FFFFFF, t * grid);
+			double left = Math.floor(blockX(MAP_X) / 16) * 16;
+			for (double bx = left; screenX(bx) < MAP_X + MAP_W; bx += 16) {
+				Draw.rect(g, screenX(bx), MAP_Y, 0.5f, MAP_H, 0, lineColor);
+			}
+			double top = Math.floor(blockZ(MAP_Y) / 16) * 16;
+			for (double bz = top; screenY(bz) < MAP_Y + MAP_H; bz += 16) {
+				Draw.rect(g, MAP_X, screenY(bz), MAP_W, 0.5f, 0, lineColor);
+			}
+		}
+		drawRoute(g, t);
 		Waypoint hovered = !dragging && onMap(mx, my) ? waypointAt(mx, my) : null;
 		for (Waypoint w : Waypoints.here()) {
 			float x = screenX(w.x + 0.5);
@@ -395,7 +444,7 @@ public final class WorldMapScreen extends Screen {
 		g.disableScissor();
 
 		// Hint along the bottom, and the block under the cursor along the top.
-		String hint = "Drag to move  ·  Scroll to zoom  ·  Right-click to add";
+		String hint = "Drag or arrows to move  ·  Scroll to zoom  ·  Right-click to add  ·  Space to find you";
 		float hw = JacText.width(hint, Theme.SMALL, JacText.Weight.REGULAR);
 		float hx = MAP_X + (MAP_W - hw) / 2f;
 		Draw.rect(g, hx - 6f, MAP_Y + MAP_H - 17f, hw + 12f, 11f, 5.5f, Colors.fade(0x99000000, t));
@@ -410,6 +459,52 @@ public final class WorldMapScreen extends Screen {
 		float zw = JacText.width(z, Theme.SMALL, JacText.Weight.SEMIBOLD);
 		Draw.rect(g, MAP_X + MAP_W - zw - 18f, MAP_Y + 6f, zw + 12f, 11f, 5.5f, Colors.fade(0x99000000, t));
 		JacText.draw(g, z, MAP_X + MAP_W - zw - 12f, MAP_Y + 7.5f, Colors.fade(Theme.TEXT, t), Theme.SMALL, JacText.Weight.SEMIBOLD);
+		// Back to you: shown once the view has wandered off.
+		LocalPlayer me = minecraft.player;
+		boolean away = me != null && Math.hypot(me.getX() - viewX, me.getZ() - viewZ) * ppb() > 24;
+		float locate = locateAnim.animateTo(away ? 1f : 0f).get() * t;
+		if (locate > 0.01f) {
+			float lx = locateX(zw);
+			boolean hover = mx >= lx && mx < lx + 13f && my >= MAP_Y + 5f && my < MAP_Y + 18f;
+			Draw.rect(g, lx, MAP_Y + 5f, 13f, 13f, 6.5f, Colors.fade(hover ? 0xCC202430 : 0x99000000, locate));
+			JacText.icon(g, Icons.LOCATE_FIXED, lx + 3f, MAP_Y + 8f, 7f, Colors.fade(hover ? JacConfig.accent() : Theme.TEXT, locate));
+		}
+	}
+
+	private float locateX(float zoomLabelW) {
+		return MAP_X + MAP_W - zoomLabelW - 18f - 17f;
+	}
+
+	/** A dotted line from you to the selected waypoint, with the distance halfway along. */
+	private void drawRoute(GuiGraphicsExtractor g, float t) {
+		LocalPlayer player = minecraft.player;
+		if (selected == null || player == null || !selected.dimension.equals(Waypoints.dimension())) {
+			return;
+		}
+		float partial = minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+		float ax = screenX(player.getX(partial));
+		float ay = screenY(player.getZ(partial));
+		float bx = screenX(selected.x + 0.5);
+		float by = screenY(selected.z + 0.5);
+		float len = (float) Math.hypot(bx - ax, by - ay);
+		if (len < 14f) {
+			return;
+		}
+		// The dots march towards the waypoint.
+		float offset = (System.currentTimeMillis() % 1000L) / 1000f * 6f;
+		int color = Colors.fade(Colors.withAlpha(selected.color, 0xD0), t);
+		for (float d = 8f + offset; d < len - 6f; d += 6f) {
+			float f = d / len;
+			Draw.circle(g, ax + (bx - ax) * f, ay + (by - ay) * f, 1.8f, Colors.fade(0x90000000, t));
+			Draw.circle(g, ax + (bx - ax) * f, ay + (by - ay) * f, 1.2f, color);
+		}
+		double blocks = Math.hypot(player.getX() - selected.x - 0.5, player.getZ() - selected.z - 0.5);
+		String label = blocks >= 1000 ? String.format("%.1f km", blocks / 1000) : String.format("%.0f m", blocks);
+		float lw = JacText.width(label, Theme.SMALL, JacText.Weight.SEMIBOLD);
+		float cx = (ax + bx) / 2f;
+		float cy = (ay + by) / 2f;
+		Draw.rect(g, cx - lw / 2f - 4f, cy - 5f, lw + 8f, 10f, 5f, Colors.fade(0xB0000000, t));
+		JacText.drawCentered(g, label, cx, cy - 3.5f, Colors.fade(Theme.TEXT, t), Theme.SMALL, JacText.Weight.SEMIBOLD);
 	}
 
 	private float listHeight() {
@@ -523,12 +618,21 @@ public final class WorldMapScreen extends Screen {
 				return true;
 			}
 		}
+		String zoomLabel = Math.round(ZOOMS[zoom] * 100) + "%";
+		float lx = locateX(JacText.width(zoomLabel, Theme.SMALL, JacText.Weight.SEMIBOLD));
+		if (locateAnim.get() > 0.5f && sdlButton == InputConstants.MOUSE_BUTTON_LEFT && mx >= lx && mx < lx + 13f && my >= MAP_Y + 5f && my < MAP_Y + 18f) {
+			centerOnPlayer();
+			return true;
+		}
 		if (onMap(mx, my)) {
 			Waypoint hit = waypointAt(mx, my);
 			if (sdlButton == InputConstants.MOUSE_BUTTON_LEFT) {
 				if (hit != null) {
 					select(hit);
 				}
+				// Pick up the map where it is shown, even mid-glide.
+				viewX = shownX;
+				viewZ = shownZ;
 				dragging = true;
 				dragLastX = mx;
 				dragLastY = my;
@@ -625,7 +729,22 @@ public final class WorldMapScreen extends Screen {
 			deleteSelected();
 			return true;
 		}
-		return super.keyPressed(event);
+		if (key == InputConstants.KEY_SPACE) {
+			centerOnPlayer();
+			return true;
+		}
+		// Arrow keys pan a quarter of the view.
+		double step = MAP_W / 4f / ZOOMS[zoom];
+		switch (key) {
+			case InputConstants.KEY_LEFT -> viewX -= step;
+			case InputConstants.KEY_RIGHT -> viewX += step;
+			case InputConstants.KEY_UP -> viewZ -= step;
+			case InputConstants.KEY_DOWN -> viewZ += step;
+			default -> {
+				return super.keyPressed(event);
+			}
+		}
+		return true;
 	}
 
 	@Override
