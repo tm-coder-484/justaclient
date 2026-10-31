@@ -24,9 +24,9 @@ public final class HudRenderer {
 		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (g, delta) -> {
 			CrosshairFeature crosshair = Features.get(CrosshairFeature.class);
 			if (crosshair.isEnabled() && crosshair.shouldReplaceVanilla()) {
-				FrameCost.begin();
+				crosshair.cost.begin();
 				crosshair.renderHud(g, delta);
-				FrameCost.end();
+				crosshair.cost.end();
 			} else {
 				vanilla.render(g, delta);
 			}
@@ -49,17 +49,17 @@ public final class HudRenderer {
 		if (editing || Minecraft.getInstance().player == null) {
 			return;
 		}
-		FrameCost.begin();
 		for (HudFeature hud : Features.hud()) {
 			if (!hud.isEnabled()) {
 				continue;
 			}
+			hud.cost.begin();
 			hud.layout(false);
 			if (hud.hasContent()) {
 				draw(g, hud, false);
 			}
+			hud.cost.end();
 		}
-		FrameCost.end();
 	}
 
 	/** Draws one widget at its saved position. The caller has already run {@link HudFeature#layout}. */

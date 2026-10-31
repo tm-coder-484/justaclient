@@ -33,9 +33,10 @@ macOS / Linux: `./start.sh` to play, `./start.sh build` to build.
 | Typing in the menu | Searches every feature and setting. Esc clears the search, Esc again closes. |
 | Feature cards | Click to see settings, click the switch (or right click the card) to turn it on or off. |
 | **Toggle key** row | Click it and press any key to toggle that feature in game. Esc or Backspace unbinds. |
-| **Profile** (bottom left) | Switch profiles, copy the current one, delete it, or open the profiles folder. |
+| **Profile** (bottom left) | Switch profiles, copy the current one, copy it to the clipboard to share, paste one a friend sent, delete it, or open the profiles folder. |
 | **Edit HUD layout** | Drag widgets; they snap to edges, the centre and each other (hold Shift to place freely). Scroll to resize, right click for settings. |
 | **Theme** | Accent, panel opacity, corners, blur, outline, font and motion. Everything follows these. |
+| **Performance** (menu, or click the frame cost in the footer) | What each feature costs per frame, against the 5% budget. |
 | **C** (hold) | Zoom. Scroll while zooming to go further. The key is in Camera > Zoom. |
 
 ![HUD widgets in game](docs/screenshots/hud.png)
@@ -43,6 +44,36 @@ macOS / Linux: `./start.sh` to play, `./start.sh build` to build.
 ![HUD editor with a snap guide](docs/screenshots/hud-editor.png)
 
 ## What is in this build
+
+### M2: release
+
+![Title screen](docs/screenshots/title.png)
+
+![Kill effect, target HUD and the new hotbar](docs/screenshots/combat.png)
+
+- **Title screen**: wordmark, a glass menu with keyboard navigation, your account and skin, and a blurred panorama,
+  plain panorama or animated gradient behind it (Utility > Title screen). Turn it off for vanilla's.
+- **Hotbar**: a glass hotbar with a sliding selection, offhand slot and attack indicator, plus smooth health (with a
+  damage ghost, absorption and low-health pulse), hunger, armor, air and XP bars. Spectator mode keeps vanilla's.
+- **Item overlay**: smooth or accent durability bars, cooldown rings, and sharp stack counts in every inventory.
+- **Target HUD**: face, name and health of whatever you hit, with a damage ghost on the bar.
+- **Combat feel** (all cosmetic, driven only by what vanilla already shows): hit particles, hit sounds, kill effects
+  (ring burst, rising soul or shatter), totem pop effects with a pop counter, and a ring or orbit marker under your
+  target.
+- **Sky**: twinkling extra stars, an aurora over the north and shooting stars at night, plus an optional day sky tint.
+  Overworld only, and drawn behind everything like vanilla's sky.
+- **Fog**: push air fog further out and recolour it per dimension. Water, lava, blindness and darkness are untouched.
+- **Trails and jump circles**: a ribbon or dotted trail behind you (and optionally other players), and rings when you
+  jump or land.
+- **Profiles**: copy a profile to the clipboard and paste one from a friend; it arrives as a new profile.
+- **Performance page**: CPU time per feature (average, peak and share of the frame) against a 5% budget. GPU time is
+  not included; compare FPS with a feature on and off for that.
+
+The world effects (sky, fog, trails, jump circles, hit sounds) start off; turn them on under World and Combat feel.
+
+![Aurora, stars and a trail at night](docs/screenshots/night.png)
+
+![Performance page](docs/screenshots/performance.png)
 
 ### M1: first playable
 
@@ -78,16 +109,16 @@ macOS / Linux: `./start.sh` to play, `./start.sh build` to build.
 
 | Path | What it holds |
 | --- | --- |
-| `src/main/java/dev/justaclient/render/` | Shape kit (`Draw`), blur (`BlurEngine`), pipelines |
+| `src/main/java/dev/justaclient/render/` | Shape kit (`Draw`), blur (`BlurEngine`), pipelines, world effects (`WorldFx`) |
 | `src/main/java/dev/justaclient/render/text/` | MSDF font loader and text renderer (`JacText`) |
 | `src/main/java/dev/justaclient/anim/` | `Easing`, `Animation`, `Spring`, `Colors` |
 | `src/main/java/dev/justaclient/config/` | Style tokens and JSON config |
 | `src/main/java/dev/justaclient/feature/` | Feature and setting framework, the feature list, non-HUD features (`impl/`) |
 | `src/main/java/dev/justaclient/hud/` | HUD renderer, widget base classes and the widgets (`widgets/`) |
 | `src/main/java/dev/justaclient/profile/` | Profile files |
-| `src/main/java/dev/justaclient/ui/` | Click GUI, HUD editor, theme page and controls |
-| `src/main/java/dev/justaclient/mixin/` | Small hooks: zoom FOV and mouse, CPS, fire overlay, hit pulse, blur capture |
-| `src/main/resources/assets/justaclient/shaders/` | GLSL for shapes, glass, text and blur |
+| `src/main/java/dev/justaclient/ui/` | Click GUI, HUD editor, theme and performance pages, title screen, controls |
+| `src/main/java/dev/justaclient/mixin/` | Small hooks: zoom FOV and mouse, CPS, fire overlay, hit pulse, blur capture, combat events, item decorations, sky, fog, title screen |
+| `src/main/resources/assets/justaclient/shaders/` | GLSL for shapes, glass, text, blur, world effects and the aurora |
 | `tools/fonts/` | Script that regenerates the font and icon atlases (`icons.txt` lists the icons) |
 
 ## Development
