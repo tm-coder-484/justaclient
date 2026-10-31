@@ -821,6 +821,14 @@ public final class ClickGuiScreen extends Screen {
 
 	@Override
 	public boolean charTyped(CharacterEvent event) {
+		for (Widget w : visibleSettings) {
+			if (w.capturesKeys()) {
+				if (event.isAllowedChatCharacter() && w.charTyped(event.codepoint())) {
+					Profiles.save();
+				}
+				return true;
+			}
+		}
 		if (!event.isAllowedChatCharacter() || query.length() >= 32) {
 			return false;
 		}

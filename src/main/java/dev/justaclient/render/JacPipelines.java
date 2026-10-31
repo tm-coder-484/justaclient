@@ -140,6 +140,31 @@ public final class JacPipelines {
 			.build()
 	);
 
+	/** Color grading, vignette and motion blur over the world frame (see {@link PostFx}). */
+	public static final RenderPipeline POST_GRADE = RenderPipelines.register(
+		RenderPipeline.builder(BLUR_SNIPPET)
+			.withLocation(Justaclient.id("pipeline/post_grade"))
+			.withFragmentShader(Justaclient.id("post/grade"))
+			.withSampler("HistorySampler")
+			.withUniform("JacPost", UniformType.UNIFORM_BUFFER)
+			.build()
+	);
+
+	/** Lays the separately drawn first-person hand back over the frame with its glow (see {@link HandFx}). */
+	public static final RenderPipeline HAND_COMPOSITE = RenderPipelines.register(
+		RenderPipeline.builder()
+			.withLocation(Justaclient.id("pipeline/hand_composite"))
+			.withVertexShader("core/screenquad")
+			.withFragmentShader(Justaclient.id("post/hand"))
+			.withSampler("HandSampler")
+			.withUniform("JacHand", UniformType.UNIFORM_BUFFER)
+			.withBlend(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA)
+			.withDepthWrite(false)
+			.withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+			.withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
+			.build()
+	);
+
 	private JacPipelines() {
 	}
 

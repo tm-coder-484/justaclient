@@ -5,15 +5,21 @@
 	"client": [
 		"ClientPacketListenerMixin",
 		"FogRendererMixin",
+		"FontMixin",
 		"GameRendererMixin",
 		"GuiGraphicsMixin",
+		"GuiMixin",
 		"GuiRendererMixin",
+		"ItemInHandRendererMixin",
+		"LivingEntityMixin",
 		"MinecraftMixin",
 		"MouseHandlerMixin",
 		"MultiPlayerGameModeAccessor",
 		"MultiPlayerGameModeMixin",
+		"RenderSetupMixin",
 		"ScreenEffectRendererMixin",
-		"SkyRendererMixin"
+		"SkyRendererMixin",
+		"TextureTransformMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

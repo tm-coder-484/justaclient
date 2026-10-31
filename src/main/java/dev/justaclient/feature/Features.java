@@ -1,16 +1,23 @@
 package dev.justaclient.feature;
 
 import dev.justaclient.feature.impl.BlockHighlightFeature;
+import dev.justaclient.feature.impl.ColorGradingFeature;
 import dev.justaclient.feature.impl.CopyCoordinatesFeature;
 import dev.justaclient.feature.impl.CrosshairFeature;
 import dev.justaclient.feature.impl.FireOverlayFeature;
 import dev.justaclient.feature.impl.FogFeature;
+import dev.justaclient.feature.impl.GlintFeature;
+import dev.justaclient.feature.impl.HandFeature;
+import dev.justaclient.feature.impl.HandGlowFeature;
 import dev.justaclient.feature.impl.HitParticlesFeature;
+import dev.justaclient.feature.impl.HitSoundsFeature;
 import dev.justaclient.feature.impl.HotbarFeature;
 import dev.justaclient.feature.impl.ItemOverlayFeature;
-import dev.justaclient.feature.impl.HitSoundsFeature;
 import dev.justaclient.feature.impl.JumpCirclesFeature;
 import dev.justaclient.feature.impl.KillEffectsFeature;
+import dev.justaclient.feature.impl.MotionBlurFeature;
+import dev.justaclient.feature.impl.NameProtectFeature;
+import dev.justaclient.feature.impl.OverlaysFeature;
 import dev.justaclient.feature.impl.SkyFeature;
 import dev.justaclient.feature.impl.TargetMarkerFeature;
 import dev.justaclient.feature.impl.TitleScreenFeature;
@@ -59,14 +66,21 @@ public final class Features {
 		register(new KillEffectsFeature());
 		register(new TotemPopFeature());
 		register(new TargetMarkerFeature());
+		register(new HandFeature());
+		register(new HandGlowFeature());
 		register(new FireOverlayFeature());
+		register(new OverlaysFeature());
 		register(new BlockHighlightFeature());
 		register(new SkyFeature());
 		register(new FogFeature());
 		register(new TrailsFeature());
 		register(new JumpCirclesFeature());
+		register(new ColorGradingFeature());
+		register(new MotionBlurFeature());
+		register(new GlintFeature());
 		register(new ZoomFeature());
 		register(new CopyCoordinatesFeature());
+		register(new NameProtectFeature());
 		register(new TitleScreenFeature());
 	}
 
