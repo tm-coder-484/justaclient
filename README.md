@@ -53,7 +53,7 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 
 ## What is in this build
 
-### Fixes (v0.7.1 to v0.7.3)
+### Fixes (v0.7.1 to v0.7.4)
 
 - **Spotify web player**: on Windows the Spotify card now finds the web player playing in a browser (Chrome, Edge,
   Firefox, Brave, Opera and others) with "Spotify only" on, not just the desktop app.
@@ -76,6 +76,19 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
   the surface (under trees and roofs still counts as surface) and surface mobs while you are underground.
 - **Sky-only mode**: Spotify > "Show the card" off hides the HUD card while the sky keeps the lyrics, plus the album
   cover and song name ("Cover and song name in the sky").
+- **Sky player polish (v0.7.4)**:
+  - *Sky position*: "Nearest direction you face" (snaps to north, east, south or west and glides over when you turn
+    well past the halfway point), "Always south", or "Follows you around" (stays in front of you, trailing the turn a
+    little).
+  - *Text layout*: "Flat", or "Curved, far away", which bends the line along a wide arc with the ends tilted and a
+    little smaller, as if painted on a faraway dome.
+  - *Breaks*: the lyric line fades out in instrumental breaks (once a line has been up much longer than it takes to
+    sing it, or after the last line) and the cover and song name move up into its place.
+  - *Sync*: the song clock no longer jumps on every small player report (small drifts are eased out) and a "Lyric
+    timing" slider (-1 to +1 s, default +0.2 s) shows lines earlier or later to match your player.
+  - *Reacting to the music*: Minecraft cannot hear the audio, so the beat comes from the song's tempo (looked up on
+    the Deezer API) plus a kick on every new lyric line: a glow behind the cover swells and the cover pops on the beat.
+    The moving equaliser bars now show after the song name in the sky too. "Pulse to the beat" turns it off.
 
 ### M6: the rest of the feature list (v0.7.0)
 

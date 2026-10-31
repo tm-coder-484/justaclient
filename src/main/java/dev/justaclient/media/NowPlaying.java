@@ -30,6 +30,7 @@ public final class NowPlaying {
 	private static volatile int artVersion;
 	private static volatile Lyrics.Result lyrics = Lyrics.Result.NONE;
 	private static volatile String artNote = "";
+	private static volatile float tempo;
 	private static volatile boolean wantLyrics = true;
 	private static volatile boolean spotifyOnly;
 	private static volatile @Nullable Thread poller;
@@ -96,6 +97,11 @@ public final class NowPlaying {
 		return lyrics;
 	}
 
+	/** Beats per minute of the current song, or 0 if unknown. */
+	public static float tempo() {
+		return tempo;
+	}
+
 	/** What the media code knows, for {@code /jmedia}: the player, track, timeline, cover and lyrics. */
 	public static java.util.List<String> describe() {
 		MediaState s = state;
@@ -110,6 +116,7 @@ public final class NowPlaying {
 		}
 		out.add("Track: " + s.title() + " / " + s.artist() + (s.album().isBlank() ? "" : " / " + s.album()));
 		out.add("Time: " + position() / 1000 + " s of " + (s.durationMs() > 0 ? s.durationMs() / 1000 + " s" : "unknown (player sends no timeline)"));
+		out.add("Tempo: " + (tempo > 0 ? Math.round(tempo) + " bpm (Deezer)" : "unknown"));
 		out.add("Cover: " + (art != null ? "shown, " : "none, ") + artNote);
 		Lyrics.Result l = lyrics;
 		out.add("Lyrics: " + (wantLyrics ? l.status() + (l.status() == Lyrics.Status.SYNCED ? " (" + l.lines().size() + " lines)" : "") + ", " + Lyrics.note()
@@ -162,9 +169,13 @@ public final class NowPlaying {
 				// Some players (browsers among them) report no timeline at all: run our own clock from the track change.
 				boolean noTimeline = next.durationMs() <= 0 && next.positionMs() <= 0;
 				long reading = noTimeline ? (changed ? 0L : position()) : next.positionNow();
-				// Keep the smoothed clock unless the reading disagrees by more than a moment (a seek, a pause, a new song).
-				if (changed || running != clockRunning || Math.abs(position() - reading) > 700) {
+				// Snap the clock on a seek, pause or new song; ease it towards small disagreements so lyrics stay in step
+				// without the bar jumping back and forth on polling jitter.
+				long drift = reading - position();
+				if (changed || running != clockRunning || Math.abs(drift) > 250) {
 					rebase(reading, running);
+				} else if (!noTimeline && Math.abs(drift) > 40) {
+					rebase(position() + drift / 3, running);
 				}
 				state = next;
 				if (next.hasTrack() && changed) {
@@ -198,6 +209,14 @@ public final class NowPlaying {
 				// and artist on iTunes a moment after the track starts.
 				if (next.hasTrack() && changed) {
 					trackAt = System.currentTimeMillis();
+					tempo = 0f;
+					MediaState track = next;
+					ART_LOADER.submit(() -> {
+						float bpm = Tempo.lookup(track);
+						if (track.trackKey().equals(state.trackKey())) {
+							tempo = bpm;
+						}
+					});
 					lastArt = null;
 					searchedKey = "";
 				}
