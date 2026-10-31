@@ -6,8 +6,8 @@ import net.minecraft.client.gui.GuiGraphics;
 
 /** Base for Justaclient's drawn controls. Coordinates are local to the panel that owns the widget. */
 public abstract class Widget {
-	protected final float x;
-	protected final float y;
+	protected float x;
+	protected float y;
 	protected final float width;
 	protected final float height;
 	/** 0..1 hover amount, eased so highlights fade rather than snap. */
@@ -18,6 +18,19 @@ public abstract class Widget {
 		this.y = y;
 		this.width = width;
 		this.height = height;
+	}
+
+	public void setPosition(float x, float y) {
+		this.x = x;
+		this.y = y;
+	}
+
+	public float y() {
+		return y;
+	}
+
+	public float height() {
+		return height;
 	}
 
 	public final void render(GuiGraphics g, double mouseX, double mouseY, float alpha) {
@@ -35,6 +48,16 @@ public abstract class Widget {
 	}
 
 	public void mouseReleased(double mouseX, double mouseY) {
+	}
+
+	/** True while the widget wants every key press, e.g. a key binder waiting for a key. */
+	public boolean capturesKeys() {
+		return false;
+	}
+
+	/** Returns true if the key was used. */
+	public boolean keyPressed(int key) {
+		return false;
 	}
 
 	public boolean isMouseOver(double mouseX, double mouseY) {

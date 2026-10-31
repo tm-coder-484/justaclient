@@ -19,6 +19,8 @@ public final class StyleTokens {
 
 	/** Background blur behind panels. */
 	public boolean blur = true;
+	/** Also blur behind HUD widgets. Costs a blur pass every frame, so it can be turned off on its own. */
+	public boolean hudBlur = true;
 	/** Blur passes, 1 (soft) to 5 (strong). */
 	public int blurStrength = 3;
 
