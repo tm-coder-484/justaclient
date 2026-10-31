@@ -3,6 +3,7 @@ package dev.justaclient;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.justaclient.config.JacConfig;
 import dev.justaclient.feature.Features;
+import dev.justaclient.feature.impl.AmbientParticlesFeature;
 import dev.justaclient.feature.impl.BlockHighlightFeature;
 import dev.justaclient.feature.impl.CombatTracker;
 import dev.justaclient.feature.impl.HotbarFeature;
@@ -47,6 +48,7 @@ public final class Justaclient implements ClientModInitializer {
 		WorldFx.init();
 		TargetMarkerFeature.init();
 		TrailsFeature.init();
+		AmbientParticlesFeature.init();
 		KeyBindingHelper.registerKeyBinding(OPEN_MENU);
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			CombatTracker.tick();

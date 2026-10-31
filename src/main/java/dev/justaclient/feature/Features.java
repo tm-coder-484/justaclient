@@ -1,6 +1,9 @@
 package dev.justaclient.feature;
 
+import dev.justaclient.feature.impl.AmbientParticlesFeature;
 import dev.justaclient.feature.impl.BlockHighlightFeature;
+import dev.justaclient.feature.impl.BossBarFeature;
+import dev.justaclient.feature.impl.CameraFeature;
 import dev.justaclient.feature.impl.ColorGradingFeature;
 import dev.justaclient.feature.impl.CopyCoordinatesFeature;
 import dev.justaclient.feature.impl.CrosshairFeature;
@@ -15,24 +18,34 @@ import dev.justaclient.feature.impl.HotbarFeature;
 import dev.justaclient.feature.impl.ItemOverlayFeature;
 import dev.justaclient.feature.impl.JumpCirclesFeature;
 import dev.justaclient.feature.impl.KillEffectsFeature;
+import dev.justaclient.feature.impl.LoadingScreenFeature;
+import dev.justaclient.feature.impl.LowHealthFeature;
 import dev.justaclient.feature.impl.MotionBlurFeature;
 import dev.justaclient.feature.impl.NameProtectFeature;
 import dev.justaclient.feature.impl.OverlaysFeature;
+import dev.justaclient.feature.impl.ScoreboardFeature;
 import dev.justaclient.feature.impl.SkyFeature;
 import dev.justaclient.feature.impl.TargetMarkerFeature;
 import dev.justaclient.feature.impl.TitleScreenFeature;
 import dev.justaclient.feature.impl.TotemPopFeature;
 import dev.justaclient.feature.impl.TrailsFeature;
+import dev.justaclient.feature.impl.WeatherToastFeature;
+import dev.justaclient.feature.impl.WindowFeature;
 import dev.justaclient.feature.impl.ZoomFeature;
 import dev.justaclient.hud.HudFeature;
 import dev.justaclient.hud.Notifications;
 import dev.justaclient.hud.widgets.ArmorHud;
+import dev.justaclient.hud.widgets.ConsumablesHud;
 import dev.justaclient.hud.widgets.CooldownsHud;
 import dev.justaclient.hud.widgets.CoordinatesHud;
+import dev.justaclient.hud.widgets.InventoryHud;
+import dev.justaclient.hud.widgets.KeybindsHud;
+import dev.justaclient.hud.widgets.ModuleListHud;
 import dev.justaclient.hud.widgets.NotificationsHud;
 import dev.justaclient.hud.widgets.PlayerInfoHud;
 import dev.justaclient.hud.widgets.PotionsHud;
 import dev.justaclient.hud.widgets.TargetHud;
+import dev.justaclient.hud.widgets.WatermarkHud;
 import dev.justaclient.profile.Profiles;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -58,6 +71,14 @@ public final class Features {
 		register(new CooldownsHud());
 		register(new NotificationsHud());
 		register(new TargetHud());
+		register(new WatermarkHud());
+		register(new ModuleListHud());
+		register(new KeybindsHud());
+		register(new InventoryHud());
+		register(new ConsumablesHud());
+		register(new LowHealthFeature());
+		register(new BossBarFeature());
+		register(new ScoreboardFeature());
 		register(new HotbarFeature());
 		register(new ItemOverlayFeature());
 		register(new CrosshairFeature());
@@ -78,10 +99,15 @@ public final class Features {
 		register(new ColorGradingFeature());
 		register(new MotionBlurFeature());
 		register(new GlintFeature());
+		register(new AmbientParticlesFeature());
 		register(new ZoomFeature());
+		register(new CameraFeature());
 		register(new CopyCoordinatesFeature());
 		register(new NameProtectFeature());
 		register(new TitleScreenFeature());
+		register(new LoadingScreenFeature());
+		register(new WeatherToastFeature());
+		register(new WindowFeature());
 	}
 
 	private static void register(Feature feature) {

@@ -3,6 +3,7 @@
 	"package": "dev.justaclient.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
+		"BossHealthOverlayAccessor",
 		"ClientPacketListenerMixin",
 		"FogRendererMixin",
 		"FontMixin",
@@ -11,6 +12,7 @@
 		"GuiMixin",
 		"GuiRendererMixin",
 		"ItemInHandRendererMixin",
+		"LevelLoadingScreenMixin",
 		"LivingEntityMixin",
 		"MinecraftMixin",
 		"MouseHandlerMixin",
