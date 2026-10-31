@@ -28,7 +28,8 @@ import org.jspecify.annotations.Nullable;
 public final class Waypoints {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("justaclient").resolve("waypoints.json");
-	private static final int[] PALETTE = {0xFF60A5FA, 0xFF34D399, 0xFFFBBF24, 0xFFF472B6, 0xFFA78BFA, 0xFFF87171, 0xFF2DD4BF};
+	/** Colours handed out to new waypoints in turn. */
+	public static final int[] PALETTE = {0xFF60A5FA, 0xFF34D399, 0xFFFBBF24, 0xFFF472B6, 0xFFA78BFA, 0xFFF87171, 0xFF2DD4BF};
 	private static Map<String, List<Waypoint>> byWorld = new LinkedHashMap<>();
 	private static boolean loaded;
 	/** Name of the waypoint the GPS points at, in the current world. */
@@ -112,6 +113,24 @@ public final class Waypoints {
 		list.add(w);
 		save();
 		return w;
+	}
+
+	/** Renames a waypoint, keeping the GPS on it if it was being tracked. Returns false if the name is taken. */
+	public static boolean rename(Waypoint w, String name) {
+		Waypoint other = find(name);
+		if (other != null && other != w) {
+			return false;
+		}
+		if (w.name.equalsIgnoreCase(tracking)) {
+			tracking = name;
+		}
+		w.name = name;
+		return true;
+	}
+
+	/** True if the GPS points at this waypoint. */
+	public static boolean isTracked(Waypoint w) {
+		return w.name.equalsIgnoreCase(tracking);
 	}
 
 	/** The next free "Waypoint N" name. */

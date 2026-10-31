@@ -19,6 +19,7 @@ import dev.justaclient.profile.Profiles;
 import dev.justaclient.render.JacPipelines;
 import dev.justaclient.render.WorldFx;
 import dev.justaclient.ui.ClickGuiScreen;
+import dev.justaclient.ui.WorldMapScreen;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -37,6 +38,7 @@ public final class Justaclient implements ClientModInitializer {
 
 	private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(id("main"));
 	public static final KeyMapping OPEN_MENU = new KeyMapping("key.justaclient.menu", InputConstants.KEY_RSHIFT, CATEGORY);
+	public static final KeyMapping OPEN_MAP = new KeyMapping("key.justaclient.map", InputConstants.KEY_M, CATEGORY);
 
 	public static Identifier id(String path) {
 		return Identifier.fromNamespaceAndPath(MOD_ID, path);
@@ -61,6 +63,7 @@ public final class Justaclient implements ClientModInitializer {
 		JacCommands.init();
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> SessionStats.reset());
 		KeyBindingHelper.registerKeyBinding(OPEN_MENU);
+		KeyBindingHelper.registerKeyBinding(OPEN_MAP);
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			CombatTracker.tick();
 			SessionStats.tick();
@@ -68,6 +71,11 @@ public final class Justaclient implements ClientModInitializer {
 			while (OPEN_MENU.consumeClick()) {
 				if (client.screen == null) {
 					client.setScreen(new ClickGuiScreen(null));
+				}
+			}
+			while (OPEN_MAP.consumeClick()) {
+				if (client.screen == null && client.level != null) {
+					client.setScreen(new WorldMapScreen());
 				}
 			}
 		});

@@ -41,7 +41,8 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 | **Performance** (menu, or click the frame cost in the footer) | What each feature costs per frame, against the 5% budget. |
 | **C** (hold) | Zoom. Scroll while zooming to go further. The key is in Camera > Zoom. |
 | **I** | Inspect the held item (First person > Hand). |
-| **B** | Save a waypoint where you stand. `/jwp list`, `/jwp gps <name>`, `/jwp remove <name>` manage them. |
+| **M** | Open the map. Drag to move, scroll to zoom, right-click to drop a waypoint, and click one to rename, move, recolour, track, hide or delete it. |
+| **B** | Save a waypoint where you stand. `/jwp list`, `/jwp gps <name>`, `/jwp remove <name>` manage them too. |
 | **Middle click** a player | Add or remove a friend. `/jfriend add <name>` and `/jfriend list` work too. |
 
 ![HUD widgets in game](docs/screenshots/hud.png)
@@ -59,6 +60,10 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 - **GPS**: an arrow, name and distance for the waypoint you track (`/jwp gps <name>`, or "track nearest").
 - **Minimap**: terrain only, coloured like vanilla maps, north-up or rotating, with waypoint dots. No players, mobs or
   caves; in the Nether it maps the floor you stand on.
+- **Map (M)**: a full-screen version of the minimap over every loaded chunk, with this world's waypoints beside it.
+  Right-click the map to add one; pick one to edit its name, coordinates and colour, track it, hide it or delete it.
+
+![Map screen with a waypoint being edited](docs/screenshots/map.png)
 - **Friends**: friends' name tags and tab list entries in your friend colour.
 - **Stream mode**: one switch that hides your name, friends' names, coordinates and the server address on your screen.
 - **Toggle sprint**, **auto reconnect** (a countdown button on the disconnect screen) and a **session stats** widget

@@ -11,6 +11,7 @@ import dev.justaclient.feature.setting.NumberSetting;
 import dev.justaclient.hud.HudFeature;
 import dev.justaclient.render.Draw;
 import dev.justaclient.render.Icons;
+import dev.justaclient.render.TerrainMap;
 import dev.justaclient.render.text.JacText;
 import dev.justaclient.ui.Theme;
 import dev.justaclient.waypoint.Waypoints;
@@ -21,11 +22,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.DynamicTexture;
-import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.level.material.MapColor;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -106,56 +103,13 @@ public final class MinimapHud extends HudFeature {
 		if (image == null) {
 			return;
 		}
-		boolean roof = level.dimensionType().hasCeiling();
-		int floorFrom = player.getBlockY() + 1;
-		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-		int half = SIZE / 2;
-		// One extra row to the north so every pixel can be shaded against its northern neighbour, like map items.
-		int[] previous = new int[SIZE];
-		for (int row = -1; row < SIZE; row++) {
-			int z = cz + (row - half) * blocks;
-			for (int col = 0; col < SIZE; col++) {
-				int x = cx + (col - half) * blocks;
-				if (!level.hasChunk(x >> 4, z >> 4)) {
-					if (row >= 0) {
-						image.setPixel(col, row, 0);
-					}
-					previous[col] = Integer.MIN_VALUE;
-					continue;
-				}
-				int y = roof ? floor(level, pos, x, floorFrom, z) : level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z) - 1;
-				if (row >= 0) {
-					pos.set(x, y, z);
-					BlockState state = level.getBlockState(pos);
-					MapColor color = state.getMapColor(level, pos);
-					MapColor.Brightness shade = MapColor.Brightness.NORMAL;
-					if (previous[col] != Integer.MIN_VALUE && color != MapColor.WATER) {
-						shade = y > previous[col] ? MapColor.Brightness.HIGH : y < previous[col] ? MapColor.Brightness.LOW : MapColor.Brightness.NORMAL;
-					}
-					int argb = color == MapColor.NONE ? 0xFF101218 : color.calculateARGBColor(shade);
-					image.setPixel(col, row, argb);
-				}
-				previous[col] = y;
-			}
-		}
+		TerrainMap.fill(image, SIZE, level, player.getBlockY() + 1, cx, cz, blocks);
 		texture.upload();
 		centerX = cx;
 		centerZ = cz;
 		builtZoom = blocks;
 		builtLevel = level;
 		lastBuild = System.currentTimeMillis();
-	}
-
-	/** The first solid block at or below {@code from}, for dimensions whose heightmap is the roof. */
-	private static int floor(ClientLevel level, BlockPos.MutableBlockPos pos, int x, int from, int z) {
-		int y = from;
-		for (int i = 0; i < 48 && y > level.getMinY(); i++, y--) {
-			pos.set(x, y, z);
-			if (!level.getBlockState(pos).isAir()) {
-				return y;
-			}
-		}
-		return y;
 	}
 
 	@Override
