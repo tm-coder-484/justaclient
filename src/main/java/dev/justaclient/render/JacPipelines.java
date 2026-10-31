@@ -115,6 +115,20 @@ public final class JacPipelines {
 			.build()
 	);
 
+	/** Vanilla's lightmap with a tint for block and sky light (Light colour). */
+	public static final RenderPipeline LIGHTMAP = RenderPipelines.register(
+		RenderPipeline.builder()
+			.withLocation(Justaclient.id("pipeline/lightmap"))
+			.withVertexShader("core/screenquad")
+			.withFragmentShader(Justaclient.id("core/lightmap"))
+			.withUniform("LightmapInfo", UniformType.UNIFORM_BUFFER)
+			.withUniform("JacLight", UniformType.UNIFORM_BUFFER)
+			.withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
+			.withDepthWrite(false)
+			.withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+			.build()
+	);
+
 	private static final RenderPipeline.Snippet BLUR_SNIPPET = RenderPipeline.builder()
 		.withVertexShader("core/screenquad")
 		.withSampler("InSampler")
