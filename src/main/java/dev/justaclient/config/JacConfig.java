@@ -20,6 +20,8 @@ public final class JacConfig {
 
 	public int version = 1;
 	public StyleTokens style = new StyleTokens();
+	/** Name of the active feature profile in {@code config/justaclient/profiles/}. */
+	public String profile = "Default";
 
 	public static JacConfig get() {
 		return instance;
@@ -34,6 +36,9 @@ public final class JacConfig {
 						loaded.style = new StyleTokens();
 					}
 					loaded.style.sanitize();
+					if (loaded.profile == null || loaded.profile.isBlank()) {
+						loaded.profile = "Default";
+					}
 					instance = loaded;
 				}
 			} catch (IOException | JsonParseException e) {

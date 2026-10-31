@@ -5,7 +5,7 @@ look you can fully re-theme. No cheats: nothing that reveals hidden information 
 
 Requires **Fabric API** and **Sodium**.
 
-![Theme menu over the world, default dark glass look](docs/screenshots/theme-in-game.png)
+![The Justaclient menu over the world, default dark glass look](docs/screenshots/menu.png)
 
 ## Quick start (Windows)
 
@@ -14,7 +14,7 @@ Requires **Fabric API** and **Sodium**.
    - **1 Play**: launches Minecraft with Justaclient, Fabric API and Sodium already loaded. The first launch downloads
      Minecraft and takes a few minutes; later launches are quick. It runs offline as a dev player, so use singleplayer.
    - **2 Build**: makes the mod jar in `build\libs\` for your normal launcher.
-3. In game (or on the title screen), press **Right Shift** to open the Justaclient menu.
+3. In game (or on the title screen), press **Right Shift** to open the Justaclient menu. Hold **C** to zoom.
 
 macOS / Linux: `./start.sh` to play, `./start.sh build` to build.
 
@@ -25,17 +25,54 @@ macOS / Linux: `./start.sh` to play, `./start.sh build` to build.
 3. Also put in `mods`: [Fabric API](https://modrinth.com/mod/fabric-api) and [Sodium](https://modrinth.com/mod/sodium),
    both for 1.21.11, and run the Fabric 1.21.11 profile.
 
-## What is in this build (M0: foundation)
+## Using it
 
-- **Render kit**: anti-aliased rounded rectangles, outlines, gradients, soft shadows and glow, drawn with signed distance
-  field shaders and batched by Minecraft's GUI renderer.
+| Where | What to do |
+| --- | --- |
+| **Right Shift** | Opens the menu: categories on the left, features in the middle, settings on the right. |
+| Typing in the menu | Searches every feature and setting. Esc clears the search, Esc again closes. |
+| Feature cards | Click to see settings, click the switch (or right click the card) to turn it on or off. |
+| **Toggle key** row | Click it and press any key to toggle that feature in game. Esc or Backspace unbinds. |
+| **Profile** (bottom left) | Switch profiles, copy the current one, delete it, or open the profiles folder. |
+| **Edit HUD layout** | Drag widgets; they snap to edges, the centre and each other (hold Shift to place freely). Scroll to resize, right click for settings. |
+| **Theme** | Accent, panel opacity, corners, blur, outline, font and motion. Everything follows these. |
+| **C** (hold) | Zoom. Scroll while zooming to go further. The key is in Camera > Zoom. |
+
+![HUD widgets in game](docs/screenshots/hud.png)
+
+![HUD editor with a snap guide](docs/screenshots/hud-editor.png)
+
+## What is in this build
+
+### M1: first playable
+
+- **Click GUI** with categories, live search, animated switches, sliders, choices, colour pickers and key binders.
+  Every feature has a toggle key.
+- **Profiles**: each one is a JSON file in `config/justaclient/profiles/` (features, settings, keys and HUD layout), so
+  they can be shared by copying the file. The theme is separate and stays in `config/justaclient.json`.
+- **HUD editor** with snapping, guides, per-widget scale, and a tray to switch hidden widgets back on.
+- **HUD widgets**: player info (FPS, ping, CPS, speed), coordinates (nether conversion, facing, biome, clock), armor
+  durability (bar, percent or number), potion effects with timer rings, item cooldown dials, and toggle notifications.
+- **Custom crosshair**: cross, dot, circle or plus; size, gap, thickness, colour, outline, hit pulse, target colour and
+  dynamic spread. Follows vanilla's attack indicator setting.
+- **Zoom**: smooth, scroll to adjust, slower mouse while zoomed, optional cinematic camera.
+- **Block highlight**: an outline and fill that glide between blocks and show mining progress. Depth tested, never
+  see-through.
+- **Fire overlay**: lower it or hide it.
+- **Copy coordinates** to the clipboard with one key.
+- **Icons**: a Lucide icon set drawn with the same SDF text renderer, tinted by the accent.
+- **Frame cost** in the menu footer: CPU time spent in Justaclient's HUD and world hooks as a share of the frame.
+
+### M0: foundation
+
+- **Render kit**: anti-aliased rounded rectangles, outlines, gradients, soft shadows, glow and ring arcs, drawn with
+  signed distance field shaders and batched by Minecraft's GUI renderer.
 - **Frosted glass**: a dual Kawase blur of the world (or title panorama) behind panels, done at half resolution and
   only on frames that show a glass panel.
 - **Sharp text**: Inter rendered from multi-channel signed distance field atlases, so it stays crisp at every GUI scale.
 - **Animation library**: easing curves, timed animations and springs, all scaled by the Motion setting.
 - **Style tokens**: accent (solid, gradient or rainbow), surface colour and opacity, blur, corner radius, outline,
   font and motion. Default look is dark glass: blue accent `#4C8DFF`, 70% surface, 6 px corners.
-- **Theme menu** on Right Shift: change every token live. Settings save to `config/justaclient.json`.
 
 ## Project layout
 
@@ -45,9 +82,13 @@ macOS / Linux: `./start.sh` to play, `./start.sh build` to build.
 | `src/main/java/dev/justaclient/render/text/` | MSDF font loader and text renderer (`JacText`) |
 | `src/main/java/dev/justaclient/anim/` | `Easing`, `Animation`, `Spring`, `Colors` |
 | `src/main/java/dev/justaclient/config/` | Style tokens and JSON config |
-| `src/main/java/dev/justaclient/ui/` | Theme screen and widgets |
+| `src/main/java/dev/justaclient/feature/` | Feature and setting framework, the feature list, non-HUD features (`impl/`) |
+| `src/main/java/dev/justaclient/hud/` | HUD renderer, widget base classes and the widgets (`widgets/`) |
+| `src/main/java/dev/justaclient/profile/` | Profile files |
+| `src/main/java/dev/justaclient/ui/` | Click GUI, HUD editor, theme page and controls |
+| `src/main/java/dev/justaclient/mixin/` | Small hooks: zoom FOV and mouse, CPS, fire overlay, hit pulse, blur capture |
 | `src/main/resources/assets/justaclient/shaders/` | GLSL for shapes, glass, text and blur |
-| `tools/fonts/` | Script that regenerates the font atlases |
+| `tools/fonts/` | Script that regenerates the font and icon atlases (`icons.txt` lists the icons) |
 
 ## Development
 
@@ -58,6 +99,7 @@ macOS / Linux: `./start.sh` to play, `./start.sh build` to build.
 ## Credits
 
 - [Inter](https://rsms.me/inter/) by Rasmus Andersson, SIL Open Font License 1.1 (`assets/justaclient/msdf/Inter-LICENSE.txt`).
+- [Lucide](https://lucide.dev/) icons, ISC License (`assets/justaclient/msdf/Lucide-LICENSE.txt`).
 - Dual Kawase blur after Marius Bjørge, "Bandwidth-Efficient Rendering", SIGGRAPH 2015.
 
 ## License

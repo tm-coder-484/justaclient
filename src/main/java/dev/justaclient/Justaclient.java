@@ -2,8 +2,12 @@ package dev.justaclient;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.justaclient.config.JacConfig;
+import dev.justaclient.feature.Features;
+import dev.justaclient.feature.impl.BlockHighlightFeature;
+import dev.justaclient.hud.HudRenderer;
+import dev.justaclient.profile.Profiles;
 import dev.justaclient.render.JacPipelines;
-import dev.justaclient.ui.StyleScreen;
+import dev.justaclient.ui.ClickGuiScreen;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -30,11 +34,16 @@ public final class Justaclient implements ClientModInitializer {
 	public void onInitializeClient() {
 		JacConfig.load();
 		JacPipelines.init();
+		Features.init();
+		Profiles.load();
+		HudRenderer.init();
+		BlockHighlightFeature.init();
 		KeyBindingHelper.registerKeyBinding(OPEN_MENU);
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+			Features.tick(client);
 			while (OPEN_MENU.consumeClick()) {
 				if (client.screen == null) {
-					client.setScreen(new StyleScreen(null));
+					client.setScreen(new ClickGuiScreen(null));
 				}
 			}
 		});
@@ -43,7 +52,7 @@ public final class Justaclient implements ClientModInitializer {
 			if (screen instanceof TitleScreen) {
 				ScreenKeyboardEvents.afterKeyPress(screen).register((current, event) -> {
 					if (OPEN_MENU.matches(event) && client.screen == current) {
-						client.setScreen(new StyleScreen(current));
+						client.setScreen(new ClickGuiScreen(current));
 					}
 				});
 			}
