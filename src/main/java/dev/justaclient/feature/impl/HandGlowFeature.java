@@ -14,7 +14,8 @@ import dev.justaclient.render.Icons;
  */
 public final class HandGlowFeature extends Feature {
 	public enum Style implements ChoiceSetting.Named {
-		NONE("Glow only"), GRADIENT("Accent gradient"), CHROMA("Chroma"), OUTLINE("Outline"), INVERT("Invert");
+		NONE("Glow only"), GRADIENT("Accent gradient"), CHROMA("Chroma"), OUTLINE("Outline"), INVERT("Invert"), GLASS("Glass"), SMOKE("Smoke"),
+		SNOW("Snow"), STRIPES("Stripes");
 
 		private final String label;
 
@@ -36,7 +37,7 @@ public final class HandGlowFeature extends Feature {
 	private final ColorSetting color = color("color", "Colour", ColorSetting.ACCENT);
 
 	public HandGlowFeature() {
-		super("hand_glow", "Hand glow", "Glow, gradient, chroma or outline on your hand and held item", Category.FIRST_PERSON, Icons.SPARKLES, false);
+		super("hand_glow", "Hand glow", "Glow and styles (gradient, chroma, glass, smoke, snow, stripes...) on your hand", Category.FIRST_PERSON, Icons.SPARKLES, false);
 	}
 
 	public int colorStart() {

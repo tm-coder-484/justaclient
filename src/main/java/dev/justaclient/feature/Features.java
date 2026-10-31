@@ -12,6 +12,8 @@ import dev.justaclient.feature.impl.CrosshairFeature;
 import dev.justaclient.feature.impl.DiscordPresenceFeature;
 import dev.justaclient.feature.impl.FireOverlayFeature;
 import dev.justaclient.feature.impl.FogFeature;
+import dev.justaclient.feature.impl.HitBubblesFeature;
+import dev.justaclient.feature.impl.SlashTrailFeature;
 import dev.justaclient.feature.impl.EndCrystalFeature;
 import dev.justaclient.feature.impl.HitboxesFeature;
 import dev.justaclient.feature.impl.CleanWorldFeature;
@@ -104,6 +106,7 @@ public final class Features {
 		register(new ItemOverlayFeature());
 		register(new CrosshairFeature());
 		register(new HitParticlesFeature());
+		register(new HitBubblesFeature());
 		register(new HitSoundsFeature());
 		register(new KillEffectsFeature());
 		register(new TotemPopFeature());
@@ -111,6 +114,7 @@ public final class Features {
 		register(new EndCrystalFeature());
 		register(new HandFeature());
 		register(new HandGlowFeature());
+		register(new SlashTrailFeature());
 		register(new FireOverlayFeature());
 		register(new OverlaysFeature());
 		register(new BlockHighlightFeature());

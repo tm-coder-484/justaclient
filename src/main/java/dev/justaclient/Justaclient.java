@@ -10,6 +10,7 @@ import dev.justaclient.feature.impl.BlockHighlightFeature;
 import dev.justaclient.feature.impl.CombatTracker;
 import dev.justaclient.feature.impl.CosmeticsFeature;
 import dev.justaclient.feature.impl.EndCrystalFeature;
+import dev.justaclient.feature.impl.SlashTrailFeature;
 import dev.justaclient.feature.impl.HotbarFeature;
 import dev.justaclient.feature.impl.TargetMarkerFeature;
 import dev.justaclient.feature.impl.TrailsFeature;
@@ -60,6 +61,7 @@ public final class Justaclient implements ClientModInitializer {
 		WorldFx.init();
 		TargetMarkerFeature.init();
 		EndCrystalFeature.init();
+		SlashTrailFeature.init();
 		TrailsFeature.init();
 		AmbientParticlesFeature.init();
 		CosmeticsFeature.init();
