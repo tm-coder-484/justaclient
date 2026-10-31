@@ -15,6 +15,7 @@ import dev.justaclient.feature.impl.TrailsFeature;
 import dev.justaclient.feature.impl.WaypointsFeature;
 import dev.justaclient.hud.HudRenderer;
 import dev.justaclient.hud.SessionStats;
+import dev.justaclient.hud.widgets.NowPlayingHud;
 import dev.justaclient.profile.Profiles;
 import dev.justaclient.render.JacPipelines;
 import dev.justaclient.render.WorldFx;
@@ -26,7 +27,9 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
@@ -81,6 +84,11 @@ public final class Justaclient implements ClientModInitializer {
 		});
 		// Menus swallow key bindings, so listen on the title screen directly to let the menu open there too.
 		ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
+			if (screen instanceof ChatScreen) {
+				// With the chat open the mouse is free, so the Spotify card's buttons can be clicked.
+				ScreenMouseEvents.allowMouseClick(screen).register((current, event) -> !NowPlayingHud.clickFromChat(event.x(), event.y(), current.width,
+					current.height));
+			}
 			if (screen instanceof TitleScreen) {
 				ScreenKeyboardEvents.afterKeyPress(screen).register((current, event) -> {
 					if (OPEN_MENU.matches(event) && client.screen == current) {

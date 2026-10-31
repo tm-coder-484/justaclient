@@ -46,6 +46,7 @@ import dev.justaclient.hud.widgets.ConsumablesHud;
 import dev.justaclient.hud.widgets.CooldownsHud;
 import dev.justaclient.hud.widgets.CoordinatesHud;
 import dev.justaclient.hud.widgets.GpsHud;
+import dev.justaclient.hud.widgets.NowPlayingHud;
 import dev.justaclient.hud.widgets.InventoryHud;
 import dev.justaclient.hud.widgets.KeybindsHud;
 import dev.justaclient.hud.widgets.MinimapHud;
@@ -88,6 +89,7 @@ public final class Features {
 		register(new ConsumablesHud());
 		register(new MinimapHud());
 		register(new GpsHud());
+		register(new NowPlayingHud());
 		register(new SessionStatsHud());
 		register(new LowHealthFeature());
 		register(new BossBarFeature());
