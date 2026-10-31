@@ -25,6 +25,7 @@ bin/
 
 # fabric
 run/
+run-26.3/
 
 # java
 hs_err_*.log

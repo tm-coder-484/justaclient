@@ -60,6 +60,11 @@ public abstract class Widget {
 		return false;
 	}
 
+	/** A typed character while {@link #capturesKeys()} is true. Returns true if it was used. */
+	public boolean charTyped(int codepoint) {
+		return false;
+	}
+
 	public boolean isMouseOver(double mouseX, double mouseY) {
 		return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
 	}

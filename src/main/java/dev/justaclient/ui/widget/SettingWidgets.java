@@ -6,6 +6,7 @@ import dev.justaclient.feature.setting.ColorSetting;
 import dev.justaclient.feature.setting.KeySetting;
 import dev.justaclient.feature.setting.NumberSetting;
 import dev.justaclient.feature.setting.Setting;
+import dev.justaclient.feature.setting.TextSetting;
 
 /** Builds the control for a setting. */
 public final class SettingWidgets {
@@ -20,6 +21,7 @@ public final class SettingWidgets {
 			case ChoiceSetting c -> new Segmented(x, y, width, c.name, c.options, c.labels(), c::get, c::set);
 			case ColorSetting c -> new ColorPicker(x, y, width, c);
 			case KeySetting k -> new KeyBinder(x, y, width, k);
+			case TextSetting t -> new TextField(x, y, width, t);
 			default -> throw new IllegalArgumentException("No widget for " + setting.getClass());
 		};
 	}

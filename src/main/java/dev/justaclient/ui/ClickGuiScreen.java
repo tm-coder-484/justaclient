@@ -77,9 +77,12 @@ public final class ClickGuiScreen extends Screen {
 	private List<Feature> shown = List.of();
 	/** The search also matches the Theme page, which is listed after the features. */
 	private boolean themeHit;
-	/** Showing the Performance page (category is null too, like the Theme page). */
-	private boolean perfPage;
-	private static boolean lastPerfPage;
+	/** Which page shows when no category is picked: the Theme, Performance or Stats page. */
+	private static final int THEME = 0;
+	private static final int PERF = 1;
+	private static final int STATS = 2;
+	private int page;
+	private static int lastPage;
 
 	private final Spring listScroll = Spring.ui(0f);
 	private float listScrollTarget;
@@ -110,7 +113,7 @@ public final class ClickGuiScreen extends Screen {
 		super(Component.literal("Justaclient"));
 		this.parent = parent;
 		this.category = lastCategory;
-		this.perfPage = lastPerfPage && lastCategory == null;
+		this.page = lastCategory == null ? lastPage : THEME;
 	}
 
 	/** Opens straight onto one feature's settings, e.g. from the HUD editor. */
@@ -187,15 +190,16 @@ public final class ClickGuiScreen extends Screen {
 	}
 
 	private void showCategory(@Nullable Category next) {
-		showPage(next, false);
+		showPage(next, THEME);
 	}
 
-	private void showPage(@Nullable Category next, boolean perf) {
-		if (next == category && perf == perfPage && query.isBlank()) {
+	private void showPage(@Nullable Category next, int next2) {
+		if (next == category && next2 == page && query.isBlank()) {
 			return;
 		}
-		perfPage = perf;
-		lastPerfPage = perf;
+		page = next2;
+		lastPage = next2;
+		StatsPage.leave();
 		category = next;
 		lastCategory = next;
 		query = "";
@@ -262,7 +266,7 @@ public final class ClickGuiScreen extends Screen {
 		g.disableScissor();
 		Draw.rect(g, 0, BODY_H, W, 0.75f, 0, Colors.fade(Theme.DIVIDER, t));
 		Draw.rect(g, SIDEBAR, 0, 0.75f, BODY_H, 0, Colors.fade(Theme.DIVIDER, t));
-		if (!isThemePage() && !isPerfPage()) {
+		if (!isThemePage() && !isPerfPage() && !isStatsPage()) {
 			Draw.rect(g, SET_X, 0, 0.75f, BODY_H, 0, Colors.fade(Theme.DIVIDER, t));
 		}
 
@@ -272,6 +276,9 @@ public final class ClickGuiScreen extends Screen {
 		} else if (isPerfPage()) {
 			float a = t * pageIn.get();
 			PerformancePage.draw(g, LIST_X + 14, 14, W - LIST_X - 28, BODY_H - 14, a);
+		} else if (isStatsPage()) {
+			float a = t * pageIn.get();
+			StatsPage.draw(g, LIST_X + 14, 14, W - LIST_X - 28, BODY_H - 14, a, lx, ly);
 		} else {
 			drawList(g, lx, ly, t);
 			drawSettings(g, lx, ly, t);
@@ -282,11 +289,15 @@ public final class ClickGuiScreen extends Screen {
 	}
 
 	private boolean isThemePage() {
-		return category == null && query.isBlank() && !perfPage;
+		return category == null && query.isBlank() && page == THEME;
 	}
 
 	private boolean isPerfPage() {
-		return category == null && query.isBlank() && perfPage;
+		return category == null && query.isBlank() && page == PERF;
+	}
+
+	private boolean isStatsPage() {
+		return category == null && query.isBlank() && page == STATS;
 	}
 
 	private void drawSidebar(GuiGraphics g, double mx, double my, float t) {
@@ -321,7 +332,7 @@ public final class ClickGuiScreen extends Screen {
 		int activeIndex = -1;
 		for (int i = 0; i < items.size(); i++) {
 			Object item = items.get(i);
-			if (!searching && (item == category || item == ThemePage.class && isThemePage() || item == PerformancePage.class && isPerfPage())) {
+			if (!searching && (item == category || item == ThemePage.class && isThemePage() || item == PerformancePage.class && isPerfPage() || item == StatsPage.class && isStatsPage())) {
 				activeIndex = i;
 			}
 		}
@@ -346,8 +357,9 @@ public final class ClickGuiScreen extends Screen {
 				Draw.rect(g, 10, y, SIDEBAR - 20, 17, r, Colors.fade(Colors.withAlpha(0xFFFFFF, 0x0E), t * h));
 			}
 			boolean active = i == activeIndex;
-			Icons icon = item instanceof Category c ? c.icon : item == ThemePage.class ? Icons.PALETTE : Icons.ACTIVITY;
-			String label = item instanceof Category c ? c.label : item == ThemePage.class ? "Theme" : "Performance";
+			Icons icon = item instanceof Category c ? c.icon : item == ThemePage.class ? Icons.PALETTE : item == StatsPage.class ? Icons.CHART_COLUMN
+				: Icons.ACTIVITY;
+			String label = item instanceof Category c ? c.label : item == ThemePage.class ? "Theme" : item == StatsPage.class ? "Stats" : "Performance";
 			int color = Colors.lerp(Theme.TEXT_DIM, Theme.TEXT, active ? 1f : h * 0.6f);
 			JacText.icon(g, icon, 17, y + (17 - 7.5f) / 2f, 7.5f, Colors.fade(active ? JacConfig.accent() : color, t));
 			JacText.draw(g, label, 31, y + (17 - JacText.lineHeight(Theme.LABEL)) / 2f, Colors.fade(color, t), Theme.LABEL,
@@ -364,6 +376,7 @@ public final class ClickGuiScreen extends Screen {
 		}
 		items.add(ThemePage.class);
 		items.add(PerformancePage.class);
+		items.add(StatsPage.class);
 		return items;
 	}
 
@@ -635,7 +648,7 @@ public final class ClickGuiScreen extends Screen {
 		if (button == 0 && mx >= costRight - JacText.width(costLabel(), Theme.SMALL, JacText.Weight.REGULAR) && mx < costRight && my >= H - FOOTER + 6
 			&& my < H - 6) {
 			query = "";
-			showPage(null, true);
+			showPage(null, PERF);
 			return true;
 		}
 		// Sidebar.
@@ -643,13 +656,17 @@ public final class ClickGuiScreen extends Screen {
 		for (int i = 0; i < items.size(); i++) {
 			float y = navY(i);
 			if (button == 0 && mx >= 10 && mx < SIDEBAR - 10 && my >= y && my < y + 17) {
-				showPage(items.get(i) instanceof Category c ? c : null, items.get(i) == PerformancePage.class);
+				Object item = items.get(i);
+				showPage(item instanceof Category c ? c : null, item == PerformancePage.class ? PERF : item == StatsPage.class ? STATS : THEME);
 				return true;
 			}
 		}
 		if (button == 1 && mx >= 10 && mx < SIDEBAR - 10 && my >= 32 && my < 49) {
 			query = "";
 			refreshList();
+			return true;
+		}
+		if (isStatsPage() && button == 0 && StatsPage.click(mx, my)) {
 			return true;
 		}
 		if (isThemePage()) {
@@ -821,6 +838,14 @@ public final class ClickGuiScreen extends Screen {
 
 	@Override
 	public boolean charTyped(CharacterEvent event) {
+		for (Widget w : visibleSettings) {
+			if (w.capturesKeys()) {
+				if (event.isAllowedChatCharacter() && w.charTyped(event.codepoint())) {
+					Profiles.save();
+				}
+				return true;
+			}
+		}
 		if (!event.isAllowedChatCharacter() || query.length() >= 32) {
 			return false;
 		}
