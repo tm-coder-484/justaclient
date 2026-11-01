@@ -3,13 +3,15 @@ package dev.justaclient.render;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.material.MapColor;
 
 /**
  * Paints loaded terrain into an image the way map items do: one map colour per block column, shaded against the column
- * to the north. Shared by the minimap and the full map screen. Unloaded chunks are left transparent.
+ * to the north. Shared by the minimap and the full map screen. Unloaded chunks show what {@link ExploredMap} remembers
+ * of them, or stay transparent if they were never loaded.
  */
 public final class TerrainMap {
 	/** Colour for columns that have no map colour, such as the void. */
@@ -31,27 +33,110 @@ public final class TerrainMap {
 			int z = cz + (row - half) * blocks;
 			for (int col = 0; col < size; col++) {
 				int x = cx + (col - half) * blocks;
-				if (!level.hasChunk(x >> 4, z >> 4)) {
+				// ClientLevel.hasChunk always says yes; ask the chunk cache what is really loaded.
+				if (!level.getChunkSource().hasChunk(x >> 4, z >> 4)) {
+					// Not loaded now: show what was recorded when it was.
 					if (row >= 0) {
-						image.setPixel(col, row, 0);
+						image.setPixel(col, row, ExploredMap.get(x, z));
 					}
 					previous[col] = Integer.MIN_VALUE;
 					continue;
 				}
 				int y = surfaceY(level, pos, x, z, floorFrom);
 				if (row >= 0) {
-					pos.set(x, y, z);
-					BlockState state = level.getBlockState(pos);
-					MapColor color = state.getMapColor(level, pos);
-					MapColor.Brightness shade = MapColor.Brightness.NORMAL;
-					if (previous[col] != Integer.MIN_VALUE && color != MapColor.WATER) {
-						shade = y > previous[col] ? MapColor.Brightness.HIGH : y < previous[col] ? MapColor.Brightness.LOW : MapColor.Brightness.NORMAL;
-					}
-					image.setPixel(col, row, color == MapColor.NONE ? EMPTY : color.calculateARGBColor(shade));
+					image.setPixel(col, row, color(level, pos, x, y, z, previous[col]));
 				}
 				previous[col] = y;
 			}
 		}
+	}
+
+	/**
+	 * The map colour of the column at ({@code x}, {@code z}) whose top is {@code y}, shaded against the height of the
+	 * column to the north ({@link Integer#MIN_VALUE} if unknown). Always opaque.
+	 */
+	public static int color(ClientLevel level, BlockPos.MutableBlockPos pos, int x, int y, int z, int northY) {
+		pos.set(x, y, z);
+		BlockState state = level.getBlockState(pos);
+		MapColor color = state.getMapColor(level, pos);
+		MapColor.Brightness shade = MapColor.Brightness.NORMAL;
+		if (northY != Integer.MIN_VALUE && color != MapColor.WATER) {
+			shade = y > northY ? MapColor.Brightness.HIGH : y < northY ? MapColor.Brightness.LOW : MapColor.Brightness.NORMAL;
+		}
+		return color == MapColor.NONE ? EMPTY : color.calculateARGBColor(shade);
+	}
+
+	/**
+	 * Fills the image with the cave layer around {@code playerY}: where there is open space at head height, the floor
+	 * under it, darker the deeper it is; where there is rock at head height, a dark wall. Unloaded chunks stay
+	 * transparent (the explored map only remembers the surface).
+	 */
+	public static void fillCave(NativeImage image, int size, ClientLevel level, int playerY, int cx, int cz, int blocks) {
+		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+		int half = size / 2;
+		int[] previous = new int[size];
+		for (int row = -1; row < size; row++) {
+			int z = cz + (row - half) * blocks;
+			for (int col = 0; col < size; col++) {
+				int x = cx + (col - half) * blocks;
+				if (!level.getChunkSource().hasChunk(x >> 4, z >> 4)) {
+					if (row >= 0) {
+						image.setPixel(col, row, 0);
+					}
+					previous[col] = Integer.MIN_VALUE;
+					continue;
+				}
+				pos.set(x, playerY + 1, z);
+				BlockState head = level.getBlockState(pos);
+				if (!head.isAir() && head.isSolid()) {
+					if (row >= 0) {
+						image.setPixel(col, row, darken(color(level, pos, x, playerY + 1, z, Integer.MIN_VALUE), 0.3f));
+					}
+					previous[col] = playerY + 1;
+					continue;
+				}
+				int y = playerY;
+				for (int i = 0; i < 32 && y > level.getMinY(); i++, y--) {
+					pos.set(x, y, z);
+					if (!level.getBlockState(pos).isAir()) {
+						break;
+					}
+				}
+				if (row >= 0) {
+					float depth = Math.min(1f, Math.max(0f, (playerY - y) / 24f));
+					image.setPixel(col, row, darken(color(level, pos, x, y, z, previous[col]), 1f - depth * 0.55f));
+				}
+				previous[col] = y;
+			}
+		}
+	}
+
+	/**
+	 * The ground at a column: the top block, ignoring leaves and logs so the ground under a tree counts, not its crown.
+	 * Used to tell the surface from underground.
+	 */
+	public static int groundY(ClientLevel level, BlockPos.MutableBlockPos pos, int x, int z) {
+		int y = level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z) - 1;
+		for (int i = 0; i < 40 && y > level.getMinY(); i++, y--) {
+			pos.set(x, y, z);
+			BlockState state = level.getBlockState(pos);
+			if (!state.isAir() && !state.is(BlockTags.LEAVES) && !state.is(BlockTags.LOGS)) {
+				return y;
+			}
+		}
+		return y;
+	}
+
+	/** True if a block at {@code y} in this column is well below the ground: in a cave rather than under a tree or roof. */
+	public static boolean underground(ClientLevel level, BlockPos.MutableBlockPos pos, int x, int y, int z) {
+		return !level.dimensionType().hasCeiling() && y < groundY(level, pos, x, z) - 6;
+	}
+
+	private static int darken(int argb, float f) {
+		int r = (int) (((argb >> 16) & 0xFF) * f);
+		int g = (int) (((argb >> 8) & 0xFF) * f);
+		int b = (int) ((argb & 0xFF) * f);
+		return argb & 0xFF000000 | r << 16 | g << 8 | b;
 	}
 
 	/** The top block of a column, or in dimensions with a roof the first solid block at or below {@code floorFrom}. */

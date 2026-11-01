@@ -26,6 +26,11 @@ import org.joml.Vector3f;
  */
 public final class WorldFx {
 	public static final RenderType FX = RenderType.create("justaclient_fx", RenderSetup.builder(JacPipelines.WORLD_FX).sortOnUpload().createRenderSetup());
+	/**
+	 * Used instead of {@link #FX} while a shader pack is on: packs only draw render types they know, so the glow and bubble
+	 * shapes come from a texture baked from world_fx.fsh, drawn as a glowing translucent entity.
+	 */
+	private static final net.minecraft.resources.Identifier GLOW = dev.justaclient.Justaclient.id("textures/fx/glow.png");
 	private static final int MAX_PARTICLES = 1500;
 	private static final int MAX_RINGS = 64;
 	private static final List<Particle> PARTICLES = new ArrayList<>();
@@ -205,6 +210,11 @@ public final class WorldFx {
 		private final PoseStack.Pose pose;
 		private VertexConsumer out;
 		private final net.minecraft.client.renderer.MultiBufferSource consumers;
+		private final boolean shaderPack;
+		/** One quad's corners while a shader pack is on, written front and back once all four are in. */
+		private final float[] quad = new float[20];
+		private final int[] quadColors = new int[4];
+		private int corners;
 		private final Vector3f right;
 		private final Vector3f up;
 
@@ -213,8 +223,9 @@ public final class WorldFx {
 			this.partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
 			this.camera = context.worldState().cameraRenderState.pos;
 			this.pose = context.matrices().last();
-			this.out = context.consumers().getBuffer(FX);
+			this.shaderPack = dev.justaclient.compat.Shaders.packInUse();
 			this.consumers = context.consumers();
+			this.out = buffer();
 			Quaternionf rotation = context.worldState().cameraRenderState.orientation;
 			this.right = rotation.transform(new Vector3f(1f, 0f, 0f));
 			this.up = rotation.transform(new Vector3f(0f, 1f, 0f));
@@ -247,7 +258,7 @@ public final class WorldFx {
 				q.addVertex(pose, (float) (p.x - camera.x), (float) (p.y - camera.y), (float) (p.z - camera.z)).setColor(color);
 			}
 			// Asking the buffer source for another render type finishes the glow buffer; pick it up again for later sprites.
-			out = consumers.getBuffer(FX);
+			out = buffer();
 		}
 
 		/** A camera-facing bubble: a clear body with a coloured rim and a highlight. Flagged to the shader by V above 2. */
@@ -343,8 +354,42 @@ public final class WorldFx {
 			}
 		}
 
+		private VertexConsumer buffer() {
+			return consumers.getBuffer(shaderPack ? net.minecraft.client.renderer.rendertype.RenderTypes.entityTranslucentEmissive(GLOW) : FX);
+		}
+
 		private void vertex(float x, float y, float z, float u, float v, int color) {
-			out.addVertex(pose, x, y, z).setUv(u, v).setColor(color);
+			if (!shaderPack) {
+				out.addVertex(pose, x, y, z).setUv(u, v).setColor(color);
+				return;
+			}
+			// Map the shader's -1..1 shape coordinates onto the baked texture: glow on the left half, bubble on the right.
+			float tu;
+			float tv;
+			if (v > 2f) {
+				tu = 0.5f + (u + 1f) * 0.25f;
+				tv = (5f - v) * 0.5f;
+			} else {
+				tu = (u + 1f) * 0.25f;
+				tv = (1f - v) * 0.5f;
+			}
+			int i = corners * 5;
+			quad[i] = x;
+			quad[i + 1] = y;
+			quad[i + 2] = z;
+			quad[i + 3] = tu;
+			quad[i + 4] = tv;
+			quadColors[corners] = color;
+			if (++corners < 4) {
+				return;
+			}
+			corners = 0;
+			// Both windings, so flat rings show from below as well as above whatever culling the pack's program uses.
+			for (int k : new int[] {0, 1, 2, 3, 3, 2, 1, 0}) {
+				int j = k * 5;
+				out.addVertex(pose, quad[j], quad[j + 1], quad[j + 2]).setColor(quadColors[k]).setUv(quad[j + 3], quad[j + 4])
+					.setOverlay(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(pose, 0f, 1f, 0f);
+			}
 		}
 	}
 }

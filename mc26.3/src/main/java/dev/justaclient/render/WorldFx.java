@@ -27,6 +27,11 @@ import org.joml.Vector3f;
  */
 public final class WorldFx {
 	public static final RenderType FX = RenderType.create("justaclient_fx", RenderSetup.builder(JacPipelines.WORLD_FX).sortOnUpload().createRenderSetup());
+	/**
+	 * Used instead of {@link #FX} while a shader pack is on: packs only draw render types they know, so the glow and bubble
+	 * shapes come from a texture baked from world_fx.fsh, drawn as a glowing translucent entity.
+	 */
+	private static final net.minecraft.resources.Identifier GLOW = dev.justaclient.Justaclient.id("textures/fx/glow.png");
 	private static final int MAX_PARTICLES = 1500;
 	private static final int MAX_RINGS = 64;
 	private static final List<Particle> PARTICLES = new ArrayList<>();
@@ -131,7 +136,7 @@ public final class WorldFx {
 		}
 		if (anySolid && Minecraft.getInstance().level != null) {
 			context.submitNodeCollector().submitCustomGeometry(context.poseStack(), RenderTypes.debugQuads(), (pose, buffer) -> {
-				Frame frame = new Frame(context, pose, buffer, 0f);
+				Frame frame = new Frame(context, pose, buffer, 0f, false);
 				for (Layer layer : SOLID_LAYERS) {
 					if (layer.owner.isEnabled()) {
 						layer.owner.cost.begin();
@@ -151,10 +156,12 @@ public final class WorldFx {
 		if (PARTICLES.isEmpty() && RINGS.isEmpty() && !anyLayer) {
 			return;
 		}
-		context.submitNodeCollector().submitCustomGeometry(context.poseStack(), FX, (pose, buffer) -> render(context, pose, buffer));
+		boolean shaderPack = dev.justaclient.compat.Shaders.packInUse();
+		context.submitNodeCollector().submitCustomGeometry(context.poseStack(), shaderPack ? RenderTypes.entityTranslucentEmissive(GLOW) : FX,
+			(pose, buffer) -> render(context, pose, buffer, shaderPack));
 	}
 
-	private static void render(LevelRenderContext context, PoseStack.Pose pose, VertexConsumer buffer) {
+	private static void render(LevelRenderContext context, PoseStack.Pose pose, VertexConsumer buffer, boolean shaderPack) {
 		Minecraft mc = Minecraft.getInstance();
 		long now = System.nanoTime();
 		float dt = lastNanos < 0 ? 0f : Math.min(0.1f, (now - lastNanos) / 1e9f);
@@ -162,7 +169,7 @@ public final class WorldFx {
 		if (mc.isPaused()) {
 			dt = 0f;
 		}
-		Frame frame = new Frame(context, pose, buffer, dt);
+		Frame frame = new Frame(context, pose, buffer, dt, shaderPack);
 		if (!PARTICLES.isEmpty() || !RINGS.isEmpty()) {
 			COST.begin();
 			drawParticles(frame, dt);
@@ -233,10 +240,16 @@ public final class WorldFx {
 		public final Vec3 camera;
 		private final PoseStack.Pose pose;
 		private final VertexConsumer out;
+		private final boolean shaderPack;
+		/** One quad's corners while a shader pack is on, written front and back once all four are in. */
+		private final float[] quad = new float[20];
+		private final int[] quadColors = new int[4];
+		private int corners;
 		private final Vector3f right;
 		private final Vector3f up;
 
-		Frame(LevelRenderContext context, PoseStack.Pose pose, VertexConsumer out, float dt) {
+		Frame(LevelRenderContext context, PoseStack.Pose pose, VertexConsumer out, float dt, boolean shaderPack) {
+			this.shaderPack = shaderPack;
 			this.dt = dt;
 			this.partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
 			this.camera = context.levelState().cameraRenderState.pos;
@@ -369,7 +382,37 @@ public final class WorldFx {
 		}
 
 		private void vertex(float x, float y, float z, float u, float v, int color) {
-			out.addVertex(pose, x, y, z).setUv(u, v).setColor(color);
+			if (!shaderPack) {
+				out.addVertex(pose, x, y, z).setUv(u, v).setColor(color);
+				return;
+			}
+			// Map the shader's -1..1 shape coordinates onto the baked texture: glow on the left half, bubble on the right.
+			float tu;
+			float tv;
+			if (v > 2f) {
+				tu = 0.5f + (u + 1f) * 0.25f;
+				tv = (5f - v) * 0.5f;
+			} else {
+				tu = (u + 1f) * 0.25f;
+				tv = (1f - v) * 0.5f;
+			}
+			int i = corners * 5;
+			quad[i] = x;
+			quad[i + 1] = y;
+			quad[i + 2] = z;
+			quad[i + 3] = tu;
+			quad[i + 4] = tv;
+			quadColors[corners] = color;
+			if (++corners < 4) {
+				return;
+			}
+			corners = 0;
+			// Both windings, so flat rings show from below as well as above whatever culling the pack's program uses.
+			for (int k : new int[] {0, 1, 2, 3, 3, 2, 1, 0}) {
+				int j = k * 5;
+				out.addVertex(pose, quad[j], quad[j + 1], quad[j + 2]).setColor(quadColors[k]).setUv(quad[j + 3], quad[j + 4])
+					.setOverlay(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(pose, 0f, 1f, 0f);
+			}
 		}
 	}
 }

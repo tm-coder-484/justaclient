@@ -10,7 +10,9 @@ import dev.justaclient.feature.setting.ChoiceSetting;
 import dev.justaclient.feature.setting.NumberSetting;
 import dev.justaclient.hud.HudFeature;
 import dev.justaclient.render.Draw;
+import dev.justaclient.render.ExploredMap;
 import dev.justaclient.render.Icons;
+import dev.justaclient.render.MapEntities;
 import dev.justaclient.render.TerrainMap;
 import dev.justaclient.render.text.JacText;
 import dev.justaclient.ui.Theme;
@@ -18,16 +20,23 @@ import dev.justaclient.waypoint.Waypoints;
 import dev.justaclient.waypoint.Waypoints.Waypoint;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.LivingEntity;
+import org.joml.Matrix3x2f;
+import org.joml.Vector2f;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A small top-down map of the terrain around you, coloured like vanilla maps. Terrain only: no players, mobs or caves,
- * just what a map item would show. In dimensions with a roof it maps the floor you are standing on instead.
+ * A small top-down map of the terrain around you, coloured like vanilla maps, remembering places you have been (see
+ * {@link ExploredMap}). Mobs show all around you, other players only while you can see them (see {@link MapEntities});
+ * with the chat open you can point at one to see its name, health and distance. No caves. In dimensions with a roof it maps the floor you
+ * are standing on instead.
  */
 public final class MinimapHud extends HudFeature {
 	private static final int SIZE = 128;
@@ -50,20 +59,40 @@ public final class MinimapHud extends HudFeature {
 		}
 	}
 
+	public enum Underground implements ChoiceSetting.Named {
+		AUTO("Auto"), ALWAYS("Always"), OFF("Off");
+
+		private final String label;
+
+		Underground(String label) {
+			this.label = label;
+		}
+
+		@Override
+		public String label() {
+			return label;
+		}
+	}
+
 	private final NumberSetting size = number("size", "Size", 96, 64, 160, 4, NumberSetting.unit(" px"));
 	private final ChoiceSetting<Zoom> zoom = choice("zoom", "Zoom", Zoom.NEAR);
 	private final BoolSetting rotate = bool("rotate", "Rotate with view", true);
 	private final BoolSetting waypoints = bool("waypoints", "Show waypoints", true);
+	private final ChoiceSetting<Underground> underground = choice("underground", "Underground mode (caves at your height)", Underground.AUTO);
+	private final BoolSetting entities = bool("entities", "Players and mobs", true);
+	private final BoolSetting sameLayer = bool("same_layer", "Only mobs on your layer (surface or underground)", true).visibleWhen(entities::on);
 	private final BoolSetting coords = bool("coords", "Coordinates under the map", true);
 	private @Nullable DynamicTexture texture;
 	private int centerX = Integer.MIN_VALUE;
 	private int centerZ;
 	private int builtZoom;
+	private boolean builtCave;
+	private int builtY;
 	private long lastBuild;
 	private @Nullable ClientLevel builtLevel;
 
 	public MinimapHud() {
-		super("minimap", "Minimap", "Top-down terrain map with waypoints", Icons.GLOBE, false, 1f, 0f);
+		super("minimap", "Minimap", "Top-down terrain map with waypoints, players and mobs", Icons.GLOBE, false, 1f, 0f);
 		background.set(true);
 	}
 
@@ -87,14 +116,20 @@ public final class MinimapHud extends HudFeature {
 		int blocks = zoom.get().blocks;
 		int px = player.getBlockX();
 		int pz = player.getBlockZ();
-		// Rebuild after moving a couple of pixels' worth, when the zoom or world changes, or every few seconds for new chunks.
-		boolean moved = Math.abs(px - centerX) >= 2 * blocks || Math.abs(pz - centerZ) >= 2 * blocks;
-		if (moved || blocks != builtZoom || mc.level != builtLevel || System.currentTimeMillis() - lastBuild > 3000) {
-			build(mc.level, player, px, pz, blocks);
+		boolean cave = switch (underground.get()) {
+			case ALWAYS -> !mc.level.dimensionType().hasCeiling();
+			case OFF -> false;
+			case AUTO -> MapEntities.playerUnderground();
+		};
+		// Rebuild after moving a couple of pixels' worth (or a couple of blocks up or down in a cave), when the zoom,
+		// mode or world changes, or every few seconds for new chunks.
+		boolean moved = Math.abs(px - centerX) >= 2 * blocks || Math.abs(pz - centerZ) >= 2 * blocks || cave && Math.abs(player.getBlockY() - builtY) >= 2;
+		if (moved || blocks != builtZoom || cave != builtCave || mc.level != builtLevel || System.currentTimeMillis() - lastBuild > 3000) {
+			build(mc.level, player, px, pz, blocks, cave);
 		}
 	}
 
-	private void build(ClientLevel level, LocalPlayer player, int cx, int cz, int blocks) {
+	private void build(ClientLevel level, LocalPlayer player, int cx, int cz, int blocks, boolean cave) {
 		if (texture == null) {
 			texture = new DynamicTexture(() -> "Justaclient minimap", SIZE, SIZE, true);
 			Minecraft.getInstance().getTextureManager().register(TEXTURE, texture);
@@ -103,8 +138,14 @@ public final class MinimapHud extends HudFeature {
 		if (image == null) {
 			return;
 		}
-		TerrainMap.fill(image, SIZE, level, player.getBlockY() + 1, cx, cz, blocks);
+		if (cave) {
+			TerrainMap.fillCave(image, SIZE, level, player.getBlockY(), cx, cz, blocks);
+		} else {
+			TerrainMap.fill(image, SIZE, level, player.getBlockY() + 1, cx, cz, blocks);
+		}
 		texture.upload();
+		builtCave = cave;
+		builtY = player.getBlockY();
 		centerX = cx;
 		centerZ = cz;
 		builtZoom = blocks;
@@ -161,9 +202,58 @@ public final class MinimapHud extends HudFeature {
 				Draw.circle(g, s / 2f + rx, s / 2f + rz, 2.2f, w.color);
 			}
 		}
+		LivingEntity hovered = null;
+		float hoverX = 0f, hoverY = 0f;
+		if (entities.on()) {
+			Vector2f mouse = mouseLocal(g);
+			float c = (float) Math.cos(angle), sn = (float) Math.sin(angle);
+			float limit = s / 2f - 4f;
+			float best = 4.5f * 4.5f;
+			for (LivingEntity e : MapEntities.visible()) {
+				if (sameLayer.on() && !(e instanceof AbstractClientPlayer) && !MapEntities.onPlayerLayer(e)) {
+					continue;
+				}
+				float dx = (float) ((e.getX(partial) - px) / blocks * scale);
+				float dz = (float) ((e.getZ(partial) - pz) / blocks * scale);
+				float rx = dx * c - dz * sn;
+				float rz = dx * sn + dz * c;
+				if (Math.abs(rx) > limit || Math.abs(rz) > limit) {
+					continue;
+				}
+				float x = s / 2f + rx;
+				float y = s / 2f + rz;
+				if (mouse != null) {
+					float d = (mouse.x - x) * (mouse.x - x) + (mouse.y - y) * (mouse.y - y);
+					if (d < best) {
+						best = d;
+						hovered = e;
+						hoverX = x;
+						hoverY = y;
+					}
+				}
+				MapEntities.draw(g, e, x, y, 2f, 1f, false);
+			}
+			if (hovered != null) {
+				MapEntities.draw(g, hovered, hoverX, hoverY, 2f, 1f, true);
+			}
+		}
 		g.disableScissor();
 		drawPlayer(g, s / 2f, s / 2f, rotate.on() ? 0f : (float) Math.toRadians(yaw + 180f));
 		drawCoords(g, false, s);
+		if (hovered != null) {
+			MapEntities.tooltip(g, hovered, hoverX, hoverY - 2f, 1f);
+		}
+	}
+
+	/** The mouse in this widget's coordinates while the chat frees the cursor, else null. */
+	private static @Nullable Vector2f mouseLocal(GuiGraphics g) {
+		Minecraft mc = Minecraft.getInstance();
+		if (!(mc.screen instanceof ChatScreen)) {
+			return null;
+		}
+		float mx = (float) mc.mouseHandler.getScaledXPos(mc.getWindow());
+		float my = (float) mc.mouseHandler.getScaledYPos(mc.getWindow());
+		return new Matrix3x2f(g.pose()).invert().transformPosition(mx, my, new Vector2f());
 	}
 
 	private static void drawPlayer(GuiGraphics g, float x, float y, float angle) {

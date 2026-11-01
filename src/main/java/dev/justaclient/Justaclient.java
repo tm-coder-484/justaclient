@@ -21,6 +21,7 @@ import dev.justaclient.hud.LifetimeStats;
 import dev.justaclient.hud.SessionStats;
 import dev.justaclient.hud.widgets.NowPlayingHud;
 import dev.justaclient.profile.Profiles;
+import dev.justaclient.render.ExploredMap;
 import dev.justaclient.render.JacPipelines;
 import dev.justaclient.render.WorldFx;
 import dev.justaclient.feature.impl.TrinketFeature;
@@ -81,10 +82,12 @@ public final class Justaclient implements ClientModInitializer {
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> LifetimeStats.onLeave());
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> LifetimeStats.save());
+		ExploredMap.init();
 		KeyBindingHelper.registerKeyBinding(OPEN_MENU);
 		KeyBindingHelper.registerKeyBinding(OPEN_MAP);
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			CombatTracker.tick();
+			ExploredMap.tick(client);
 			SessionStats.tick();
 			LifetimeStats.tick();
 			Features.tick(client);

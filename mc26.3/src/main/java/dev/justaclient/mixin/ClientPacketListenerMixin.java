@@ -13,10 +13,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ClientPacketListener.class)
 abstract class ClientPacketListenerMixin {
-	/** The server confirmed damage to an entity; hit effects only play for hits the server accepted. */
+	/** The server confirmed damage to an entity; hit effects only play for hits the server accepted. The packet says who caused it. */
 	@Inject(method = "handleDamageEvent", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;handleDamageEvent(Lnet/minecraft/world/damagesource/DamageSource;)V"))
 	private void justaclient$onDamage(ClientboundDamageEventPacket packet, CallbackInfo ci, @Local Entity entity) {
-		CombatTracker.onDamage(entity);
+		CombatTracker.onDamage(entity, packet.sourceCauseId(), packet.sourceDirectId());
 	}
 
 	/** Entity event 35 is a totem of undying popping; this runs where vanilla starts its totem particles. */

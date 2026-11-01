@@ -35,16 +35,58 @@ try {
 	exit 1
 }
 
+# The Spotify web player plays inside a browser, so its media session belongs to the browser, not to Spotify. A
+# browser session counts as Spotify when a browser window title mentions Spotify or shows the web player's
+# "Track * Artist" title, or failing that when it carries an album (YouTube and most video sites leave it empty).
+$browserPattern = 'chrome|msedge|firefox|brave|opera|vivaldi|chromium|TheBrowserCompany|librewolf|floorp|zen|waterfox|yandex'
+$bullet = [string][char]0x2022
+$browserTitles = @()
+$titlesAt = [DateTime]::MinValue
+
+function BrowserTitles {
+	if (([DateTime]::Now - $script:titlesAt).TotalSeconds -ge 2) {
+		$script:titlesAt = [DateTime]::Now
+		$script:browserTitles = @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
+			$_.ProcessName -match $browserPattern -and $_.MainWindowTitle
+		} | ForEach-Object { $_.MainWindowTitle })
+	}
+	return $script:browserTitles
+}
+
+function FindSpotifyWeb($sessions) {
+	$fallback = $null
+	foreach ($s in $sessions) {
+		if ($s.SourceAppUserModelId -notmatch $browserPattern) { continue }
+		try { $p = Await ($s.TryGetMediaPropertiesAsync()) $propsType } catch { continue }
+		if ($null -eq $p -or [string]::IsNullOrEmpty($p.Title)) { continue }
+		foreach ($t in (BrowserTitles)) {
+			if ($t -like '*Spotify*' -or $t.StartsWith($p.Title + ' ' + $bullet + ' ')) { return $s }
+		}
+		if ($null -eq $fallback -and -not [string]::IsNullOrEmpty($p.AlbumTitle)) { $fallback = $s }
+	}
+	return $fallback
+}
+
 $lastKey = $null
 $artPath = ''
+$artHash = ''
 $artIndex = 0
+$keyAt = [DateTime]::Now
+$artCheckAt = [DateTime]::MinValue
+$md5 = [System.Security.Cryptography.MD5]::Create()
 while ($true) {
 	# Stop with the game, even if it crashed without closing us.
 	if ($ParentPid -gt 0 -and -not (Get-Process -Id $ParentPid -ErrorAction SilentlyContinue)) { exit 0 }
 	try {
 		$session = $null
-		foreach ($s in $manager.GetSessions()) {
+		$web = $false
+		$sessions = @($manager.GetSessions())
+		foreach ($s in $sessions) {
 			if ($s.SourceAppUserModelId -like '*Spotify*') { $session = $s; break }
+		}
+		if ($null -eq $session -and $Only -eq 'spotify') {
+			$session = FindSpotifyWeb $sessions
+			$web = $null -ne $session
 		}
 		if ($null -eq $session -and $Only -ne 'spotify') { $session = $manager.GetCurrentSession() }
 
@@ -77,20 +119,35 @@ while ($true) {
 			if ($key -ne $lastKey) {
 				$lastKey = $key
 				$artPath = ''
-				if ($null -ne $props.Thumbnail) {
-					try {
-						$stream = Await ($props.Thumbnail.OpenReadAsync()) $streamType
-						$net = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($stream)
-						$artIndex++
-						$file = Join-Path $ArtDir ('art' + ($artIndex % 4) + '.img')
-						$out = [IO.File]::Create($file)
-						$net.CopyTo($out)
-						$out.Close()
-						$net.Dispose()
-						$artPath = $file
-					} catch {
-						$artPath = ''
+				$artHash = ''
+				$keyAt = [DateTime]::Now
+				$artCheckAt = [DateTime]::MinValue
+			}
+			# The cover can arrive after the title (browsers download it first), and the last song's cover can linger for
+			# a moment: keep reading it for 4 seconds after a change, then every 2 seconds for a minute while there is none.
+			$since = ([DateTime]::Now - $keyAt).TotalSeconds
+			$due = ($since -lt 4) -or ($artPath -eq '' -and $since -lt 60 -and ([DateTime]::Now - $artCheckAt).TotalSeconds -ge 2)
+			if ($due -and $null -ne $props.Thumbnail) {
+				$artCheckAt = [DateTime]::Now
+				try {
+					$stream = Await ($props.Thumbnail.OpenReadAsync()) $streamType
+					$net = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($stream)
+					$mem = New-Object System.IO.MemoryStream
+					$net.CopyTo($mem)
+					$net.Dispose()
+					$bytes = $mem.ToArray()
+					if ($bytes.Length -gt 0) {
+						$hash = [Convert]::ToBase64String($md5.ComputeHash($bytes))
+						if ($hash -ne $artHash) {
+							$artHash = $hash
+							$artIndex++
+							$file = Join-Path $ArtDir ('art' + ($artIndex % 4) + '.img')
+							[IO.File]::WriteAllBytes($file, $bytes)
+							$artPath = $file
+						}
 					}
+				} catch {
+					# Not ready yet; the next check tries again.
 				}
 			}
 			Say @{
@@ -101,7 +158,7 @@ while ($true) {
 				position = [long]$position
 				duration = [long]$timeline.EndTime.TotalMilliseconds
 				art = $artPath
-				player = [string]$session.SourceAppUserModelId
+				player = $(if ($web) { 'Spotify web player (' + $session.SourceAppUserModelId + ')' } else { [string]$session.SourceAppUserModelId })
 			}
 		}
 	} catch {
