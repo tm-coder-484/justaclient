@@ -53,7 +53,7 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 
 ## What is in this build
 
-### Fixes (v0.7.1 to v0.7.5)
+### Fixes (v0.7.1 to v0.7.6)
 
 - **Spotify web player**: on Windows the Spotify card now finds the web player playing in a browser (Chrome, Edge,
   Firefox, Brave, Opera and others) with "Spotify only" on, not just the desktop app.
@@ -90,6 +90,12 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
     the Deezer API) plus a kick on every new lyric line: a glow behind the cover swells and the cover pops on the beat.
     The moving equaliser bars now show after the song name in the sky too. "Pulse to the beat" turns it off.
   - *Sky height* (v0.7.5): how high above the horizon the whole sky player sits, 5 to 75 degrees (default 30).
+- **More lyric sources (v0.7.6)**: when lrclib.net has no synced lyrics (or is down), Justaclient now asks NetEase Cloud
+  Music, then QQ Music, then Kugou, matching title, artist and length. Titles like "Song - Remastered 2011" are searched
+  without the ending. `/jmedia` shows which source answered.
+- **World effects with shader packs (v0.7.6)**: with Iris and a shader pack on, the target marker, hit particles, bubbles,
+  trails and other glowing world effects no longer disappear. They switch to a render type shader packs draw (a baked
+  glow texture on a glowing translucent entity layer) while a pack is on, and back to Justaclient's own shader when off.
 
 ### M6: the rest of the feature list (v0.7.0)
 
