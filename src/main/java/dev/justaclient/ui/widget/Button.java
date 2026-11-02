@@ -3,21 +3,29 @@ package dev.justaclient.ui.widget;
 import dev.justaclient.anim.Colors;
 import dev.justaclient.config.JacConfig;
 import dev.justaclient.render.Draw;
+import dev.justaclient.render.Icons;
 import dev.justaclient.render.text.JacText;
 import dev.justaclient.ui.Theme;
 import net.minecraft.client.gui.GuiGraphics;
+import org.jspecify.annotations.Nullable;
 
 /** A rounded button. Primary buttons use the accent; others use the neutral control colour. */
 public final class Button extends Widget {
 	private final String label;
 	private final boolean primary;
 	private final Runnable action;
+	private final @Nullable Icons icon;
 
 	public Button(float x, float y, float width, float height, String label, boolean primary, Runnable action) {
+		this(x, y, width, height, null, label, primary, action);
+	}
+
+	public Button(float x, float y, float width, float height, @Nullable Icons icon, String label, boolean primary, Runnable action) {
 		super(x, y, width, height);
 		this.label = label;
 		this.primary = primary;
 		this.action = action;
+		this.icon = icon;
 	}
 
 	@Override
@@ -33,7 +41,16 @@ public final class Button extends Widget {
 			Draw.rect(g, x, y, width, height, radius, Colors.fade(Colors.lerp(Theme.CONTROL, Theme.CONTROL_HOVER, h), alpha));
 		}
 		float ty = y + (height - JacText.lineHeight(Theme.LABEL)) / 2f;
-		JacText.drawCentered(g, label, x + width / 2f, ty, Colors.fade(primary ? 0xFFFFFFFF : Theme.TEXT, alpha), Theme.LABEL, JacText.Weight.SEMIBOLD);
+		int color = Colors.fade(primary ? 0xFFFFFFFF : Theme.TEXT, alpha);
+		if (icon == null) {
+			JacText.drawCentered(g, label, x + width / 2f, ty, color, Theme.LABEL, JacText.Weight.SEMIBOLD);
+			return;
+		}
+		float iconSize = Theme.LABEL + 0.5f;
+		float total = iconSize + 4f + JacText.width(label, Theme.LABEL, JacText.Weight.SEMIBOLD);
+		float left = x + (width - total) / 2f;
+		JacText.icon(g, icon, left, y + (height - iconSize) / 2f, iconSize, color);
+		JacText.draw(g, label, left + iconSize + 4f, ty, color, Theme.LABEL, JacText.Weight.SEMIBOLD);
 	}
 
 	@Override

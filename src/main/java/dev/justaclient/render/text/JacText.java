@@ -5,6 +5,7 @@ import com.mojang.blaze3d.textures.FilterMode;
 import dev.justaclient.Justaclient;
 import dev.justaclient.config.JacConfig;
 import dev.justaclient.config.StyleTokens;
+import dev.justaclient.render.Icons;
 import java.util.EnumMap;
 import java.util.Map;
 import net.minecraft.ChatFormatting;
@@ -16,6 +17,7 @@ import net.minecraft.client.gui.render.TextureSetup;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.network.chat.Component;
 import org.joml.Matrix3x2f;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Text drawing for the whole client. Sizes are the font's em size in GUI pixels (vanilla text is roughly 8).
@@ -34,6 +36,7 @@ public final class JacText {
 	}
 
 	private static final Map<Weight, MsdfFont> FONTS = new EnumMap<>(Weight.class);
+	private static @Nullable MsdfFont icons;
 
 	private JacText() {
 	}
@@ -46,7 +49,21 @@ public final class JacText {
 			drawVanilla(g, text, x, y, color, size, weight);
 			return;
 		}
-		MsdfFont font = font(weight);
+		submit(g, font(weight), text, x, y, color, size);
+	}
+
+	/** Draws a Lucide icon in a {@code size} by {@code size} box with its top-left at x, y. Icons ignore the font setting. */
+	public static void icon(GuiGraphics g, Icons icon, float x, float y, float size, int color) {
+		if ((color >>> 24) == 0) {
+			return;
+		}
+		if (icons == null) {
+			icons = MsdfFont.load(Justaclient.id("lucide"));
+		}
+		submit(g, icons, icon.glyph, x, y, color, size);
+	}
+
+	private static void submit(GuiGraphics g, MsdfFont font, String text, float x, float y, int color, float size) {
 		float scale = size / font.emSize;
 		Matrix3x2f pose = new Matrix3x2f(g.pose());
 		ScreenRectangle scissor = g.scissorStack.peek();
@@ -105,5 +122,6 @@ public final class JacText {
 	/** Drops cached fonts so they reload from the current resource packs. */
 	public static void clearCache() {
 		FONTS.clear();
+		icons = null;
 	}
 }

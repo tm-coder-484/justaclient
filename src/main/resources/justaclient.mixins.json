@@ -3,7 +3,12 @@
 	"package": "dev.justaclient.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
-		"GuiRendererMixin"
+		"GameRendererMixin",
+		"GuiRendererMixin",
+		"MouseHandlerMixin",
+		"MultiPlayerGameModeAccessor",
+		"MultiPlayerGameModeMixin",
+		"ScreenEffectRendererMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

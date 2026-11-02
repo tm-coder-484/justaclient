@@ -49,6 +49,14 @@ public final class JacPipelines {
 			.build()
 	);
 
+	/** Ring segments for timers, dials and gauges. */
+	public static final RenderPipeline ARC = RenderPipelines.register(
+		RenderPipeline.builder(SHAPE_SNIPPET)
+			.withLocation(Justaclient.id("pipeline/arc"))
+			.withFragmentShader(Justaclient.id("core/arc"))
+			.build()
+	);
+
 	/** A rounded rectangle that shows the blurred frame behind it, tinted by the vertex colour. */
 	public static final RenderPipeline GLASS = RenderPipelines.register(
 		RenderPipeline.builder(SHAPE_SNIPPET)

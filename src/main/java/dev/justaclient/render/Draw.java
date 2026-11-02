@@ -52,10 +52,14 @@ public final class Draw {
 	 * blur), drawn at {@code opacity}. With blur turned off this is a plain translucent rectangle.
 	 */
 	public static void glass(GuiGraphics g, float x, float y, float w, float h, float radius, int tint, float opacity) {
+		glass(g, x, y, w, h, radius, tint, opacity, JacConfig.get().style.blur);
+	}
+
+	private static void glass(GuiGraphics g, float x, float y, float w, float h, float radius, int tint, float opacity, boolean blur) {
 		if (opacity <= 0f) {
 			return;
 		}
-		if (!JacConfig.get().style.blur) {
+		if (!blur) {
 			rect(g, x, y, w, h, radius, Colors.fade(tint, opacity));
 			return;
 		}
@@ -69,6 +73,24 @@ public final class Draw {
 	 * whole panel for open and close animations.
 	 */
 	public static void panel(GuiGraphics g, float x, float y, float w, float h, float alpha) {
+		panel(g, x, y, w, h, alpha, JacConfig.get().style.blur);
+	}
+
+	/** A HUD widget's panel: the same look, with blur only if the player also wants it on the HUD. */
+	public static void hudPanel(GuiGraphics g, float x, float y, float w, float h) {
+		StyleTokens style = JacConfig.get().style;
+		panel(g, x, y, w, h, 1f, style.blur && style.hudBlur);
+	}
+
+	/** A filled ring segment, clockwise from {@code start} (turns, 0 = 12 o'clock) for {@code sweep} turns, with round caps. */
+	public static void arc(GuiGraphics g, float cx, float cy, float r, float thickness, float start, float sweep, int color) {
+		if (sweep <= 0f || (color >>> 24) == 0) {
+			return;
+		}
+		g.guiRenderState.submitGuiElement(ArcRenderState.create(new Matrix3x2f(g.pose()), cx, cy, r, thickness, start, sweep, color, g.scissorStack.peek()));
+	}
+
+	private static void panel(GuiGraphics g, float x, float y, float w, float h, float alpha, boolean blur) {
 		StyleTokens style = JacConfig.get().style;
 		float radius = style.cornerRadius;
 		int accent = JacConfig.accent();
@@ -77,7 +99,7 @@ public final class Draw {
 		if (style.outline == StyleTokens.Outline.GLOW) {
 			shadow(g, x, y, w, h, radius, 8f, Colors.fade(Colors.withAlpha(accent, 0x70), alpha));
 		}
-		glass(g, x, y, w, h, radius, JacConfig.surface(), alpha);
+		glass(g, x, y, w, h, radius, JacConfig.surface(), alpha, blur);
 		if (style.outline == StyleTokens.Outline.OFF) {
 			// Hairline highlight keeps the edge readable over bright backgrounds.
 			outline(g, x, y, w, h, radius, 1f, Colors.fade(0x14FFFFFF, alpha));
