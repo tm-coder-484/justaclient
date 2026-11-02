@@ -8,6 +8,7 @@ import dev.justaclient.feature.setting.ColorSetting;
 import dev.justaclient.feature.setting.KeySetting;
 import dev.justaclient.feature.setting.NumberSetting;
 import dev.justaclient.feature.setting.Setting;
+import dev.justaclient.hud.FrameCost;
 import dev.justaclient.render.Draw;
 import dev.justaclient.render.Icons;
 import dev.justaclient.render.text.JacText;
@@ -30,6 +31,8 @@ public abstract class Feature {
 	public final Icons icon;
 	/** Toggles the feature from anywhere in game. Every feature gets one, unbound by default. */
 	public final KeySetting toggleKey = new KeySetting("toggle_key", "Toggle key", KeySetting.NONE);
+	/** Where this feature's render and tick time is booked for the Performance page. */
+	public final FrameCost.Section cost;
 	private final List<Setting<?>> settings = new ArrayList<>();
 	private final boolean enabledByDefault;
 	private boolean enabled;
@@ -40,6 +43,7 @@ public abstract class Feature {
 		this.description = description;
 		this.category = category;
 		this.icon = icon;
+		this.cost = FrameCost.section(name);
 		this.enabledByDefault = enabledByDefault;
 		this.enabled = enabledByDefault;
 	}

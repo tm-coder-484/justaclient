@@ -48,9 +48,7 @@ public final class BlockHighlightFeature extends Feature {
 		WorldRenderEvents.BEFORE_BLOCK_OUTLINE.register((context, state) -> !feature.isEnabled());
 		WorldRenderEvents.END_MAIN.register(context -> {
 			if (feature.isEnabled()) {
-				FrameCost.begin();
-				feature.render(context);
-				FrameCost.end();
+				FrameCost.time(feature.cost, () -> feature.render(context));
 			}
 		});
 	}

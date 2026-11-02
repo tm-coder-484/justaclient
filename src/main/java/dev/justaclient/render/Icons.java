@@ -45,7 +45,26 @@ public enum Icons {
 	MAGNET(0xe2b5),
 	MAXIMIZE(0xe117),
 	HEART(0xe0f5),
-	SWORD(0xe2b3);
+	SWORD(0xe2b3),
+	USERS(0xe1a4),
+	GLOBE(0xe0eb),
+	LOG_OUT(0xe112),
+	SETTINGS(0xe158),
+	ACTIVITY(0xe038),
+	CLOUD_FOG(0xe214),
+	MOON(0xe122),
+	STAR(0xe17a),
+	ZAP(0xe1b4),
+	DOWNLOAD(0xe0b6),
+	UPLOAD(0xe19e),
+	CLIPBOARD_PASTE(0xe3ec),
+	FOOTPRINTS(0xe3bd),
+	CIRCLE_DOT(0xe349),
+	SKULL(0xe221),
+	TARGET(0xe184),
+	SWORDS(0xe2b4),
+	ORBIT(0xe3eb),
+	CPU(0xe0ad);
 
 	public final String glyph;
 

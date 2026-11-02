@@ -8,6 +8,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import dev.justaclient.Justaclient;
 import dev.justaclient.config.JacConfig;
+import dev.justaclient.config.StyleTokens;
 import dev.justaclient.feature.Feature;
 import dev.justaclient.feature.Features;
 import dev.justaclient.feature.setting.Setting;
@@ -21,6 +22,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.Minecraft;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Feature profiles: which features are on, their settings, keys and HUD layout. Each profile is one JSON file in
@@ -126,6 +129,57 @@ public final class Profiles {
 		JacConfig.get().profile = names.getFirst();
 		JacConfig.save();
 		load();
+	}
+
+	/** Copies the active profile, with the current theme, to the clipboard as JSON so it can be pasted to a friend. */
+	public static void exportToClipboard() {
+		save();
+		JsonObject root = snapshot();
+		root.addProperty("name", active());
+		root.add("style", GSON.toJsonTree(JacConfig.get().style));
+		Minecraft.getInstance().keyboardHandler.setClipboard(GSON.toJson(root));
+	}
+
+	/**
+	 * Makes a new profile from JSON on the clipboard (as written by {@link #exportToClipboard}) and switches to it. A theme
+	 * in the JSON replaces the current one. Returns the new profile's name, or null if the clipboard held no profile.
+	 */
+	public static @Nullable String importFromClipboard() {
+		JsonObject root;
+		try {
+			JsonElement parsed = JsonParser.parseString(Minecraft.getInstance().keyboardHandler.getClipboard());
+			if (!parsed.isJsonObject() || !parsed.getAsJsonObject().has("features")) {
+				return null;
+			}
+			root = parsed.getAsJsonObject();
+		} catch (JsonParseException | IllegalStateException e) {
+			return null;
+		}
+		save();
+		String base = root.has("name") && root.get("name").isJsonPrimitive() ? root.get("name").getAsString().trim() : "Imported";
+		base = base.isEmpty() ? "Imported" : base.substring(0, Math.min(32, base.length()));
+		List<String> names = list();
+		String name = base;
+		for (int n = 2; names.contains(name); n++) {
+			name = base + " " + n;
+		}
+		if (root.has("style") && root.get("style").isJsonObject()) {
+			try {
+				StyleTokens style = GSON.fromJson(root.get("style"), StyleTokens.class);
+				if (style != null) {
+					style.sanitize();
+					JacConfig.get().style = style;
+				}
+			} catch (JsonParseException e) {
+				Justaclient.LOGGER.warn("Ignoring the theme in a pasted profile", e);
+			}
+		}
+		Features.all().forEach(Feature::resetToDefaults);
+		apply(root);
+		JacConfig.get().profile = name;
+		JacConfig.save();
+		save();
+		return name;
 	}
 
 	private static Path file(String name) {

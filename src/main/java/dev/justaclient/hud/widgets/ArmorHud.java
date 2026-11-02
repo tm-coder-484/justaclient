@@ -149,7 +149,7 @@ public final class ArmorHud extends HudFeature {
 	}
 
 	/** Green when fresh, through amber, to red when nearly broken. */
-	private static int healthColor(float left) {
+	public static int healthColor(float left) {
 		return left > 0.5f
 			? Colors.lerp(0xFFF5C542, 0xFF4ADE80, (left - 0.5f) * 2f)
 			: Colors.lerp(0xFFF43F5E, 0xFFF5C542, left * 2f);

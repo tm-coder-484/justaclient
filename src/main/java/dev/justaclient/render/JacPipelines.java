@@ -81,6 +81,40 @@ public final class JacPipelines {
 			.build()
 	);
 
+	private static final RenderPipeline.Snippet WORLD_FX_SNIPPET = RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET)
+		.withVertexShader(Justaclient.id("core/world_fx"))
+		.withDepthWrite(false)
+		.withCull(false)
+		.withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
+		.buildSnippet();
+
+	/** Soft glowing sprites, rings and ribbons in the world. Depth tested, so they never show through blocks. */
+	public static final RenderPipeline WORLD_FX = RenderPipelines.register(
+		RenderPipeline.builder(WORLD_FX_SNIPPET)
+			.withLocation(Justaclient.id("pipeline/world_fx"))
+			.withFragmentShader(Justaclient.id("core/world_fx"))
+			.withBlend(BlendFunction.TRANSLUCENT)
+			.build()
+	);
+
+	/** The same sprites added onto the sky, for stars and shooting stars. */
+	public static final RenderPipeline SKY_FX = RenderPipelines.register(
+		RenderPipeline.builder(WORLD_FX_SNIPPET)
+			.withLocation(Justaclient.id("pipeline/sky_fx"))
+			.withFragmentShader(Justaclient.id("core/world_fx"))
+			.withBlend(BlendFunction.LIGHTNING)
+			.build()
+	);
+
+	/** Aurora curtains, added onto the sky. */
+	public static final RenderPipeline AURORA = RenderPipelines.register(
+		RenderPipeline.builder(WORLD_FX_SNIPPET)
+			.withLocation(Justaclient.id("pipeline/aurora"))
+			.withFragmentShader(Justaclient.id("core/aurora"))
+			.withBlend(BlendFunction.LIGHTNING)
+			.build()
+	);
+
 	private static final RenderPipeline.Snippet BLUR_SNIPPET = RenderPipeline.builder()
 		.withVertexShader("core/screenquad")
 		.withSampler("InSampler")

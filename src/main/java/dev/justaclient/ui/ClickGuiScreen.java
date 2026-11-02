@@ -12,6 +12,7 @@ import dev.justaclient.feature.Features;
 import dev.justaclient.feature.setting.Setting;
 import dev.justaclient.hud.FrameCost;
 import dev.justaclient.hud.HudFeature;
+import dev.justaclient.hud.Notifications;
 import dev.justaclient.profile.Profiles;
 import dev.justaclient.render.Draw;
 import dev.justaclient.render.Icons;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -59,7 +61,7 @@ public final class ClickGuiScreen extends Screen {
 	private static @Nullable Category lastCategory = Category.HUD;
 	private static @Nullable Feature lastFeature;
 
-	private final @Nullable Screen parent;
+	private @Nullable Screen parent;
 	private final Animation open = new Animation(Easing.CUBIC_OUT, 260, 0f);
 	private final Animation pageIn = new Animation(Easing.CUBIC_OUT, 200, 1f);
 	private final Animation settingsIn = new Animation(Easing.CUBIC_OUT, 200, 1f);
@@ -75,6 +77,9 @@ public final class ClickGuiScreen extends Screen {
 	private List<Feature> shown = List.of();
 	/** The search also matches the Theme page, which is listed after the features. */
 	private boolean themeHit;
+	/** Showing the Performance page (category is null too, like the Theme page). */
+	private boolean perfPage;
+	private static boolean lastPerfPage;
 
 	private final Spring listScroll = Spring.ui(0f);
 	private float listScrollTarget;
@@ -97,12 +102,15 @@ public final class ClickGuiScreen extends Screen {
 	private @Nullable Button resetButton;
 
 	private boolean profileMenu;
+	/** Rows after the profile names in the profile menu: new, copy, paste, delete, open folder. */
+	private static final int ACTIONS = 5;
 	private final Animation profileMenuAnim = new Animation(Easing.CUBIC_OUT, 160, 0f);
 
 	public ClickGuiScreen(@Nullable Screen parent) {
 		super(Component.literal("Justaclient"));
 		this.parent = parent;
 		this.category = lastCategory;
+		this.perfPage = lastPerfPage && lastCategory == null;
 	}
 
 	/** Opens straight onto one feature's settings, e.g. from the HUD editor. */
@@ -114,6 +122,13 @@ public final class ClickGuiScreen extends Screen {
 
 	@Nullable Screen parent() {
 		return parent;
+	}
+
+	/** Swaps the title screen behind the menu, so turning the custom title screen on or off shows at once. */
+	public void replaceParentTitle(Screen title) {
+		if (parent instanceof TitleScreen || parent instanceof JacTitleScreen) {
+			parent = title;
+		}
 	}
 
 	@Override
@@ -172,9 +187,15 @@ public final class ClickGuiScreen extends Screen {
 	}
 
 	private void showCategory(@Nullable Category next) {
-		if (next == category && query.isBlank()) {
+		showPage(next, false);
+	}
+
+	private void showPage(@Nullable Category next, boolean perf) {
+		if (next == category && perf == perfPage && query.isBlank()) {
 			return;
 		}
+		perfPage = perf;
+		lastPerfPage = perf;
 		category = next;
 		lastCategory = next;
 		query = "";
@@ -241,13 +262,16 @@ public final class ClickGuiScreen extends Screen {
 		g.disableScissor();
 		Draw.rect(g, 0, BODY_H, W, 0.75f, 0, Colors.fade(Theme.DIVIDER, t));
 		Draw.rect(g, SIDEBAR, 0, 0.75f, BODY_H, 0, Colors.fade(Theme.DIVIDER, t));
-		if (!isThemePage()) {
+		if (!isThemePage() && !isPerfPage()) {
 			Draw.rect(g, SET_X, 0, 0.75f, BODY_H, 0, Colors.fade(Theme.DIVIDER, t));
 		}
 
 		drawSidebar(g, lx, ly, t);
 		if (isThemePage()) {
 			drawThemePage(g, lx, ly, t);
+		} else if (isPerfPage()) {
+			float a = t * pageIn.get();
+			PerformancePage.draw(g, LIST_X + 14, 14, W - LIST_X - 28, BODY_H - 14, a);
 		} else {
 			drawList(g, lx, ly, t);
 			drawSettings(g, lx, ly, t);
@@ -258,7 +282,11 @@ public final class ClickGuiScreen extends Screen {
 	}
 
 	private boolean isThemePage() {
-		return category == null && query.isBlank();
+		return category == null && query.isBlank() && !perfPage;
+	}
+
+	private boolean isPerfPage() {
+		return category == null && query.isBlank() && perfPage;
 	}
 
 	private void drawSidebar(GuiGraphics g, double mx, double my, float t) {
@@ -292,7 +320,8 @@ public final class ClickGuiScreen extends Screen {
 		List<Object> items = navItems();
 		int activeIndex = -1;
 		for (int i = 0; i < items.size(); i++) {
-			if (!searching && (items.get(i) == category || items.get(i) == ThemePage.class && category == null)) {
+			Object item = items.get(i);
+			if (!searching && (item == category || item == ThemePage.class && isThemePage() || item == PerformancePage.class && isPerfPage())) {
 				activeIndex = i;
 			}
 		}
@@ -307,7 +336,7 @@ public final class ClickGuiScreen extends Screen {
 			Draw.rect(g, 10, my0, SIDEBAR - 20, 17, r, Colors.fade(Colors.withAlpha(accent, 0x38), t));
 			Draw.rect(g, 10, my0 + 3, 1.5f, 11, 0.75f, Colors.fade(accent, t));
 		}
-		Draw.rect(g, 14, navY(items.size() - 1) - 6, SIDEBAR - 28, 0.75f, 0, Colors.fade(Theme.DIVIDER, t));
+		Draw.rect(g, 14, navY(items.indexOf(ThemePage.class)) - 6, SIDEBAR - 28, 0.75f, 0, Colors.fade(Theme.DIVIDER, t));
 		for (int i = 0; i < items.size(); i++) {
 			Object item = items.get(i);
 			float y = navY(i);
@@ -317,8 +346,8 @@ public final class ClickGuiScreen extends Screen {
 				Draw.rect(g, 10, y, SIDEBAR - 20, 17, r, Colors.fade(Colors.withAlpha(0xFFFFFF, 0x0E), t * h));
 			}
 			boolean active = i == activeIndex;
-			Icons icon = item instanceof Category c ? c.icon : Icons.PALETTE;
-			String label = item instanceof Category c ? c.label : "Theme";
+			Icons icon = item instanceof Category c ? c.icon : item == ThemePage.class ? Icons.PALETTE : Icons.ACTIVITY;
+			String label = item instanceof Category c ? c.label : item == ThemePage.class ? "Theme" : "Performance";
 			int color = Colors.lerp(Theme.TEXT_DIM, Theme.TEXT, active ? 1f : h * 0.6f);
 			JacText.icon(g, icon, 17, y + (17 - 7.5f) / 2f, 7.5f, Colors.fade(active ? JacConfig.accent() : color, t));
 			JacText.draw(g, label, 31, y + (17 - JacText.lineHeight(Theme.LABEL)) / 2f, Colors.fade(color, t), Theme.LABEL,
@@ -334,12 +363,13 @@ public final class ClickGuiScreen extends Screen {
 			}
 		}
 		items.add(ThemePage.class);
+		items.add(PerformancePage.class);
 		return items;
 	}
 
 	private float navY(int index) {
-		int last = navItems().size() - 1;
-		return 58 + index * 19 + (index == last ? 12 : 0);
+		int pages = navItems().indexOf(ThemePage.class);
+		return 58 + index * 19 + (index >= pages ? 12 : 0);
 	}
 
 	private void drawList(GuiGraphics g, double mx, double my, float t) {
@@ -480,12 +510,18 @@ public final class ClickGuiScreen extends Screen {
 		JacText.draw(g, Profiles.active(), bx + 8, ty, Colors.fade(Theme.TEXT, t), Theme.LABEL, JacText.Weight.SEMIBOLD);
 		JacText.icon(g, Icons.CHEVRON_DOWN, bx + bw - 14, y + 11.5f, 7f, Colors.fade(Theme.TEXT_DIM, t));
 
-		String cost = String.format("Frame cost %.1f%%", FrameCost.share() * 100f);
-		JacText.draw(g, cost, W - 14 - 96 - 10 - JacText.width(cost, Theme.SMALL, JacText.Weight.REGULAR), y + (FOOTER - JacText.lineHeight(Theme.SMALL)) / 2f,
-			Colors.fade(Theme.TEXT_DIM, t), Theme.SMALL, JacText.Weight.REGULAR);
+		String cost = costLabel();
+		float costX = W - 14 - 96 - 10 - JacText.width(cost, Theme.SMALL, JacText.Weight.REGULAR);
+		boolean costHover = !profileMenu && mx >= costX && mx < W - 14 - 96 - 10 && my >= y + 6 && my < y + 24;
+		JacText.draw(g, cost, costX, y + (FOOTER - JacText.lineHeight(Theme.SMALL)) / 2f,
+			Colors.fade(costHover ? Theme.TEXT : Theme.TEXT_DIM, t), Theme.SMALL, JacText.Weight.REGULAR);
 		for (Widget w : chrome) {
 			w.render(g, mx, profileMenu ? -1e4 : my, t);
 		}
+	}
+
+	private static String costLabel() {
+		return String.format("Frame cost %.1f%%", FrameCost.share() * 100f);
 	}
 
 	private float profileButtonWidth() {
@@ -495,6 +531,8 @@ public final class ClickGuiScreen extends Screen {
 	private List<String> profileMenuItems() {
 		List<String> items = new ArrayList<>(Profiles.list());
 		items.add("+");
+		items.add("e");
+		items.add("i");
 		items.add("-");
 		items.add("/");
 		return items;
@@ -517,7 +555,7 @@ public final class ClickGuiScreen extends Screen {
 		g.nextStratum();
 		float a = t * p;
 		Draw.panel(g, x, y, w, h, a);
-		int profiles = items.size() - 3;
+		int profiles = items.size() - ACTIONS;
 		for (int i = 0; i < items.size(); i++) {
 			String item = items.get(i);
 			float iy = y + 5 + i * 15f;
@@ -530,6 +568,8 @@ public final class ClickGuiScreen extends Screen {
 			int color = Colors.fade(disabled ? 0x60FFFFFF : Theme.TEXT, a);
 			switch (item) {
 				case "+" -> menuRow(g, Icons.PLUS, "New profile (copy)", x, iy, ty, color);
+				case "e" -> menuRow(g, Icons.UPLOAD, "Copy to clipboard", x, iy, ty, color);
+				case "i" -> menuRow(g, Icons.CLIPBOARD_PASTE, "Paste from clipboard", x, iy, ty, color);
 				case "-" -> menuRow(g, Icons.TRASH, "Delete this profile", x, iy, ty, color);
 				case "/" -> menuRow(g, Icons.LAYERS, "Open profiles folder", x, iy, ty, color);
 				default -> {
@@ -591,12 +631,19 @@ public final class ClickGuiScreen extends Screen {
 				return true;
 			}
 		}
+		float costRight = W - 14 - 96 - 10;
+		if (button == 0 && mx >= costRight - JacText.width(costLabel(), Theme.SMALL, JacText.Weight.REGULAR) && mx < costRight && my >= H - FOOTER + 6
+			&& my < H - 6) {
+			query = "";
+			showPage(null, true);
+			return true;
+		}
 		// Sidebar.
 		List<Object> items = navItems();
 		for (int i = 0; i < items.size(); i++) {
 			float y = navY(i);
 			if (button == 0 && mx >= 10 && mx < SIDEBAR - 10 && my >= y && my < y + 17) {
-				showCategory(items.get(i) instanceof Category c ? c : null);
+				showPage(items.get(i) instanceof Category c ? c : null, items.get(i) == PerformancePage.class);
 				return true;
 			}
 		}
@@ -674,6 +721,19 @@ public final class ClickGuiScreen extends Screen {
 		String item = items.get(i);
 		switch (item) {
 			case "+" -> Profiles.duplicate();
+			case "e" -> {
+				Profiles.exportToClipboard();
+				Notifications.push(Icons.UPLOAD, Profiles.active(), "copied to the clipboard");
+			}
+			case "i" -> {
+				String imported = Profiles.importFromClipboard();
+				if (imported == null) {
+					Notifications.push(Icons.INFO, "No profile", "on the clipboard");
+				} else {
+					Notifications.push(Icons.CLIPBOARD_PASTE, imported, "imported");
+					rebuildWidgets();
+				}
+			}
 			case "-" -> Profiles.deleteActive();
 			case "/" -> {
 				Profiles.save();

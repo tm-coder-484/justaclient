@@ -4,9 +4,14 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.justaclient.config.JacConfig;
 import dev.justaclient.feature.Features;
 import dev.justaclient.feature.impl.BlockHighlightFeature;
+import dev.justaclient.feature.impl.CombatTracker;
+import dev.justaclient.feature.impl.HotbarFeature;
+import dev.justaclient.feature.impl.TargetMarkerFeature;
+import dev.justaclient.feature.impl.TrailsFeature;
 import dev.justaclient.hud.HudRenderer;
 import dev.justaclient.profile.Profiles;
 import dev.justaclient.render.JacPipelines;
+import dev.justaclient.render.WorldFx;
 import dev.justaclient.ui.ClickGuiScreen;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -37,9 +42,14 @@ public final class Justaclient implements ClientModInitializer {
 		Features.init();
 		Profiles.load();
 		HudRenderer.init();
+		HotbarFeature.init();
 		BlockHighlightFeature.init();
+		WorldFx.init();
+		TargetMarkerFeature.init();
+		TrailsFeature.init();
 		KeyBindingHelper.registerKeyBinding(OPEN_MENU);
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+			CombatTracker.tick();
 			Features.tick(client);
 			while (OPEN_MENU.consumeClick()) {
 				if (client.screen == null) {

@@ -53,7 +53,7 @@ public final class StyleTokens {
 	}
 
 	/** Clamps values that may have been hand-edited in the config file. */
-	void sanitize() {
+	public void sanitize() {
 		surfaceOpacity = Math.max(0f, Math.min(1f, surfaceOpacity));
 		blurStrength = Math.max(1, Math.min(5, blurStrength));
 		cornerRadius = Math.max(0f, Math.min(16f, cornerRadius));
