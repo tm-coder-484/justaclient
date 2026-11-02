@@ -2,7 +2,13 @@ package dev.justaclient.hud;
 
 import dev.justaclient.Justaclient;
 import dev.justaclient.feature.Features;
+import dev.justaclient.feature.impl.BossBarFeature;
 import dev.justaclient.feature.impl.CrosshairFeature;
+import dev.justaclient.feature.impl.LowHealthFeature;
+import dev.justaclient.feature.impl.TrinketFeature;
+import dev.justaclient.feature.impl.WaypointsFeature;
+import dev.justaclient.feature.impl.ScoreboardFeature;
+import dev.justaclient.hud.widgets.NowPlayingHud;
 import dev.justaclient.hud.widgets.PotionsHud;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
@@ -21,6 +27,54 @@ public final class HudRenderer {
 
 	public static void init() {
 		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Justaclient.id("hud"), HudRenderer::render);
+		HudElementRegistry.attachElementBefore(VanillaHudElements.MISC_OVERLAYS, Justaclient.id("waypoint_labels"), (g, delta) -> {
+			WaypointsFeature waypoints = Features.get(WaypointsFeature.class);
+			if (waypoints.isEnabled() && !editing) {
+				waypoints.cost.begin();
+				waypoints.renderLabels(g);
+				waypoints.cost.end();
+			}
+		});
+		HudElementRegistry.attachElementBefore(VanillaHudElements.MISC_OVERLAYS, Justaclient.id("sky_lyrics"), (g, delta) -> {
+			NowPlayingHud card = Features.get(NowPlayingHud.class);
+			if (card.isEnabled() && !editing) {
+				card.drawSky(g);
+			}
+		});
+		HudElementRegistry.attachElementAfter(VanillaHudElements.CHAT, Justaclient.id("trinket"), (g, delta) -> {
+			TrinketFeature trinket = Features.get(TrinketFeature.class);
+			if (trinket.isEnabled() && !editing && !Minecraft.getInstance().options.hideGui) {
+				trinket.cost.begin();
+				trinket.render(g);
+				trinket.cost.end();
+			}
+		});
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, Justaclient.id("screen_glow"), (g, delta) -> {
+			LowHealthFeature glow = Features.get(LowHealthFeature.class);
+			if (glow.isEnabled() && !editing) {
+				glow.cost.begin();
+				glow.render(g);
+				glow.cost.end();
+			}
+		});
+		HudElementRegistry.replaceElement(VanillaHudElements.BOSS_BAR, vanilla -> (g, delta) -> {
+			BossBarFeature bars = Features.get(BossBarFeature.class);
+			bars.cost.begin();
+			boolean drawn = bars.render(g);
+			bars.cost.end();
+			if (!drawn) {
+				vanilla.render(g, delta);
+			}
+		});
+		HudElementRegistry.replaceElement(VanillaHudElements.SCOREBOARD, vanilla -> (g, delta) -> {
+			ScoreboardFeature board = Features.get(ScoreboardFeature.class);
+			board.cost.begin();
+			boolean drawn = board.render(g);
+			board.cost.end();
+			if (!drawn) {
+				vanilla.render(g, delta);
+			}
+		});
 		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (g, delta) -> {
 			CrosshairFeature crosshair = Features.get(CrosshairFeature.class);
 			if (crosshair.isEnabled() && crosshair.shouldReplaceVanilla()) {

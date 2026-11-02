@@ -1,6 +1,7 @@
 package dev.justaclient.feature.impl;
 
 import dev.justaclient.feature.Features;
+import dev.justaclient.hud.SessionStats;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -46,6 +47,7 @@ public final class CombatTracker {
 			target = living;
 			lastAttack = System.nanoTime();
 		}
+		Features.get(SlashTrailFeature.class).onAttack();
 	}
 
 	/** The server says {@code entity} took damage. */
@@ -53,6 +55,7 @@ public final class CombatTracker {
 		if (entity == target && System.nanoTime() - lastAttack < HIT_WINDOW_NANOS) {
 			lastHit = System.nanoTime();
 			Features.get(HitParticlesFeature.class).onHit(target);
+			Features.get(HitBubblesFeature.class).onHit(target);
 			Features.get(HitSoundsFeature.class).onHit();
 		}
 	}
@@ -74,6 +77,7 @@ public final class CombatTracker {
 		if (!reportedDeath && t.isDeadOrDying()) {
 			reportedDeath = true;
 			Features.get(KillEffectsFeature.class).onKill(t);
+			SessionStats.onKill();
 		}
 	}
 }

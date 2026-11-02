@@ -64,7 +64,32 @@ public enum Icons {
 	TARGET(0xe184),
 	SWORDS(0xe2b4),
 	ORBIT(0xe3eb),
-	CPU(0xe0ad);
+	CPU(0xe0ad),
+	NAVIGATION(0xe128),
+	MUSIC(0xe126),
+	PLAY(0xe140),
+	PAUSE(0xe132),
+	SKIP_FORWARD(0xe164),
+	SKIP_BACK(0xe163),
+	MIC_VOCAL(0xe34d),
+	CROWN(0xe1d6),
+	SHIRT(0xe1ca),
+	IMAGE(0xe0f9),
+	TROPHY(0xe377),
+	CHART_COLUMN(0xe2a3),
+	DROPLETS(0xe0b9),
+	CLOCK(0xe08b),
+	LIGHTBULB(0xe1c2),
+	BOX(0xe065),
+	GEM(0xe242),
+	CLOUD_RAIN(0xe092),
+	WIND(0xe1b0),
+	DICE_5(0xe28b),
+	LOCATE_FIXED(0xe1db),
+	FLAG(0xe0d6),
+	HOUSE(0xe0f8),
+	EYE_OFF(0xe0bf),
+	DISC_3(0xe499);
 
 	public final String glyph;
 

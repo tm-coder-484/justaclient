@@ -1,5 +1,6 @@
 package dev.justaclient.hud.widgets;
 
+import dev.justaclient.feature.impl.StreamModeFeature;
 import dev.justaclient.feature.setting.BoolSetting;
 import dev.justaclient.hud.RowsHud;
 import dev.justaclient.render.Icons;
@@ -23,7 +24,7 @@ public final class CoordinatesHud extends RowsHud {
 	@Override
 	protected void collect(List<Row> rows, boolean preview) {
 		Player player = Minecraft.getInstance().player;
-		if (player == null && !preview) {
+		if (!preview && (player == null || StreamModeFeature.hidesCoordinates())) {
 			return;
 		}
 		int x = preview ? 128 : player.getBlockX();

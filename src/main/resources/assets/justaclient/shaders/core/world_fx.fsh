@@ -11,6 +11,20 @@ in vec4 vertexColor;
 out vec4 fragColor;
 
 void main() {
+    if (uv.y > 2.0) {
+        // Bubble: clear middle, coloured rim, a small white highlight up and to the left.
+        vec2 b = vec2(uv.x, uv.y - 4.0);
+        float r = length(b);
+        if (r >= 1.0) {
+            discard;
+        }
+        float rim = smoothstep(0.6, 0.93, r) * (1.0 - smoothstep(0.93, 1.0, r));
+        float shine = 1.0 - smoothstep(0.0, 0.22, length(b - vec2(-0.38, 0.38)));
+        vec3 rgb = mix(vertexColor.rgb, vec3(1.0), shine);
+        float alpha = vertexColor.a * clamp(0.08 + rim * 0.9 + shine * 0.9, 0.0, 1.0);
+        fragColor = vec4(rgb, alpha) * ColorModulator;
+        return;
+    }
     float d = length(uv);
     if (d >= 1.0) {
         discard;

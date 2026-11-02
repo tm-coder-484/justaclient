@@ -115,6 +115,20 @@ public final class JacPipelines {
 			.build()
 	);
 
+	/** Vanilla's lightmap with a tint for block and sky light (Light colour). */
+	public static final RenderPipeline LIGHTMAP = RenderPipelines.register(
+		RenderPipeline.builder()
+			.withLocation(Justaclient.id("pipeline/lightmap"))
+			.withVertexShader("core/screenquad")
+			.withFragmentShader(Justaclient.id("core/lightmap"))
+			.withUniform("LightmapInfo", UniformType.UNIFORM_BUFFER)
+			.withUniform("JacLight", UniformType.UNIFORM_BUFFER)
+			.withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
+			.withDepthWrite(false)
+			.withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+			.build()
+	);
+
 	private static final RenderPipeline.Snippet BLUR_SNIPPET = RenderPipeline.builder()
 		.withVertexShader("core/screenquad")
 		.withSampler("InSampler")
@@ -137,6 +151,31 @@ public final class JacPipelines {
 		RenderPipeline.builder(BLUR_SNIPPET)
 			.withLocation(Justaclient.id("pipeline/blur_up"))
 			.withFragmentShader(Justaclient.id("post/kawase_up"))
+			.build()
+	);
+
+	/** Color grading, vignette and motion blur over the world frame (see {@link PostFx}). */
+	public static final RenderPipeline POST_GRADE = RenderPipelines.register(
+		RenderPipeline.builder(BLUR_SNIPPET)
+			.withLocation(Justaclient.id("pipeline/post_grade"))
+			.withFragmentShader(Justaclient.id("post/grade"))
+			.withSampler("HistorySampler")
+			.withUniform("JacPost", UniformType.UNIFORM_BUFFER)
+			.build()
+	);
+
+	/** Lays the separately drawn first-person hand back over the frame with its glow (see {@link HandFx}). */
+	public static final RenderPipeline HAND_COMPOSITE = RenderPipelines.register(
+		RenderPipeline.builder()
+			.withLocation(Justaclient.id("pipeline/hand_composite"))
+			.withVertexShader("core/screenquad")
+			.withFragmentShader(Justaclient.id("post/hand"))
+			.withSampler("HandSampler")
+			.withUniform("JacHand", UniformType.UNIFORM_BUFFER)
+			.withBlend(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA)
+			.withDepthWrite(false)
+			.withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+			.withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
 			.build()
 	);
 

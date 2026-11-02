@@ -3,6 +3,7 @@ package dev.justaclient.render;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import dev.justaclient.anim.Colors;
 import dev.justaclient.config.JacConfig;
+import dev.justaclient.feature.impl.PerformanceModeFeature;
 import dev.justaclient.config.StyleTokens;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.render.TextureSetup;
@@ -79,7 +80,7 @@ public final class Draw {
 	/** A HUD widget's panel: the same look, with blur only if the player also wants it on the HUD. */
 	public static void hudPanel(GuiGraphics g, float x, float y, float w, float h) {
 		StyleTokens style = JacConfig.get().style;
-		panel(g, x, y, w, h, 1f, style.blur && style.hudBlur);
+		panel(g, x, y, w, h, 1f, style.blur && style.hudBlur && PerformanceModeFeature.allowHudBlur());
 	}
 
 	/** A filled ring segment, clockwise from {@code start} (turns, 0 = 12 o'clock) for {@code sweep} turns, with round caps. */

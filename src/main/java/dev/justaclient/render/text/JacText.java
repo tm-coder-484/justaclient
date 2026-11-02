@@ -5,6 +5,8 @@ import com.mojang.blaze3d.textures.FilterMode;
 import dev.justaclient.Justaclient;
 import dev.justaclient.config.JacConfig;
 import dev.justaclient.config.StyleTokens;
+import dev.justaclient.feature.Features;
+import dev.justaclient.feature.impl.NameProtectFeature;
 import dev.justaclient.render.Icons;
 import java.util.EnumMap;
 import java.util.Map;
@@ -49,7 +51,13 @@ public final class JacText {
 			drawVanilla(g, text, x, y, color, size, weight);
 			return;
 		}
-		submit(g, font(weight), text, x, y, color, size);
+		submit(g, font(weight), protect(text), x, y, color, size);
+	}
+
+	/** Vanilla text goes through the font mixin; MSDF text gets name protect here. */
+	private static String protect(String text) {
+		NameProtectFeature names = Features.get(NameProtectFeature.class);
+		return names == null ? text : names.apply(text);
 	}
 
 	/** Draws a Lucide icon in a {@code size} by {@code size} box with its top-left at x, y. Icons ignore the font setting. */
@@ -86,7 +94,7 @@ public final class JacText {
 			return Minecraft.getInstance().font.width(text) * size / 8f;
 		}
 		MsdfFont font = font(weight);
-		return font.width(text) * size / font.emSize;
+		return font.width(protect(text)) * size / font.emSize;
 	}
 
 	/** Height of one line of text at {@code size}. */

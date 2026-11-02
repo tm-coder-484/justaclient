@@ -19,9 +19,19 @@ public final class KeySetting extends Setting<Integer> {
 		return value != NONE;
 	}
 
-	/** True while the key is physically held. */
+	/**
+	 * True while the key is physically held. Ignored while F3 is held, so vanilla's F3 combinations (F3 + B for hitboxes,
+	 * F3 + C, ...) don't also trigger a feature bound to the same letter.
+	 */
 	public boolean isDown() {
-		return isBound() && InputConstants.isKeyDown(Minecraft.getInstance().getWindow(), value);
+		if (!isBound()) {
+			return false;
+		}
+		var window = Minecraft.getInstance().getWindow();
+		if (value != InputConstants.KEY_F3 && InputConstants.isKeyDown(window, InputConstants.KEY_F3)) {
+			return false;
+		}
+		return InputConstants.isKeyDown(window, value);
 	}
 
 	public String keyName() {

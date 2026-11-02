@@ -1,0 +1,128 @@
+package dev.justaclient.hud;
+
+import dev.justaclient.Justaclient;
+import dev.justaclient.feature.Features;
+import dev.justaclient.feature.impl.BossBarFeature;
+import dev.justaclient.feature.impl.CrosshairFeature;
+import dev.justaclient.feature.impl.LowHealthFeature;
+import dev.justaclient.feature.impl.TrinketFeature;
+import dev.justaclient.feature.impl.WaypointsFeature;
+import dev.justaclient.feature.impl.ScoreboardFeature;
+import dev.justaclient.hud.widgets.NowPlayingHud;
+import dev.justaclient.hud.widgets.PotionsHud;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
+import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+
+/** Draws the HUD widgets each frame, under the chat, and swaps in the custom crosshair and effect list. */
+public final class HudRenderer {
+	/** Set by the HUD editor, which draws the widgets itself with outlines and previews. */
+	public static boolean editing;
+	private static float partialTick;
+
+	private HudRenderer() {
+	}
+
+	public static void init() {
+		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Justaclient.id("hud"), HudRenderer::render);
+		HudElementRegistry.attachElementBefore(VanillaHudElements.MISC_OVERLAYS, Justaclient.id("waypoint_labels"), (g, delta) -> {
+			WaypointsFeature waypoints = Features.get(WaypointsFeature.class);
+			if (waypoints.isEnabled() && !editing) {
+				waypoints.cost.begin();
+				waypoints.renderLabels(g);
+				waypoints.cost.end();
+			}
+		});
+		HudElementRegistry.attachElementBefore(VanillaHudElements.MISC_OVERLAYS, Justaclient.id("sky_lyrics"), (g, delta) -> {
+			NowPlayingHud card = Features.get(NowPlayingHud.class);
+			if (card.isEnabled() && !editing) {
+				card.drawSky(g);
+			}
+		});
+		HudElementRegistry.attachElementAfter(VanillaHudElements.CHAT, Justaclient.id("trinket"), (g, delta) -> {
+			TrinketFeature trinket = Features.get(TrinketFeature.class);
+			if (trinket.isEnabled() && !editing) {
+				trinket.cost.begin();
+				trinket.render(g);
+				trinket.cost.end();
+			}
+		});
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, Justaclient.id("screen_glow"), (g, delta) -> {
+			LowHealthFeature glow = Features.get(LowHealthFeature.class);
+			if (glow.isEnabled() && !editing) {
+				glow.cost.begin();
+				glow.render(g);
+				glow.cost.end();
+			}
+		});
+		HudElementRegistry.replaceElement(VanillaHudElements.BOSS_BAR, vanilla -> (g, delta) -> {
+			BossBarFeature bars = Features.get(BossBarFeature.class);
+			bars.cost.begin();
+			boolean drawn = bars.render(g);
+			bars.cost.end();
+			if (!drawn) {
+				vanilla.extractRenderState(g, delta);
+			}
+		});
+		HudElementRegistry.replaceElement(VanillaHudElements.SCOREBOARD, vanilla -> (g, delta) -> {
+			ScoreboardFeature board = Features.get(ScoreboardFeature.class);
+			board.cost.begin();
+			boolean drawn = board.render(g);
+			board.cost.end();
+			if (!drawn) {
+				vanilla.extractRenderState(g, delta);
+			}
+		});
+		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (g, delta) -> {
+			CrosshairFeature crosshair = Features.get(CrosshairFeature.class);
+			if (crosshair.isEnabled() && crosshair.shouldReplaceVanilla()) {
+				crosshair.cost.begin();
+				crosshair.renderHud(g, delta);
+				crosshair.cost.end();
+			} else {
+				vanilla.extractRenderState(g, delta);
+			}
+		});
+		HudElementRegistry.replaceElement(VanillaHudElements.MOB_EFFECTS, vanilla -> (g, delta) -> {
+			PotionsHud potions = Features.get(PotionsHud.class);
+			if (!potions.isEnabled() || !potions.hideVanilla.on()) {
+				vanilla.extractRenderState(g, delta);
+			}
+		});
+	}
+
+	public static float partialTick() {
+		return partialTick;
+	}
+
+	private static void render(GuiGraphicsExtractor g, DeltaTracker delta) {
+		partialTick = delta.getGameTimeDeltaPartialTick(false);
+		FrameCost.frame();
+		if (editing || Minecraft.getInstance().player == null) {
+			return;
+		}
+		for (HudFeature hud : Features.hud()) {
+			if (!hud.isEnabled()) {
+				continue;
+			}
+			hud.cost.begin();
+			hud.layout(false);
+			if (hud.hasContent()) {
+				draw(g, hud, false);
+			}
+			hud.cost.end();
+		}
+	}
+
+	/** Draws one widget at its saved position. The caller has already run {@link HudFeature#layout}. */
+	public static void draw(GuiGraphicsExtractor g, HudFeature hud, boolean preview) {
+		float scale = hud.scale.f();
+		g.pose().pushMatrix();
+		g.pose().translate(hud.screenX(g.guiWidth()), hud.screenY(g.guiHeight()));
+		g.pose().scale(scale, scale);
+		hud.draw(g, preview);
+		g.pose().popMatrix();
+	}
+}

@@ -1,6 +1,6 @@
 # Justaclient
 
-A visuals-only Fabric client for Minecraft Java **1.21.11**. Smooth animated UI, frosted-glass panels, crisp fonts and a
+A visuals-only Fabric client for Minecraft Java **1.21.11** and **26.3**. Smooth animated UI, frosted-glass panels, crisp fonts and a
 look you can fully re-theme. No cheats: nothing that reveals hidden information or automates play.
 
 Requires **Fabric API** and **Sodium**.
@@ -9,21 +9,23 @@ Requires **Fabric API** and **Sodium**.
 
 ## Quick start (Windows)
 
-1. Install **Java 21** (Temurin): https://adoptium.net/temurin/releases/?version=21
-2. Double-click **`start.bat`** and pick:
+1. Install Java (Temurin): **Java 25** runs both versions: https://adoptium.net/temurin/releases/?version=25
+   (Java 21 is enough if you only want 1.21.11.)
+2. Double-click **`start.bat`**, pick the Minecraft version (**1** = 1.21.11, **2** = 26.3), then:
    - **1 Play**: launches Minecraft with Justaclient, Fabric API and Sodium already loaded. The first launch downloads
      Minecraft and takes a few minutes; later launches are quick. It runs offline as a dev player, so use singleplayer.
-   - **2 Build**: makes the mod jar in `build\libs\` for your normal launcher.
+   - **2 Build**: makes the mod jar for your normal launcher (`build\libs\` for 1.21.11, `mc26.3\build\libs\` for 26.3).
 3. In game (or on the title screen), press **Right Shift** to open the Justaclient menu. Hold **C** to zoom.
 
-macOS / Linux: `./start.sh` to play, `./start.sh build` to build.
+macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `build` to build instead
+(`./start.sh 26.3 build`).
 
 ## Install into your own launcher
 
-1. Build with `start.bat` option 2 (or `gradlew build`).
-2. Copy `build/libs/justaclient-<version>.jar` (not the `-sources` jar) into your `.minecraft/mods` folder.
-3. Also put in `mods`: [Fabric API](https://modrinth.com/mod/fabric-api) and [Sodium](https://modrinth.com/mod/sodium),
-   both for 1.21.11, and run the Fabric 1.21.11 profile.
+1. Build with `start.bat` option 2 (or `gradlew build` for 1.21.11, `gradlew -p mc26.3 build` for 26.3).
+2. Copy `justaclient-<version>+<minecraft version>.jar` (not the `-sources` jar) into your `.minecraft/mods` folder.
+3. Also put in `mods`: [Fabric API](https://modrinth.com/mod/fabric-api) and [Sodium](https://modrinth.com/mod/sodium)
+   for the same Minecraft version, and run that version's Fabric profile.
 
 ## Using it
 
@@ -38,12 +40,113 @@ macOS / Linux: `./start.sh` to play, `./start.sh build` to build.
 | **Theme** | Accent, panel opacity, corners, blur, outline, font and motion. Everything follows these. |
 | **Performance** (menu, or click the frame cost in the footer) | What each feature costs per frame, against the 5% budget. |
 | **C** (hold) | Zoom. Scroll while zooming to go further. The key is in Camera > Zoom. |
+| **I** | Inspect the held item (First person > Hand). |
+| **M** | Open the map. Drag (or arrow keys) to move, scroll to zoom, Space to find yourself, right-click to drop a waypoint, and click one to rename, move, recolour, track, hide or delete it. |
+| **Stats** (menu sidebar) | Lifetime play time, kills, deaths, blocks and records. |
+| **T** (chat) over the Spotify card | Click its previous, play and next buttons. With the chat open you can also grab and throw the physics trinket. |
+| **B** | Save a waypoint where you stand. `/jwp list`, `/jwp gps <name>`, `/jwp remove <name>` manage them too. |
+| **Middle click** a player | Add or remove a friend. `/jfriend add <name>` and `/jfriend list` work too. |
 
 ![HUD widgets in game](docs/screenshots/hud.png)
 
 ![HUD editor with a snap guide](docs/screenshots/hud-editor.png)
 
 ## What is in this build
+
+### M6: the rest of the feature list (v0.7.0)
+
+![Spotify card with the album cover, and the current lyric drawn in the sky](docs/screenshots/spotify.png)
+
+- **Spotify card**: album cover (rounded, with a blurred copy of the cover behind the card), title and artist, a
+  progress bar, previous / play / next buttons, an equaliser while playing, and time-synced lyrics from
+  [lrclib.net](https://lrclib.net) that fill in as they are sung. The card takes its colours from the cover. Open the
+  chat to click the buttons, or bind media keys in its settings. Works with the Spotify app on Windows (system media
+  controls), macOS and Linux (`playerctl`); turn off "Spotify only" to follow any player, such as a browser tab.
+- **Lyrics in the sky**: the current line (or drifting music notes) drawn high in the sky where you were looking when
+  the song started (Spotify > In the sky).
+- **World**: time of day (presets or any time, plus moon phase), light colour (tint block light and sky light), water
+  colour presets, clean world (hide falling blocks, fire on entities, rain and snow), end crystal size, spin, bob and a
+  glow ring, and restyled F3 + B hitboxes (same information as vanilla).
+- **Combat**: hit bubbles and a slash trail on swings. Four more hand styles: glass, smoke, snow and stripes.
+- **Cosmetics**: hats (crown, top hat, cone, beanie) in your accent colour, and a client-side skin swap from a 64 x 64
+  PNG in `config/justaclient/skins/`. Only you see them.
+
+![Title screen with an animated GIF background](docs/screenshots/title-gif.png)
+
+- **Your own title background**: put PNG, JPG or animated GIF files in `config/justaclient/backgrounds/` and pick
+  "Your picture or GIF" under Utility > Title screen. Optional soft blur and darkening.
+- **Stats page** (menu sidebar): lifetime play time with a two-week chart, kills, deaths, K/D, blocks mined, distance,
+  diamonds, ancient debris and a few records, saved in `config/justaclient/stats.json`.
+
+![Stats page](docs/screenshots/stats.png)
+
+- **Block-found toasts**: a toast when you mine (or look at) diamonds, ancient debris, emeralds, spawners and more.
+  Only blocks already on your screen; nothing is scanned through walls.
+- **Physics trinket** (HUD): an item that falls, bounces, swings as you turn, and can be grabbed and thrown with the
+  chat open.
+
+![Grabbing the trinket, then throwing it](docs/screenshots/trinket.png)
+
+- **Performance mode** (Utility): no blur behind HUD widgets, lighter menu blur, a quarter of the effect particles,
+  smaller background pictures, optional pause of screen shaders, and blur buffers freed when nothing uses them.
+- **Tier badges** (Utility): PvP tiers from the public MC Tiers list (for example `HT3`) in name tags and the tab list,
+  best tier or one game mode. The API address is a setting, since MC Tiers has moved API versions before.
+- **Map polish**: the map glides when you zoom or jump to a waypoint, shows chunk lines up close, draws a dotted route
+  to the selected waypoint with its distance, and has a find-me button (or Space). Arrow keys pan.
+
+![Map with a route to the selected waypoint](docs/screenshots/map.png)
+
+On 26.3 everything above works the same; light colour and time of day hook 26.3's new lightmap and world clocks.
+
+![26.3: crown and custom skin in third person](docs/screenshots/hats-26.3.png)
+
+### M5: utility and cosmetics
+
+![Minimap, GPS and session stats](docs/screenshots/minimap.png)
+
+- **Waypoints**: light beams and labels with distance, an automatic death point, saved per world or server in
+  `config/justaclient/waypoints.json`. Press B or use `/jwp add <name>`; `/jwp set <name> <x> <y> <z>` for coordinates.
+- **GPS**: an arrow, name and distance for the waypoint you track (`/jwp gps <name>`, or "track nearest").
+- **Minimap**: terrain only, coloured like vanilla maps, north-up or rotating, with waypoint dots. No players, mobs or
+  caves; in the Nether it maps the floor you stand on.
+- **Map (M)**: a full-screen version of the minimap over every loaded chunk, with this world's waypoints beside it.
+  Right-click the map to add one; pick one to edit its name, coordinates and colour, track it, hide it or delete it.
+
+- **Friends**: friends' name tags and tab list entries in your friend colour.
+- **Stream mode**: one switch that hides your name, friends' names, coordinates and the server address on your screen.
+- **Toggle sprint**, **auto reconnect** (a countdown button on the disconnect screen) and a **session stats** widget
+  (play time, kills, deaths, K/D, blocks mined, distance).
+- **Cosmetics**: a halo and orbs on springs around you in third person. Only you see them.
+
+![Halo and orbs in third person](docs/screenshots/cosmetics.png)
+- **Discord status**: shows singleplayer, server and dimension on your profile. Create an application at
+  discord.com/developers (its name is what Discord shows as the game) and paste its Application ID into the setting.
+
+### M4: HUD and UI polish
+
+![Glass boss bar, scoreboard, consumables and fireflies](docs/screenshots/hud-m4.png)
+
+- **New widgets**: watermark, module list (sliding, gradient), keybinds, inventory and consumables (totems, pearls,
+  gapples, food, arrows, wind charges).
+- **Low health glow** at the screen edges, pulsing below a threshold you pick.
+- **Boss bars and scoreboard** on glass panels with smooth bars.
+- **Loading screen**: a glass card with a spinner and progress bar over the blurred panorama.
+- **Ambient particles**: fireflies, drifting motes or linked dots around you.
+- **Camera**: aspect ratio (4:3, 5:4, 16:10 or custom) and a separate hand FOV.
+- **Weather toasts** and a **borderless window** option.
+
+### M3: extras
+
+![Hand glow, graded colours and name protect in chat](docs/screenshots/hand-glow.png)
+
+- **Color grading**: exposure, contrast, saturation, vibrance, temperature and tint with presets, plus a vignette.
+- **Motion blur**, frame-rate independent.
+- **Hand**: position, rotation, scale, swing style and speed, no equip dip, and an item **inspect** animation (I).
+- **Hand glow**: a soft glow and gradient, chroma, outline or invert styles on your hand only. Off while a shader pack
+  is on.
+- **Enchant glint colour and speed**, separately for items and armour.
+- **Overlays**: hide the pumpkin blur, powder snow and nausea wobble.
+- **Name protect**: show another name in place of yours everywhere on your screen.
 
 ### M2: release
 
@@ -114,8 +217,11 @@ The world effects (sky, fog, trails, jump circles, hit sounds) start off; turn t
 | `src/main/java/dev/justaclient/anim/` | `Easing`, `Animation`, `Spring`, `Colors` |
 | `src/main/java/dev/justaclient/config/` | Style tokens and JSON config |
 | `src/main/java/dev/justaclient/feature/` | Feature and setting framework, the feature list, non-HUD features (`impl/`) |
-| `src/main/java/dev/justaclient/hud/` | HUD renderer, widget base classes and the widgets (`widgets/`) |
+| `src/main/java/dev/justaclient/hud/` | HUD renderer, widget base classes and the widgets (`widgets/`), session and lifetime stats |
+| `src/main/java/dev/justaclient/media/` | Now playing: Spotify / media sources per OS, album art, synced lyrics |
 | `src/main/java/dev/justaclient/profile/` | Profile files |
+| `src/main/java/dev/justaclient/waypoint/` | Waypoint storage |
+| `src/main/java/dev/justaclient/command/` | Client commands (`/jwp`, `/jfriend`) |
 | `src/main/java/dev/justaclient/ui/` | Click GUI, HUD editor, theme and performance pages, title screen, controls |
 | `src/main/java/dev/justaclient/mixin/` | Small hooks: zoom FOV and mouse, CPS, fire overlay, hit pulse, blur capture, combat events, item decorations, sky, fog, title screen |
 | `src/main/resources/assets/justaclient/shaders/` | GLSL for shapes, glass, text, blur, world effects and the aurora |
@@ -125,7 +231,22 @@ The world effects (sky, fog, trails, jump circles, hit sounds) start off; turn t
 
 - `gradlew runClient` launches the dev client; `gradlew build` makes the jar.
 - `gradlew genSources` decompiles Minecraft (official Mojang names) for reading.
-- Java 21, Fabric Loom 1.16, official Mojang mappings.
+- 1.21.11: Java 21+, Fabric Loom 1.16, official Mojang mappings.
+
+### The 26.3 build (`mc26.3/`)
+
+Minecraft 26.x is unobfuscated and replaced the renderer (the new `renderpearl` GPU API, with Vulkan or OpenGL),
+windowing and input (SDL instead of GLFW) and the GUI (`GuiGraphicsExtractor`). Rather than bend one source tree
+around both, `mc26.3/` is its own Gradle build with a ported copy of the Java sources:
+
+- `gradlew -p mc26.3 runClient` / `gradlew -p mc26.3 build`. Needs Java 25 (Loom 1.19, Fabric API 0.165, Sodium 0.9.2).
+- Fonts, icons, textures and lang files come from the root `src/main/resources`. Files in `mc26.3/src/main/resources`
+  win over the root ones: `fabric.mod.json`, the mixin config and the shaders (26.x needs `layout(location)` on every
+  shader input and output, and `#include` instead of `#moj_import`).
+- A change to a feature usually needs making in both trees. The render code differs most: `render/` (pipelines,
+  post FX, hand glow, blur, world effects) and the mixins are rewritten for 26.3, most of the rest is the same with
+  renamed Minecraft classes.
+- Release jars are named `justaclient-<version>+<minecraft version>.jar`. CI builds both.
 
 ## Credits
 
