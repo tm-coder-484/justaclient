@@ -12,6 +12,7 @@ import dev.justaclient.feature.impl.StreamModeFeature;
 import dev.justaclient.feature.setting.TextSetting;
 import dev.justaclient.render.Draw;
 import dev.justaclient.render.Icons;
+import dev.justaclient.render.MapEntities;
 import dev.justaclient.render.TerrainMap;
 import dev.justaclient.render.text.JacText;
 import dev.justaclient.ui.widget.Button;
@@ -35,6 +36,7 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.LivingEntity;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -429,9 +431,35 @@ public final class WorldMapScreen extends Screen {
 				JacText.drawCentered(g, w.name, x, y - 14f, Colors.fade(Theme.TEXT, t), Theme.SMALL, JacText.Weight.SEMIBOLD);
 			}
 		}
+		// Players and mobs the player can see right now; point at one for its name, health and distance.
+		float partialTick = minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+		LivingEntity hoveredEntity = null;
+		float hex = 0f, hey = 0f;
+		float best = 6f * 6f;
+		float dot = Math.max(2.2f, Math.min(3.6f, 1.6f + ppb()));
+		for (LivingEntity e : MapEntities.visible()) {
+			float ex = screenX(e.getX(partialTick));
+			float ey = screenY(e.getZ(partialTick));
+			if (ex < MAP_X - 8f || ex > MAP_X + MAP_W + 8f || ey < MAP_Y - 8f || ey > MAP_Y + MAP_H + 8f) {
+				continue;
+			}
+			if (hovered == null && !dragging && onMap(mx, my)) {
+				float d = (float) ((mx - ex) * (mx - ex) + (my - ey) * (my - ey));
+				if (d < best) {
+					best = d;
+					hoveredEntity = e;
+					hex = ex;
+					hey = ey;
+				}
+			}
+			MapEntities.draw(g, e, ex, ey, dot, t, false);
+		}
+		if (hoveredEntity != null) {
+			MapEntities.draw(g, hoveredEntity, hex, hey, dot, t, true);
+		}
 		LocalPlayer player = minecraft.player;
 		if (player != null) {
-			float partial = minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+			float partial = partialTick;
 			float px = screenX(player.getX(partial));
 			float py = screenY(player.getZ(partial));
 			g.pose().pushMatrix();
@@ -440,6 +468,9 @@ public final class WorldMapScreen extends Screen {
 			JacText.icon(g, Icons.NAVIGATION, -6.5f, -6.5f, 13f, Colors.fade(0xA0000000, t));
 			JacText.icon(g, Icons.NAVIGATION, -5.5f, -5.5f, 11f, Colors.fade(0xFFFFFFFF, t));
 			g.pose().popMatrix();
+		}
+		if (hoveredEntity != null) {
+			MapEntities.tooltip(g, hoveredEntity, hex, hey - dot, t);
 		}
 		g.disableScissor();
 
@@ -643,7 +674,7 @@ public final class WorldMapScreen extends Screen {
 				int z = (int) Math.floor(blockZ(my));
 				int y = minecraft.player.getBlockY();
 				ClientLevel level = minecraft.level;
-				if (level != null && level.hasChunk(x >> 4, z >> 4)) {
+				if (level != null && level.getChunkSource().hasChunk(x >> 4, z >> 4)) {
 					y = TerrainMap.surfaceY(level, new BlockPos.MutableBlockPos(), x, z, minecraft.player.getBlockY() + 1) + 1;
 				}
 				add(x, y, z);

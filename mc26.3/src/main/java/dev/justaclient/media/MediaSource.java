@@ -21,6 +21,9 @@ public interface MediaSource extends AutoCloseable {
 
 	/** The source for this operating system. {@code spotifyOnly} ignores other players such as browsers. */
 	static MediaSource create(boolean spotifyOnly) {
+		if (Boolean.getBoolean("justaclient.mediaDemo")) {
+			return new DemoSource();
+		}
 		String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
 		if (os.contains("win")) {
 			return new WindowsSource(spotifyOnly);

@@ -3,12 +3,17 @@ package dev.justaclient.media;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -25,16 +30,69 @@ public record AlbumArt(int[] cover, int[] backdrop, int accent, int shade) {
 	public static final int BACK_H = 64;
 	private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(6)).followRedirects(HttpClient.Redirect.NORMAL).build();
 
+	private static volatile String lastError = "";
+
+	/** Why the last {@link #load} or {@link #search} came back empty. */
+	public static String lastError() {
+		return lastError;
+	}
+
 	/** Loads a local path, a file:// URL or an http(s) URL. Null if it cannot be read or decoded. */
 	public static @Nullable AlbumArt load(String ref) {
 		byte[] bytes = read(ref);
 		if (bytes == null) {
+			lastError = "could not read " + (ref.startsWith("http") ? "the image" : "the file");
 			return null;
 		}
 		try {
 			BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
-			return image == null ? null : from(image);
-		} catch (IOException | RuntimeException e) {
+			if (image == null) {
+				lastError = "unknown image format, " + bytes.length + " bytes starting " + String.format("%02X %02X %02X %02X",
+					bytes.length > 0 ? bytes[0] : 0, bytes.length > 1 ? bytes[1] : 0, bytes.length > 2 ? bytes[2] : 0, bytes.length > 3 ? bytes[3] : 0);
+				return null;
+			}
+			return from(image);
+		} catch (IOException | RuntimeException | LinkageError e) {
+			lastError = e.getClass().getSimpleName() + ": " + e.getMessage();
+			return null;
+		}
+	}
+
+	/**
+	 * Finds the cover on the iTunes Search API by title and artist (no account needed), for players that send no cover
+	 * or one that cannot be read. Null if there is no confident match.
+	 */
+	public static @Nullable AlbumArt search(String title, String artist) {
+		String first = Lyrics.firstArtist(artist);
+		String url = "https://itunes.apple.com/search?entity=song&limit=10&term=" + URLEncoder.encode(first + " " + title, StandardCharsets.UTF_8);
+		byte[] body = read(url);
+		if (body == null) {
+			lastError = "could not be reached";
+			return null;
+		}
+		try {
+			JsonObject root = JsonParser.parseString(new String(body, StandardCharsets.UTF_8)).getAsJsonObject();
+			String wantTitle = Lyrics.simplify(title);
+			String wantArtist = Lyrics.simplify(first);
+			String artwork = null;
+			for (JsonElement e : root.getAsJsonArray("results")) {
+				JsonObject r = e.getAsJsonObject();
+				if (!r.has("artworkUrl100") || !r.has("artistName") || !Lyrics.simplify(r.get("artistName").getAsString()).contains(wantArtist)) {
+					continue;
+				}
+				boolean sameTitle = r.has("trackName") && Lyrics.simplify(r.get("trackName").getAsString()).equals(wantTitle);
+				if (sameTitle) {
+					artwork = r.get("artworkUrl100").getAsString();
+					break;
+				}
+			}
+			if (artwork == null) {
+				lastError = "no match";
+				return null;
+			}
+			return load(artwork.replace("100x100bb", "600x600bb"));
+		} catch (RuntimeException e) {
+			lastError = "unexpected answer";
 			return null;
 		}
 	}
@@ -42,7 +100,8 @@ public record AlbumArt(int[] cover, int[] backdrop, int accent, int shade) {
 	private static byte @Nullable [] read(String ref) {
 		try {
 			if (ref.startsWith("http://") || ref.startsWith("https://")) {
-				HttpRequest request = HttpRequest.newBuilder(URI.create(ref)).timeout(Duration.ofSeconds(10)).GET().build();
+				HttpRequest request = HttpRequest.newBuilder(URI.create(ref)).timeout(Duration.ofSeconds(10))
+					.header("User-Agent", "Justaclient (https://github.com/tm-coder-484/justaclient)").GET().build();
 				HttpResponse<byte[]> response = HTTP.send(request, HttpResponse.BodyHandlers.ofByteArray());
 				return response.statusCode() == 200 ? response.body() : null;
 			}

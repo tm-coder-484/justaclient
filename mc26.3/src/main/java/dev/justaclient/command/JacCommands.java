@@ -8,6 +8,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import dev.justaclient.feature.impl.FriendsFeature;
+import dev.justaclient.media.NowPlaying;
 import dev.justaclient.waypoint.Waypoints;
 import dev.justaclient.waypoint.Waypoints.Waypoint;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -23,6 +24,8 @@ import net.minecraft.world.entity.player.Player;
  * <li>{@code /jwp add [name]}, {@code /jwp set <name> <x> <y> <z>}, {@code /jwp remove <name>}, {@code /jwp list},
  * {@code /jwp gps <name>}, {@code /jwp gps off}, {@code /jwp hide|show <name>}</li>
  * <li>{@code /jfriend add|remove <name>}, {@code /jfriend list}</li>
+ * <li>{@code /jmedia}: what the Spotify card sees (player, track, timeline, cover, lyrics), for working out why
+ * something is missing</li>
  * </ul>
  */
 public final class JacCommands {
@@ -75,6 +78,13 @@ public final class JacCommands {
 					})))
 				.then(literal("hide").then(argument("name", StringArgumentType.greedyString()).suggests(WAYPOINTS).executes(ctx -> visible(ctx, false))))
 				.then(literal("show").then(argument("name", StringArgumentType.greedyString()).suggests(WAYPOINTS).executes(ctx -> visible(ctx, true)))));
+			dispatcher.register(literal("jmedia").executes(ctx -> {
+				ctx.getSource().sendFeedback(Component.literal("Justaclient media").withStyle(ChatFormatting.BOLD));
+				for (String line : NowPlaying.describe()) {
+					ctx.getSource().sendFeedback(Component.literal(line).withStyle(ChatFormatting.GRAY));
+				}
+				return 1;
+			}));
 			dispatcher.register(literal("jfriend")
 				.then(literal("add").then(argument("name", StringArgumentType.word()).suggests(PLAYERS).executes(ctx -> {
 					String name = StringArgumentType.getString(ctx, "name");

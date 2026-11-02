@@ -39,6 +39,13 @@ dependencies {
 
 	// Sodium is required at runtime and is put on the dev client so runClient matches real play.
 	modImplementation "maven.modrinth:sodium:${project.sodium_version}"
+
+	// Iris (optional, looked up by name) on the dev client only, to test world effects under shader packs.
+	modLocalRuntime "maven.modrinth:iris:${project.iris_version}"
+	// Iris nests these; the dev client does not load nested jars from Modrinth's copy.
+	localRuntime "org.anarres:jcpp:1.4.14"
+	localRuntime "io.github.douira:glsl-transformer:3.0.0-pre3"
+	localRuntime "org.antlr:antlr4-runtime:4.13.1"
 }
 
 processResources {

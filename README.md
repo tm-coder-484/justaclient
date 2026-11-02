@@ -53,6 +53,50 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 
 ## What is in this build
 
+### Fixes (v0.7.1 to v0.7.6)
+
+- **Spotify web player**: on Windows the Spotify card now finds the web player playing in a browser (Chrome, Edge,
+  Firefox, Brave, Opera and others) with "Spotify only" on, not just the desktop app.
+- **Arrow hits**: hits from your own arrows, tridents and other projectiles now trigger hit particles, bubbles, sounds,
+  the crosshair pulse, the target HUD and kill effects, the same as a melee hit.
+- **Map memory**: the minimap and the M map remember terrain from every chunk you have had loaded, per world and
+  dimension, and keep it between sessions (`config/justaclient/maps/`). Places you have left stay on the map.
+- **Players and mobs on the maps**: the minimap and the M map show mobs around you (red hostile, amber neutral, green
+  passive) and other players (as their face) while they are in your line of sight. Point at one on the M map, or on
+  the minimap with the chat open, for its name, health and distance.
+- **Sky lyrics and album art**: lyrics are fetched again when you switch them on mid-song, and a failed lrclib.net
+  lookup is retried instead of being remembered as "no lyrics" for a day. Players that report no timeline (some
+  browsers) get a clock started at the track change. The Windows helper keeps trying for the cover when a player
+  sends it late, which the web player does.
+- **Lyrics and covers when a source is down**: lyrics fall back to NetEase Cloud Music when lrclib.net is down or has
+  no synced lyrics, and the cover falls back to the iTunes Search API when the player sends none or it cannot be read.
+  Type `/jmedia` to see what the Spotify card sees (player, timeline, cover and lyrics, and where each came from).
+- **Minimap underground mode**: Auto (when you are well below the ground), Always or Off. Shows the cave layer at your
+  height: open floor, darker the deeper it is, and rock walls. "Only mobs on your layer" hides cave mobs while you are on
+  the surface (under trees and roofs still counts as surface) and surface mobs while you are underground.
+- **Sky-only mode**: Spotify > "Show the card" off hides the HUD card while the sky keeps the lyrics, plus the album
+  cover and song name ("Cover and song name in the sky").
+- **Sky player polish (v0.7.4)**:
+  - *Sky position*: "Nearest direction you face" (snaps to north, east, south or west and glides over when you turn
+    well past the halfway point), "Always south", or "Follows you around" (stays in front of you, trailing the turn a
+    little).
+  - *Text layout*: "Flat", or "Curved, far away", which bends the line along a wide arc with the ends tilted and a
+    little smaller, as if painted on a faraway dome.
+  - *Breaks*: the lyric line fades out in instrumental breaks (once a line has been up much longer than it takes to
+    sing it, or after the last line) and the cover and song name move up into its place.
+  - *Sync*: the song clock no longer jumps on every small player report (small drifts are eased out) and a "Lyric
+    timing" slider (-1 to +1 s, default +0.2 s) shows lines earlier or later to match your player.
+  - *Reacting to the music*: Minecraft cannot hear the audio, so the beat comes from the song's tempo (looked up on
+    the Deezer API) plus a kick on every new lyric line: a glow behind the cover swells and the cover pops on the beat.
+    The moving equaliser bars now show after the song name in the sky too. "Pulse to the beat" turns it off.
+  - *Sky height* (v0.7.5): how high above the horizon the whole sky player sits, 5 to 75 degrees (default 30).
+- **More lyric sources (v0.7.6)**: when lrclib.net has no synced lyrics (or is down), Justaclient now asks NetEase Cloud
+  Music, then QQ Music, then Kugou, matching title, artist and length. Titles like "Song - Remastered 2011" are searched
+  without the ending. `/jmedia` shows which source answered.
+- **World effects with shader packs (v0.7.6)**: with Iris and a shader pack on, the target marker, hit particles, bubbles,
+  trails and other glowing world effects no longer disappear. They switch to a render type shader packs draw (a baked
+  glow texture on a glowing translucent entity layer) while a pack is on, and back to Justaclient's own shader when off.
+
 ### M6: the rest of the feature list (v0.7.0)
 
 ![Spotify card with the album cover, and the current lyric drawn in the sky](docs/screenshots/spotify.png)
@@ -61,7 +105,8 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
   progress bar, previous / play / next buttons, an equaliser while playing, and time-synced lyrics from
   [lrclib.net](https://lrclib.net) that fill in as they are sung. The card takes its colours from the cover. Open the
   chat to click the buttons, or bind media keys in its settings. Works with the Spotify app on Windows (system media
-  controls), macOS and Linux (`playerctl`); turn off "Spotify only" to follow any player, such as a browser tab.
+  controls, which also covers the Spotify web player in a browser), macOS and Linux (`playerctl`); turn off "Spotify
+  only" to follow any player, such as a YouTube tab.
 - **Lyrics in the sky**: the current line (or drifting music notes) drawn high in the sky where you were looking when
   the song started (Spotify > In the sky).
 - **World**: time of day (presets or any time, plus moon phase), light colour (tint block light and sky light), water

@@ -33,8 +33,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * The Spotify card: album cover, title and artist, a progress bar with media buttons, and time-synced lyrics that fill
  * in as they are sung. The card takes its colours from the cover and lays a blurred copy of it behind everything.
- * Works with the Spotify desktop app on Windows, macOS and Linux (and, if allowed, any other player Windows or Linux
- * can see).
+ * Works with the Spotify desktop app on Windows, macOS and Linux and the Spotify web player on Windows (and, if allowed,
+ * any other player Windows or Linux can see).
  */
 public final class NowPlayingHud extends HudFeature {
 	private static final Identifier COVER = Justaclient.id("now_playing/cover");
@@ -60,6 +60,36 @@ public final class NowPlayingHud extends HudFeature {
 		}
 	}
 
+	public enum SkyLayout implements ChoiceSetting.Named {
+		FLAT("Flat"), CURVED("Curved, far away");
+
+		private final String label;
+
+		SkyLayout(String label) {
+			this.label = label;
+		}
+
+		@Override
+		public String label() {
+			return label;
+		}
+	}
+
+	public enum SkyAnchor implements ChoiceSetting.Named {
+		CARDINAL("Nearest direction you face"), SOUTH("Always south"), FOLLOW("Follows you around");
+
+		private final String label;
+
+		SkyAnchor(String label) {
+			this.label = label;
+		}
+
+		@Override
+		public String label() {
+			return label;
+		}
+	}
+
 	public enum SkyMode implements ChoiceSetting.Named {
 		OFF("Off"), LYRICS("Lyrics"), NOTES("Music notes");
 
@@ -75,8 +105,9 @@ public final class NowPlayingHud extends HudFeature {
 		}
 	}
 
+	private final BoolSetting showCard = bool("card", "Show the card (off: only what is in the sky)", true);
 	private final NumberSetting cardWidth = number("width", "Width", 184, 150, 260, 2, NumberSetting.unit(" px"));
-	private final BoolSetting spotifyOnly = bool("spotify_only", "Spotify only (ignore browsers and other players)", true);
+	private final BoolSetting spotifyOnly = bool("spotify_only", "Spotify only (app or web player, ignore other players)", true);
 	private final BoolSetting artColors = bool("art_colors", "Colours from the album cover", true);
 	private final BoolSetting backdrop = bool("backdrop", "Blurred cover behind the card", true);
 	private final ChoiceSetting<LyricsMode> lyrics = choice("lyrics", "Synced lyrics (from lrclib.net)", LyricsMode.TWO);
@@ -84,6 +115,14 @@ public final class NowPlayingHud extends HudFeature {
 	private final ChoiceSetting<SkyMode> sky = choice("sky", "In the sky", SkyMode.OFF);
 	private final NumberSetting skySize = number("sky_size", "Sky text size", 1.0, 0.5, 2.0, 0.1, v -> String.format("%.1fx", v))
 		.visibleWhen(() -> sky.get() != SkyMode.OFF);
+	private final NumberSetting skyHeight = number("sky_height", "Sky height (degrees above the horizon)", 30, 5, 75, 1, NumberSetting.unit("°"))
+		.visibleWhen(() -> sky.get() != SkyMode.OFF);
+	private final ChoiceSetting<SkyLayout> skyLayout = choice("sky_layout", "Sky text layout", SkyLayout.FLAT).visibleWhen(() -> sky.get() == SkyMode.LYRICS);
+	private final ChoiceSetting<SkyAnchor> skyAnchor = choice("sky_anchor", "Sky position", SkyAnchor.CARDINAL).visibleWhen(() -> sky.get() != SkyMode.OFF);
+	private final BoolSetting skyPulse = bool("sky_pulse", "Pulse to the beat (tempo from Deezer)", true).visibleWhen(() -> sky.get() != SkyMode.OFF);
+	private final NumberSetting lyricTiming = number("lyric_timing", "Lyrics timing (+ shows them earlier)", 0.2, -1.0, 1.0, 0.05,
+		v -> String.format("%+.2f s", v)).visibleWhen(this::wantsLyrics);
+	private final BoolSetting skyInfo = bool("sky_info", "Cover and song name in the sky", true).visibleWhen(() -> sky.get() != SkyMode.OFF);
 	private final BoolSetting equalizer = bool("equalizer", "Moving bars while playing", true);
 	private final BoolSetting showPaused = bool("show_paused", "Keep showing while paused", true);
 	private final KeySetting playKey = key("play_key", "Play / pause key", KeySetting.NONE);
@@ -100,8 +139,14 @@ public final class NowPlayingHud extends HudFeature {
 	private int lyricIndex = -2;
 	private final Animation skyAlpha = new Animation(Easing.CUBIC_OUT, 600, 0f);
 	private final Animation skySlide = new Animation(Easing.CUBIC_OUT, 450, 0f);
+	private final Animation skyLine = new Animation(Easing.CUBIC_OUT, 500, 0f);
+	private final Animation skyInfoDrop = new Animation(Easing.CUBIC_OUT, 600, 0f);
+	private Lyrics.@Nullable Line shownLine;
+	private Lyrics.@Nullable Line shownAfter;
+	private float lineKick;
+	private float skyCardinal;
+	private long skyFrame;
 	private int skyIndex = -2;
-	private String skyTrack = "";
 	private float skyYaw;
 	private final float[][] notes = new float[10][4];
 	private long skyLast;
@@ -168,7 +213,7 @@ public final class NowPlayingHud extends HudFeature {
 	@Override
 	public boolean hasContent() {
 		MediaState s = NowPlaying.state();
-		return s.hasTrack() && (s.status() == MediaState.Status.PLAYING || showPaused.on());
+		return showCard.on() && s.hasTrack() && (s.status() == MediaState.Status.PLAYING || showPaused.on());
 	}
 
 	// Textures
@@ -344,6 +389,7 @@ public final class NowPlayingHud extends HudFeature {
 			fill = 0.45f;
 			index = 3;
 		} else {
+			pos += lyricLead();
 			index = result.indexAt(pos);
 			Lyrics.Line line = index >= 0 ? result.lines().get(index) : null;
 			Lyrics.Line after = index + 1 < result.lines().size() ? result.lines().get(index + 1) : null;
@@ -395,8 +441,9 @@ public final class NowPlayingHud extends HudFeature {
 	// Sky
 
 	/**
-	 * Draws the current lyric line (or drifting notes) high in the sky, anchored to where you were facing when the song
-	 * started, so it stays put as you look around. Called from the HUD pass with the world's camera.
+	 * Draws the current lyric line (or drifting notes) high in the sky, with the cover, song name and moving bars under
+	 * it. Called from the HUD pass with the world's camera. The anchor sits 30 degrees above the horizon; in "follow" it
+	 * stays put while you look around near it and glides back in front of you when you have looked away for a moment.
 	 */
 	public void drawSky(GuiGraphics g) {
 		Minecraft mc = Minecraft.getInstance();
@@ -404,18 +451,25 @@ public final class NowPlayingHud extends HudFeature {
 			return;
 		}
 		MediaState s = NowPlaying.state();
+		if (!showCard.on()) {
+			// The card is not drawing, so keep the cover texture and its colours up to date from here.
+			upload(Math.min(5f, Math.min(6f, JacConfig.get().style.cornerRadius)));
+			AlbumArt cover = NowPlaying.art();
+			accent = hasArt && artColors.on() && cover != null ? cover.accent() : JacConfig.accent();
+		}
 		boolean playing = s.hasTrack() && s.status() == MediaState.Status.PLAYING;
 		boolean lyricsReady = sky.get() == SkyMode.NOTES || NowPlaying.lyrics().status() == Lyrics.Status.SYNCED;
-		float a = skyAlpha.animateTo(playing && lyricsReady ? 1f : 0f).get();
+		boolean info = skyInfo.on() && s.hasTrack();
+		float a = skyAlpha.animateTo(playing && (lyricsReady || info) ? 1f : 0f).get();
 		if (a < 0.01f) {
 			return;
 		}
-		if (!s.trackKey().equals(skyTrack)) {
-			skyTrack = s.trackKey();
-			skyYaw = mc.gameRenderer.getMainCamera().yRot();
-		}
+		long now = System.nanoTime();
+		float dt = skyFrame == 0 ? 0f : Math.min(0.1f, (now - skyFrame) / 1e9f);
+		skyFrame = now;
+		updateAnchor(mc, dt);
 		double yaw = Math.toRadians(skyYaw);
-		double pitch = Math.toRadians(30);
+		double pitch = Math.toRadians(skyHeight.get());
 		Vec3 dir = new Vec3(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
 		Vec3 right = new Vec3(-Math.cos(yaw), 0, -Math.sin(yaw));
 		Vec3 center = Projection.camera().add(dir.scale(100));
@@ -426,47 +480,255 @@ public final class NowPlayingHud extends HudFeature {
 		}
 		float perBlock = (float) Math.hypot(side.x - at.x, side.y - at.y) / 10f;
 		int glow = Colors.lerp(accent, 0xFFFFFFFF, 0.55f);
+		float size = Math.max(8f, Math.min(72f, perBlock * 7f * skySize.f()));
+		long pos = NowPlaying.position() + lyricLead();
+		float beat = beat(pos);
+
+		// The lyric line and the one after it.
+		boolean showLine = false;
+		if (lyricsReady && sky.get() == SkyMode.LYRICS) {
+			Lyrics.Result result = NowPlaying.lyrics();
+			int index = result.indexAt(pos);
+			Lyrics.Line line = index >= 0 ? result.lines().get(index) : null;
+			Lyrics.Line after = index + 1 < result.lines().size() ? result.lines().get(index + 1) : null;
+			showLine = !inBreak(line, after, pos);
+			if (showLine && index != skyIndex) {
+				if (skyIndex != -2) {
+					skySlide.snap(1f);
+				}
+				skyIndex = index;
+				// Each new line gives the visuals a kick, on top of the tempo.
+				lineKick = 1f;
+			}
+			if (showLine) {
+				shownLine = line;
+				shownAfter = after;
+			}
+		}
+		float lineAlpha = skyLine.animateTo(showLine ? 1f : 0f).get() * a;
+		lineKick = Math.max(0f, lineKick - dt * 2.5f);
+		if (lineAlpha > 0.01f && shownLine != null) {
+			float fill = 1f;
+			if (shownAfter != null) {
+				long span = Math.min(8000L, Math.max(1L, shownAfter.timeMs() - shownLine.timeMs()));
+				fill = Math.max(0f, Math.min(1f, (pos - shownLine.timeMs()) / (float) span));
+			}
+			float slide = skySlide.animateTo(0f).get();
+			float y = at.y - JacText.lineHeight(size) / 2f + slide * size * 0.6f;
+			float la = lineAlpha * (1f - slide * 0.8f);
+			String next = shownAfter == null || shownAfter.text().isBlank() ? "" : shownAfter.text();
+			if (skyLayout.get() == SkyLayout.CURVED) {
+				drawCurved(g, shownLine.text(), at.x, y, size, la, fill, glow, true);
+				if (!next.isEmpty()) {
+					drawCurved(g, next, at.x, y + JacText.lineHeight(size) * 1.15f, size * 0.55f, lineAlpha * (1f - slide) * 0.75f, 0f, glow, false);
+				}
+			} else {
+				drawFlat(g, shownLine.text(), at.x, y, size, la, fill, glow);
+				if (!next.isEmpty()) {
+					float ns = size * 0.55f;
+					float nw = JacText.width(next, ns, JacText.Weight.REGULAR);
+					JacText.draw(g, next, at.x - nw / 2f, y + JacText.lineHeight(size) + 2f, Colors.fade(Colors.withAlpha(0xFFFFFF, 0x90),
+						lineAlpha * (1f - slide)), ns, JacText.Weight.REGULAR);
+				}
+			}
+		}
 		if (sky.get() == SkyMode.NOTES) {
 			drawNotes(g, at.x, at.y, perBlock, a, glow);
+		}
+		if (info) {
+			// Under the lyric (or in its place in a break or with music notes), easing between the two spots.
+			// The curved next line bends down at its ends, so the row sits a little lower under it.
+			float under = at.y + JacText.lineHeight(size) / 2f + JacText.lineHeight(size * 0.55f) + size * (skyLayout.get() == SkyLayout.CURVED ? 0.85f : 0.45f);
+			float alone = at.y - size * 0.85f;
+			float t = skyInfoDrop.animateTo(sky.get() == SkyMode.LYRICS && (showLine || lineAlpha > 0.01f) ? 1f : 0f).get();
+			drawSkyInfo(g, s, at.x, alone + (under - alone) * t, size, a, beat);
+		}
+	}
+
+	/**
+	 * Moves the anchor's direction towards its target: the cardinal direction nearest the view (switching only once the
+	 * view is well past the halfway point, so it does not flip back and forth), due south, or the view itself. It glides
+	 * there rather than jumping, quickly at first and settling softly.
+	 */
+	private void updateAnchor(Minecraft mc, float dt) {
+		float view = mc.gameRenderer.getMainCamera().yRot();
+		float target = switch (skyAnchor.get()) {
+			case SOUTH -> 0f;
+			case FOLLOW -> view;
+			case CARDINAL -> {
+				if (Math.abs(net.minecraft.util.Mth.wrapDegrees(view - skyCardinal)) > 55f) {
+					skyCardinal = Math.round(view / 90f) * 90f;
+				}
+				yield skyCardinal;
+			}
+		};
+		if (dt <= 0f) {
+			skyCardinal = Math.round(view / 90f) * 90f;
+			skyYaw = skyAnchor.get() == SkyAnchor.CARDINAL ? skyCardinal : target;
 			return;
 		}
-		long pos = NowPlaying.position();
-		Lyrics.Result result = NowPlaying.lyrics();
-		int index = result.indexAt(pos);
-		Lyrics.Line line = index >= 0 ? result.lines().get(index) : null;
-		Lyrics.Line after = index + 1 < result.lines().size() ? result.lines().get(index + 1) : null;
-		String current = line == null || line.text().isBlank() ? BREAK : line.text();
-		float fill = 1f;
-		if (line != null && after != null) {
-			long span = Math.min(8000L, Math.max(1L, after.timeMs() - line.timeMs()));
-			fill = Math.min(1f, (pos - line.timeMs()) / (float) span);
+		float off = net.minecraft.util.Mth.wrapDegrees(target - skyYaw);
+		// Following trails the view a little, so turning feels like the sky moving with you instead of a sticker.
+		float speed = skyAnchor.get() == SkyAnchor.FOLLOW ? 6f : 3.5f;
+		skyYaw = net.minecraft.util.Mth.wrapDegrees(skyYaw + off * Math.min(1f, dt * speed));
+	}
+
+	/** Time to show lyrics early by, so the words land with the voice despite polling and display delay. */
+	private long lyricLead() {
+		return Math.round(lyricTiming.get() * 1000.0);
+	}
+
+	/**
+	 * True during a break: before the first line, on an empty line, after the last line has had time to be sung, or
+	 * when a line has been up much longer than it takes to sing it and the next one is still a while off.
+	 */
+	private static boolean inBreak(Lyrics.@Nullable Line line, Lyrics.@Nullable Line after, long pos) {
+		if (line == null || line.text().isBlank()) {
+			return true;
 		}
-		if (index != skyIndex) {
-			if (skyIndex != -2) {
-				skySlide.snap(1f);
-			}
-			skyIndex = index;
+		long since = pos - line.timeMs();
+		long singing = Math.min(9000L, 2500L + line.text().length() * 110L);
+		if (after == null) {
+			return since > singing;
 		}
-		float slide = skySlide.animateTo(0f).get();
-		float size = Math.max(8f, Math.min(72f, perBlock * 7f * skySize.f()));
-		float w = JacText.width(current, size, JacText.Weight.SEMIBOLD);
-		float x = at.x - w / 2f;
-		float y = at.y - JacText.lineHeight(size) / 2f + slide * size * 0.6f;
-		float la = a * (1f - slide * 0.8f);
+		return since > singing && after.timeMs() - pos > 2000L;
+	}
+
+	/** 0..1, peaking on each beat of the song's tempo (or at a gentle 100 bpm when unknown), plus a kick per lyric line. */
+	private float beat(long pos) {
+		if (!skyPulse.on()) {
+			return 0f;
+		}
+		float bpm = NowPlaying.tempo();
+		float beats = pos / 60_000f * (bpm > 0 ? bpm : 100f);
+		float phase = beats - (float) Math.floor(beats);
+		float pulse = (float) Math.exp(-phase * 5.0) * (bpm > 0 ? 1f : 0.5f);
+		return Math.min(1f, pulse * 0.8f + lineKick * 0.6f);
+	}
+
+	private void drawFlat(GuiGraphics g, String text, float cx, float y, float size, float la, float fill, int glow) {
+		float w = JacText.width(text, size, JacText.Weight.SEMIBOLD);
+		float x = cx - w / 2f;
 		// A soft dark halo keeps the words readable against a bright sky.
 		Draw.shadow(g, x - size * 0.3f, y + size * 0.1f, w + size * 0.6f, size * 0.9f, size * 0.45f, size * 1.2f, Colors.fade(0x78000000, la));
-		JacText.draw(g, current, x + size * 0.04f, y + size * 0.06f, Colors.fade(0x60000000, la), size, JacText.Weight.SEMIBOLD);
-		JacText.draw(g, current, x, y, Colors.fade(Colors.withAlpha(0xFFFFFF, 0xB0), la), size, JacText.Weight.SEMIBOLD);
+		JacText.draw(g, text, x + size * 0.04f, y + size * 0.06f, Colors.fade(0x60000000, la), size, JacText.Weight.SEMIBOLD);
+		JacText.draw(g, text, x, y, Colors.fade(Colors.withAlpha(0xFFFFFF, 0xB0), la), size, JacText.Weight.SEMIBOLD);
 		if (fill > 0f) {
 			g.enableScissor((int) x - 1, (int) (y - size), (int) Math.ceil(x + w * fill), (int) (y + size * 2));
-			JacText.draw(g, current, x, y, Colors.fade(glow, la), size, JacText.Weight.SEMIBOLD);
+			JacText.draw(g, text, x, y, Colors.fade(glow, la), size, JacText.Weight.SEMIBOLD);
 			g.disableScissor();
 		}
-		if (after != null && !after.text().isBlank()) {
-			float ns = size * 0.55f;
-			float nw = JacText.width(after.text(), ns, JacText.Weight.REGULAR);
-			JacText.draw(g, after.text(), at.x - nw / 2f, y + JacText.lineHeight(size) + 2f, Colors.fade(Colors.withAlpha(0xFFFFFF, 0x90), a * (1f - slide)),
-				ns, JacText.Weight.REGULAR);
+	}
+
+	/**
+	 * Text bent along a wide arc, letters tilting with it and shrinking a little towards the ends, as if painted on the
+	 * inside of a faraway dome. Letters up to {@code fill} take the glow colour.
+	 */
+	private void drawCurved(GuiGraphics g, String text, float cx, float y, float size, float la, float fill, int glow, boolean main) {
+		JacText.Weight weight = main ? JacText.Weight.SEMIBOLD : JacText.Weight.REGULAR;
+		float w = JacText.width(text, size, weight);
+		if (w <= 0f) {
+			return;
+		}
+		// A gentle bend: about 20 degrees at the ends of a long line, less for short ones.
+		float radius = Math.max(w * 1.5f, size * 12f);
+		float lineH = JacText.lineHeight(size);
+		int[] cps = text.codePoints().toArray();
+		// Two passes: the readability halo (following the arc letter by letter) first, so it never covers a letter.
+		for (int pass = main ? 0 : 1; pass < 2; pass++) {
+			float s = -w / 2f;
+			for (int cp : cps) {
+				String ch = new String(Character.toChars(cp));
+				float cw = JacText.width(ch, size, weight);
+				float mid = s + cw / 2f;
+				s += cw;
+				if (ch.isBlank()) {
+					continue;
+				}
+				float angle = mid / radius;
+				float edge = Math.min(1f, Math.abs(mid) / (w / 2f + 1f));
+				float scale = 1f - 0.18f * edge * edge;
+				float px = cx + radius * (float) Math.sin(angle);
+				float py = y + lineH / 2f + radius * (1f - (float) Math.cos(angle));
+				float ca = la * (1f - 0.35f * edge);
+				g.pose().pushMatrix();
+				g.pose().translate(px, py);
+				g.pose().rotate(angle);
+				g.pose().scale(scale, scale);
+				if (pass == 0) {
+					Draw.shadow(g, -cw / 2f - size * 0.1f, -lineH * 0.3f, cw + size * 0.2f, lineH * 0.6f, size * 0.3f, size * 0.9f, Colors.fade(0x26000000, ca));
+				} else {
+					boolean lit = main && (mid + w / 2f) / w <= fill;
+					int color = lit ? glow : main ? Colors.withAlpha(0xFFFFFF, 0xB8) : Colors.withAlpha(0xFFFFFF, 0x90);
+					if (main) {
+						JacText.draw(g, ch, -cw / 2f + size * 0.04f, -lineH / 2f + size * 0.06f, Colors.fade(0x60000000, ca), size, weight);
+					}
+					JacText.draw(g, ch, -cw / 2f, -lineH / 2f, Colors.fade(color, ca), size, weight);
+				}
+				g.pose().popMatrix();
+			}
+		}
+	}
+
+	/**
+	 * The cover with the title and artist beside it and moving bars after the title, centred on {@code cx} with its top
+	 * edge at {@code top}. A soft halo behind the cover swells on the beat.
+	 */
+	private void drawSkyInfo(GuiGraphics g, MediaState s, float cx, float top, float size, float a, float beat) {
+		float coverSize = size * 1.7f;
+		float titleSize = size * 0.5f;
+		float artistSize = size * 0.38f;
+		float gap = size * 0.3f;
+		float barsW = equalizer.on() ? titleSize * 1.6f : 0f;
+		String artist = s.artist();
+		float titleW = JacText.width(s.title(), titleSize, JacText.Weight.SEMIBOLD);
+		float textW = Math.max(titleW + (barsW > 0 ? barsW + gap * 0.6f : 0f), JacText.width(artist, artistSize, JacText.Weight.REGULAR));
+		float rowW = coverSize + gap + textW;
+		float left = cx - rowW / 2f;
+		Draw.shadow(g, left - size * 0.3f, top, rowW + size * 0.6f, coverSize, size * 0.4f, size * 1.2f, Colors.fade(0x66000000, a));
+		if (beat > 0.01f) {
+			float swell = coverSize * (0.1f + 0.25f * beat);
+			Draw.shadow(g, left - swell * 0.3f, top - swell * 0.3f, coverSize + swell * 0.6f, coverSize + swell * 0.6f, coverSize * 0.2f, swell * 1.5f,
+				Colors.fade(Colors.withAlpha(accent, 0xA0), a * beat));
+		}
+		float pop = 1f + 0.04f * beat;
+		float cs = coverSize * pop;
+		float co = (cs - coverSize) / 2f;
+		if (hasArt && cover != null) {
+			Draw.shadow(g, left, top + 1f, coverSize, coverSize, coverSize * 0.12f, size * 0.25f, Colors.fade(0x70000000, a));
+			g.pose().pushMatrix();
+			g.pose().translate(left - co, top - co);
+			g.pose().scale(cs / AlbumArt.COVER, cs / AlbumArt.COVER);
+			g.blit(RenderPipelines.GUI_TEXTURED, COVER, 0, 0, 0f, 0f, AlbumArt.COVER, AlbumArt.COVER, AlbumArt.COVER, AlbumArt.COVER, AlbumArt.COVER,
+				AlbumArt.COVER, Colors.fade(0xFFFFFFFF, a));
+			g.pose().popMatrix();
+		} else {
+			float r = coverSize * 0.12f;
+			Draw.gradient(g, left, top, coverSize, coverSize, r, Colors.fade(Colors.lerp(accent, 0xFF000000, 0.15f), a),
+				Colors.fade(Colors.lerp(accent, 0xFF000000, 0.45f), a), Colors.fade(Colors.lerp(accent, 0xFF000000, 0.7f), a),
+				Colors.fade(Colors.lerp(accent, 0xFF000000, 0.4f), a));
+			float icon = coverSize * 0.4f;
+			JacText.icon(g, Icons.MUSIC, left + (coverSize - icon) / 2f, top + (coverSize - icon) / 2f, icon, Colors.fade(0xD0FFFFFF, a));
+		}
+		float tx = left + coverSize + gap;
+		float textH = JacText.lineHeight(titleSize) + JacText.lineHeight(artistSize);
+		float ty = top + (coverSize - textH) / 2f;
+		JacText.draw(g, s.title(), tx + titleSize * 0.05f, ty + titleSize * 0.07f, Colors.fade(0x60000000, a), titleSize, JacText.Weight.SEMIBOLD);
+		JacText.draw(g, s.title(), tx, ty, Colors.fade(0xFFFFFFFF, a), titleSize, JacText.Weight.SEMIBOLD);
+		JacText.draw(g, artist, tx, ty + JacText.lineHeight(titleSize), Colors.fade(Colors.lerp(accent, 0xFFFFFFFF, 0.6f), a * 0.9f), artistSize,
+			JacText.Weight.REGULAR);
+		if (barsW > 0f) {
+			// The card's moving bars, bigger, and kicked by the beat.
+			float play = playing.animateTo(s.status() == MediaState.Status.PLAYING ? 1f : 0f).get();
+			float bx = tx + titleW + gap * 0.6f;
+			float base = ty + JacText.lineHeight(titleSize) * 0.85f;
+			float barW = barsW / 4f * 0.6f;
+			double t = System.nanoTime() / 1e9;
+			for (int i = 0; i < 4; i++) {
+				double wave = 0.5 + 0.5 * Math.sin(t * (5.1 + i * 1.7) + i * 1.3) * Math.sin(t * (2.3 + i * 0.9) + i);
+				float h = titleSize * (0.15f + (0.55f * (float) Math.abs(wave) + 0.4f * beat * (i % 2 == 0 ? 1f : 0.7f)) * play);
+				Draw.rect(g, bx + i * barsW / 4f, base - h, barW, h, barW / 2f, Colors.fade(Colors.withAlpha(Colors.lerp(accent, 0xFFFFFFFF, 0.3f), 0xE8), a));
+			}
 		}
 	}
 
