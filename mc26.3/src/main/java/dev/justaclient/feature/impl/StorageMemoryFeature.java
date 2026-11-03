@@ -93,11 +93,16 @@ public final class StorageMemoryFeature extends Feature {
 			return InteractionResult.PASS;
 		});
 		ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
-			if (!feature.isEnabled() || !(screen instanceof AbstractContainerScreen<?> acs) || !remembers(acs.getMenu())) {
+			if (!feature.isEnabled() || !(screen instanceof AbstractContainerScreen<?> acs)) {
+				return;
+			}
+			if (!remembers(acs.getMenu())) {
+				// A furnace or the like used the click; a server menu opened by command a moment later must not take it.
+				feature.clicked = null;
 				return;
 			}
 			Opened opened = feature.opened();
-			if (opened != null) {
+			if (opened != null && fits(acs.getMenu(), opened)) {
 				ScreenEvents.remove(screen).register(s -> feature.snapshot(acs.getMenu(), opened));
 			}
 		});
@@ -110,6 +115,15 @@ public final class StorageMemoryFeature extends Feature {
 			lines.add(Math.min(1, lines.size()), Component.literal(inside.size() + "/27 slots used · " + items + (items == 1 ? " item" : " items"))
 				.withStyle(ChatFormatting.GRAY));
 		});
+	}
+
+	/** A chest menu of the wrong size for the block (a server's own menu, a shop plugin) is not that chest's contents. */
+	private static boolean fits(AbstractContainerMenu menu, Opened opened) {
+		// Servers often give the ender chest more rows, so any size counts there.
+		if (!(menu instanceof ChestMenu chest) || StorageIndex.ENDER.equals(opened.kind())) {
+			return true;
+		}
+		return chest.getRowCount() * 9 == (opened.other() != null ? 54 : 27);
 	}
 
 	private static boolean remembers(AbstractContainerMenu menu) {
@@ -245,6 +259,10 @@ public final class StorageMemoryFeature extends Feature {
 		return gpsKey.isBound() ? gpsKey.keyName() : "the GPS key (unbound)";
 	}
 
+	/** Containers seen in place in {@link #seenLevel}, so only those can be forgotten there (see {@link #tick}). */
+	private final java.util.Set<String> seen = new java.util.HashSet<>();
+	private @Nullable Object seenLevel;
+
 	@Override
 	public void tick() {
 		Minecraft mc = Minecraft.getInstance();
@@ -257,7 +275,14 @@ public final class StorageMemoryFeature extends Feature {
 		if (mc.level == null || !forget.on() || ++ticks % 40 != 0) {
 			return;
 		}
-		// A container whose block is loaded but no longer holds one was broken or moved: drop it.
+		// A container whose block is loaded but no longer holds one was broken or moved: drop it. On a server it must first
+		// have been seen there in this world: behind a proxy every backend (lobby, survival) shares one address, so the same
+		// spot in another backend's overworld says nothing about your chest.
+		if (seenLevel != mc.level) {
+			seenLevel = mc.level;
+			seen.clear();
+		}
+		boolean strict = !mc.isLocalServer();
 		String dim = Waypoints.dimension();
 		boolean changed = false;
 		for (StorageIndex.Container c : new ArrayList<>(index().all())) {
@@ -265,8 +290,14 @@ public final class StorageMemoryFeature extends Feature {
 				continue;
 			}
 			BlockPos pos = new BlockPos(c.x, c.y, c.z);
-			if (mc.level.isLoaded(pos) && (!(mc.level.getBlockEntity(pos) instanceof net.minecraft.world.Container)
-				|| !BuiltInRegistries.BLOCK.getKey(mc.level.getBlockState(pos).getBlock()).toString().equals(c.block))) {
+			if (!mc.level.isLoaded(pos)) {
+				continue;
+			}
+			boolean there = mc.level.getBlockEntity(pos) instanceof net.minecraft.world.Container
+				&& BuiltInRegistries.BLOCK.getKey(mc.level.getBlockState(pos).getBlock()).toString().equals(c.block);
+			if (there) {
+				seen.add(c.key());
+			} else if (!strict || seen.contains(c.key())) {
 				changed |= index.remove(c.key());
 			}
 		}

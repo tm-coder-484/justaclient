@@ -48,7 +48,7 @@ public final class AutoGgFeature extends Feature {
 		if (!allowedHere(mc)) {
 			return;
 		}
-		if (GgGate.trigger(e.text(), triggers.get()) == null) {
+		if (GgGate.trigger(e.text(), e.sender(), triggers.get()) == null) {
 			return;
 		}
 		long now = System.currentTimeMillis();

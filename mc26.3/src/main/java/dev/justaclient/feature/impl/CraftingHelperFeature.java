@@ -70,6 +70,8 @@ public final class CraftingHelperFeature extends Feature {
 	private @Nullable RecipeDisplayEntry target;
 	private int crafts = 1;
 	private @Nullable Object offeredFor;
+	/** The connection {@link #target} was picked on: recipe ids are numbered per connection, so they mean nothing on another. */
+	private @Nullable Object targetFor;
 	private @Nullable Object pendingKey;
 	private long pendingSince;
 	private float @Nullable [] minus;
@@ -97,18 +99,27 @@ public final class CraftingHelperFeature extends Feature {
 		if (!f.isEnabled() || mc.player == null) {
 			return;
 		}
-		if (f.target != null && f.target.id().equals(id)) {
+		if (f.target != null && f.target.id().equals(id) && f.targetFor == mc.getConnection()) {
 			return;
 		}
 		for (var collection : mc.player.getRecipeBook().getCollections()) {
 			for (RecipeDisplayEntry e : collection.getRecipes()) {
 				if (e.id().equals(id)) {
 					f.target = e;
+					f.targetFor = mc.getConnection();
 					f.crafts = 1;
 					f.offeredFor = null;
 					return;
 				}
 			}
+		}
+	}
+
+	/** Forgets a recipe picked on another connection (another server, or after rejoining). */
+	private void dropStale() {
+		if (target != null && targetFor != Minecraft.getInstance().getConnection()) {
+			target = null;
+			targetFor = null;
 		}
 	}
 
@@ -185,6 +196,7 @@ public final class CraftingHelperFeature extends Feature {
 
 		@Override
 		public float height(ContainerOverlays.Box box) {
+			dropStale();
 			ContextMap ctx = context();
 			if (target == null || ctx == null) {
 				return 18 + 24;
@@ -197,6 +209,7 @@ public final class CraftingHelperFeature extends Feature {
 		public void draw(ContainerOverlays.Box box, GuiGraphicsExtractor g, float x, float y, float w, float h, double mx, double my) {
 			AbstractContainerMenu menu = box.screen().getMenu();
 			float ly = ContainerOverlays.header(g, Icons.GRID, "Crafting helper", x, y, w);
+			dropStale();
 			ContextMap ctx = context();
 			minus = plus = fill = clear = null;
 			if (target == null || ctx == null) {

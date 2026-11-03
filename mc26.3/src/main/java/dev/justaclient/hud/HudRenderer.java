@@ -43,7 +43,8 @@ public final class HudRenderer {
 		});
 		HudElementRegistry.attachElementAfter(VanillaHudElements.CHAT, Justaclient.id("trinket"), (g, delta) -> {
 			TrinketFeature trinket = Features.get(TrinketFeature.class);
-			if (trinket.isEnabled() && !editing) {
+			// F1 hides it, as on 1.21.11, so it never ends up in a clean screenshot.
+			if (trinket.isEnabled() && !editing && !Minecraft.getInstance().gui.hud.isHidden()) {
 				trinket.cost.begin();
 				trinket.render(g);
 				trinket.cost.end();

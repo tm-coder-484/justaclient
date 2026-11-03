@@ -14,10 +14,19 @@ public final class GgGate {
 
 	/** The trigger {@code line} matches (ignoring case), or null. */
 	public static @Nullable String trigger(String line, List<String> triggers) {
+		return trigger(line, "", triggers);
+	}
+
+	/**
+	 * As above, knowing {@code sender}: who {@link ChatText#sender} thinks wrote the line ("" for a server line). Many
+	 * servers send player chat unsigned, so "[MVP+] Bob: won the game" must not count. A line that looks like chat only
+	 * counts when it starts with the trigger, as the server's own "Winner: Steve" does.
+	 */
+	public static @Nullable String trigger(String line, @Nullable String sender, List<String> triggers) {
 		String lower = line.toLowerCase(Locale.ROOT);
 		for (String t : triggers) {
 			String w = t.trim().toLowerCase(Locale.ROOT);
-			if (!w.isEmpty() && lower.contains(w)) {
+			if (!w.isEmpty() && (sender == null || sender.isEmpty() ? lower.contains(w) : lower.startsWith(w))) {
 				return t.trim();
 			}
 		}
