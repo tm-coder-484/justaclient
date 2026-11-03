@@ -53,6 +53,10 @@ public final class StorageMemoryFeature extends Feature {
 	private final BoolSetting ender = bool("ender", "Remember your ender chest", true);
 	private final BoolSetting forget = bool("forget", "Forget containers that are gone", true);
 	private final BoolSetting shulkerTooltip = bool("shulker_tooltip", "Shulker box fill in tooltips", true);
+	private final BoolSetting suggest = bool("suggest", "Say which chest has what you're missing", true);
+	private final dev.justaclient.feature.setting.KeySetting gpsKey = key("gps_key", "GPS to the suggested chest",
+		com.mojang.blaze3d.platform.InputConstants.KEY_G).visibleWhen(suggest::on);
+	private boolean gpsWasDown;
 
 	private StorageIndex index = new StorageIndex();
 	private @Nullable String indexWorld;
@@ -232,9 +236,24 @@ public final class StorageMemoryFeature extends Feature {
 			: new Locate.Target(label, Icons.PACKAGE, c.x, c.y, c.z, c.dimension, color, o[0], o[1], o[2]);
 	}
 
+	/** True if helpers such as the potion guide and furnace info may point you at a chest. */
+	public boolean suggests() {
+		return suggest.on();
+	}
+
+	public String gpsKeyName() {
+		return gpsKey.isBound() ? gpsKey.keyName() : "the GPS key (unbound)";
+	}
+
 	@Override
 	public void tick() {
 		Minecraft mc = Minecraft.getInstance();
+		// The GPS key works in the world and in container screens, not where you type.
+		boolean down = (mc.screen == null || mc.screen instanceof AbstractContainerScreen<?>) && gpsKey.isBound() && gpsKey.isDown();
+		if (down && !gpsWasDown && dev.justaclient.inventory.StorageFinder.hasOffer()) {
+			dev.justaclient.inventory.StorageFinder.accept();
+		}
+		gpsWasDown = down;
 		if (mc.level == null || !forget.on() || ++ticks % 40 != 0) {
 			return;
 		}
@@ -246,7 +265,8 @@ public final class StorageMemoryFeature extends Feature {
 				continue;
 			}
 			BlockPos pos = new BlockPos(c.x, c.y, c.z);
-			if (mc.level.isLoaded(pos) && !(mc.level.getBlockEntity(pos) instanceof net.minecraft.world.Container)) {
+			if (mc.level.isLoaded(pos) && (!(mc.level.getBlockEntity(pos) instanceof net.minecraft.world.Container)
+				|| !BuiltInRegistries.BLOCK.getKey(mc.level.getBlockState(pos).getBlock()).toString().equals(c.block))) {
 				changed |= index.remove(c.key());
 			}
 		}

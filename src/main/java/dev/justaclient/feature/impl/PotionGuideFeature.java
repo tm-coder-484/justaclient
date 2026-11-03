@@ -69,8 +69,17 @@ public final class PotionGuideFeature extends Feature {
 	}
 
 	public void setTarget(BrewGraph.@Nullable State state) {
+		boolean changed = state != null && !state.equals(target());
 		target.set(state == null ? "" : state.item() + "|" + state.potion());
 		Profiles.save();
+		if (changed) {
+			// Point at a chest holding what the route needs that you don't carry.
+			List<BrewGraph.Step> route = InvCompat.brewing().route(state).orElse(List.of());
+			java.util.Map<String, Integer> need = new java.util.LinkedHashMap<>(BrewGraph.shoppingList(route));
+			need.merge("minecraft:blaze_powder", 1, Math::max);
+			dev.justaclient.inventory.StorageFinder.offer(List.copyOf(dev.justaclient.inventory.StorageFinder.missing(need).keySet()),
+				"For " + InvItems.shortName(state));
+		}
 	}
 
 	/** Every potion the rules can make from water, drinkable ones first by name, for pickers. */

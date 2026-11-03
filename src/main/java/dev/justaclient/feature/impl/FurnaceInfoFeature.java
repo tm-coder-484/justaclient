@@ -6,6 +6,8 @@ import dev.justaclient.feature.Features;
 import dev.justaclient.feature.setting.BoolSetting;
 import dev.justaclient.inventory.ContainerOverlays;
 import dev.justaclient.inventory.InvCompat;
+import java.util.List;
+import org.jspecify.annotations.Nullable;
 import dev.justaclient.mixin.AbstractFurnaceMenuAccessor;
 import dev.justaclient.render.Icons;
 import dev.justaclient.render.text.JacText;
@@ -95,6 +97,18 @@ public final class FurnaceInfoFeature extends Feature {
 		return ticks > 0 ? ticks : fast ? 800 : 1600;
 	}
 
+	private static final List<String> FUELS = List.of("minecraft:coal", "minecraft:charcoal", "minecraft:coal_block");
+	private static @Nullable Object offeredFor;
+
+	/** Short on fuel and not carrying enough coal: say which chest has some. Once per furnace opened. */
+	private static void offerFuel(int coal) {
+		int carried = dev.justaclient.inventory.StorageFinder.carried("minecraft:coal") + dev.justaclient.inventory.StorageFinder.carried(
+			"minecraft:charcoal") + 9 * dev.justaclient.inventory.StorageFinder.carried("minecraft:coal_block");
+		if (carried < coal) {
+			dev.justaclient.inventory.StorageFinder.offer(FUELS, "Fuel");
+		}
+	}
+
 	private final class Panel implements ContainerOverlays.Overlay {
 		@Override
 		public boolean applies(AbstractContainerScreen<?> screen) {
@@ -166,6 +180,10 @@ public final class FurnaceInfoFeature extends Feature {
 					int more = shortBy(needed, covered, cook, per);
 					String what = burn > 0 ? fuel.getHoverName().getString() : "Coal";
 					ContainerOverlays.row(g, "Short by", fit(more + " " + what, w - 50), AMBER, x, ly, w);
+					if (box.screen() != offeredFor) {
+						offeredFor = box.screen();
+						offerFuel(more);
+					}
 				}
 			}
 		}
