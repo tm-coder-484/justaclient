@@ -703,6 +703,12 @@ public final class SelfTest {
 			int coal = dev.justaclient.inventory.InvCompat.burnTicks(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COAL), false);
 			int fast = dev.justaclient.inventory.InvCompat.burnTicks(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COAL), true);
 			check("coal burns 1600 ticks, 800 in a blast furnace", coal == 1600 && fast == 800, coal + " / " + fast);
+			// An empty fuel slot is counted in coal, which lasts half as long in a blast furnace: 16 items at 100 ticks need 2 there.
+			int regular = dev.justaclient.feature.impl.FurnaceInfoFeature.shortBy(16f, 0f, 100,
+				dev.justaclient.feature.impl.FurnaceInfoFeature.coalTicks(false));
+			int blast = dev.justaclient.feature.impl.FurnaceInfoFeature.shortBy(16f, 0f, 100,
+				dev.justaclient.feature.impl.FurnaceInfoFeature.coalTicks(true));
+			check("empty fuel slot: short by 1 coal in a furnace, 2 in a blast furnace", regular == 1 && blast == 2, regular + " / " + blast);
 			check("stone is not fuel", dev.justaclient.inventory.InvCompat.burnTicks(new net.minecraft.world.item.ItemStack(
 				net.minecraft.world.item.Items.STONE), false) == 0, "it is");
 		}

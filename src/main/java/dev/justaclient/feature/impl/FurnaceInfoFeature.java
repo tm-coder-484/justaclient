@@ -84,6 +84,17 @@ public final class FurnaceInfoFeature extends Feature {
 		return ((AbstractFurnaceMenuAccessor) menu).jac$data();
 	}
 
+	/** How many more fuel items burning {@code per} ticks each are needed to cook {@code needed} items. */
+	public static int shortBy(float needed, float covered, int cook, int per) {
+		return (int) Math.ceil((needed - covered) * cook / Math.max(1, per));
+	}
+
+	/** Ticks one coal lasts here (half in a blast furnace or smoker): what an empty fuel slot is counted in. */
+	public static int coalTicks(boolean fast) {
+		int ticks = InvCompat.burnTicks(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COAL), fast);
+		return ticks > 0 ? ticks : fast ? 800 : 1600;
+	}
+
 	private final class Panel implements ContainerOverlays.Overlay {
 		@Override
 		public boolean applies(AbstractContainerScreen<?> screen) {
@@ -151,8 +162,8 @@ public final class FurnaceInfoFeature extends Feature {
 				} else if (covered + 0.001f >= needed) {
 					ContainerOverlays.row(g, "Fuel", "enough", GREEN, x, ly, w);
 				} else {
-					int per = burn > 0 ? burn : 1600;
-					int more = (int) Math.ceil((needed - covered) * cook / per);
+					int per = burn > 0 ? burn : coalTicks(fast(screen));
+					int more = shortBy(needed, covered, cook, per);
 					String what = burn > 0 ? fuel.getHoverName().getString() : "Coal";
 					ContainerOverlays.row(g, "Short by", fit(more + " " + what, w - 50), AMBER, x, ly, w);
 				}
