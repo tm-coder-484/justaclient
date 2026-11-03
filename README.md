@@ -57,6 +57,37 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 
 ## What is in this build
 
+### M10: containers and survival (v0.10.0)
+
+Every new feature has its own switch, in both the 1.21.11 and 26.3 jars. The anvil and crafting helpers are off by
+default and send at most one action per click (the same as a shift-click or a recipe book click), never a sequence.
+
+- **Inventory** category in the menu for the container helpers below. Panels sit beside the container and keep off the
+  open recipe book.
+- **Furnace info**: time left for the item and the stack, fuel left, how many items the fuel smelts and whether it is
+  enough (furnace, blast furnace, smoker). **Food info**: hunger and saturation on food tooltips and a preview on the
+  food bar.
+- **Potion guide**: `/potions` lists every potion with its brewing route; beside the brewing stand, pick a target and
+  the next ingredient is ringed. Routes come from the game's own brewing rules.
+- **Storage memory**: chests, barrels, shulker boxes and the ender chest you open are remembered per world. `/storage`
+  searches them ("iron 32+", "<5 torch"), shows totals, where each item is and when you last checked it ("Last checked:
+  12 minutes ago"), and sets GPS to the container with a through-wall outline. Shulker box tooltips show what is inside.
+  Only containers you opened are stored.
+- **Finds it in your chests**: when a helper sees you are short (Brew this, furnace fuel, a kit, a repair material, a
+  crafting ingredient), it looks in the containers you opened and says which one has it. Press **G** (or click the chip
+  under the container) to set GPS there.
+- **Landmarks** (`/landmarks`): waypoints as a board with colour tags, visited state, direction arrows and Map buttons;
+  structures you walk into can be added automatically (off by default).
+- **Death recap**: a card on the death screen with what hit you, damage over the last seconds and a GPS back;
+  `/lastdeath` keeps the last 20.
+- **Kits** (`/ck`): `/ck save` opens the kit editor from your inventory (click a slot to leave it free), `/ck preview`,
+  `/ck load` gives the kit in singleplayer with cheats on, and elsewhere checks your inventory slot by slot (green
+  right, amber short, red wrong, faded ghost for empty) and finds missing items in your chests.
+- **Anvil helper**: lists what you can combine (books onto items, repairs, two books), with past work and "too costly";
+  click a pair to move the item, click again for the book or material.
+- **Crafting helper**: pick a recipe in the recipe book and the panel shows each ingredient as have/need for the number
+  of crafts you set, what is missing and which chest has it; **Fill the grid** is the recipe book's own action.
+
 ### M9: screens, hubs and the ring (v0.9.0)
 
 Every new feature has its own switch, in both the 1.21.11 and 26.3 jars.
