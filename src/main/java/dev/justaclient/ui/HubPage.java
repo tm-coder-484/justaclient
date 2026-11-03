@@ -8,6 +8,7 @@ import dev.justaclient.feature.Feature;
 import dev.justaclient.feature.Features;
 import dev.justaclient.feature.impl.KeybindsFeature;
 import dev.justaclient.feature.impl.ModsPanelFeature;
+import dev.justaclient.feature.impl.ScreenshotsFeature;
 import dev.justaclient.feature.impl.ServersFeature;
 import dev.justaclient.render.Draw;
 import dev.justaclient.render.Icons;
@@ -45,6 +46,8 @@ public final class HubPage {
 			() -> Minecraft.getInstance().allowsMultiplayer()));
 		TILES.add(new Tile(Icons.KEYBOARD, "Key binds", "Search, clashes and key sets per server", KeybindsFeature.class, KeybindsScreen::new,
 			() -> true));
+		TILES.add(new Tile(Icons.CAMERA, "Screenshots", "Tagged gallery, viewer and side-by-side compare", ScreenshotsFeature.class,
+			ScreenshotsScreen::new, () -> true));
 		TILES.add(new Tile(Icons.MOVE, "HUD editor", "Move, scale and snap your widgets", null, HudEditorScreen::new, () -> true));
 	}
 

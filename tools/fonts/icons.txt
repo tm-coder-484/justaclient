@@ -109,3 +109,10 @@ filter
 rocket
 grip-vertical
 command
+chevron-left
+arrow-left-right
+bug
+scroll-text
+monitor
+map
+history

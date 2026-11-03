@@ -43,6 +43,7 @@
 		"RenderSetupMixin",
 		"ScreenEffectRendererMixin",
 		"ScreenMixin",
+		"ScreenshotMixin",
 		"SkyRendererMixin",
 		"TextureTransformMixin",
 		"WeatherEffectRendererMixin"

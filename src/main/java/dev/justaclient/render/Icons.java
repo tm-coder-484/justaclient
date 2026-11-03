@@ -115,7 +115,14 @@ public enum Icons {
 	FILTER(0xe0d5),
 	ROCKET(0xe286),
 	GRIP_VERTICAL(0xe0ee),
-	COMMAND(0xe09e);
+	COMMAND(0xe09e),
+	CHEVRON_LEFT(0xe072),
+	ARROW_LEFT_RIGHT(0xe24a),
+	BUG(0xe20c),
+	SCROLL_TEXT(0xe464),
+	MONITOR(0xe121),
+	MAP(0xe114),
+	HISTORY(0xe1f5);
 
 	public final String glyph;
 
