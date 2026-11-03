@@ -154,6 +154,9 @@ public final class JacCommands {
 					return 1;
 				}));
 			}
+			for (String name : new String[] {"biomes", "jbiomes"}) {
+				dispatcher.register(literal(name).executes(ctx -> open(new dev.justaclient.ui.BiomeEffectsScreen(null))));
+			}
 			for (String name : new String[] {"chatlog", "jchat"}) {
 				dispatcher.register(literal(name).executes(ctx -> {
 					dev.justaclient.feature.impl.ChatHistoryFeature.open(null);

@@ -172,9 +172,11 @@ public final class Features {
 		register(new MotionBlurFeature());
 		register(new GlintFeature());
 		register(new AmbientParticlesFeature());
+		register(new dev.justaclient.feature.impl.BiomeEffectsFeature());
 		register(new CosmeticsFeature());
 		register(new HatsFeature());
 		register(new SkinFeature());
+		register(new dev.justaclient.feature.impl.CapeFeature());
 		register(new ZoomFeature());
 		register(new CameraFeature());
 		register(new CopyCoordinatesFeature());

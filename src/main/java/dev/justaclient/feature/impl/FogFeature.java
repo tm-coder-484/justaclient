@@ -60,21 +60,33 @@ public final class FogFeature extends Feature {
 	}
 
 	public Vector4f color(Camera camera, ClientLevel level, Vector4f color) {
-		if (!isEnabled() || !recolor.on() || !applies(camera)) {
+		if (!applies(camera)) {
 			return color;
 		}
-		int target = level.dimension() == Level.NETHER ? nether.argb() : level.dimension() == Level.END ? end.argb() : overworld.argb();
-		float s = strength.f();
-		// Keep vanilla's brightness changes (night, storms, void) by scaling the target to the vanilla brightness.
+		boolean inOverworld = level.dimension() == Level.OVERWORLD;
+		// Keep vanilla's brightness changes (night, storms, void) by scaling targets to the vanilla brightness.
 		float lum = Math.max(color.x, Math.max(color.y, color.z));
-		float tr = (target >> 16 & 255) / 255f, tg = (target >> 8 & 255) / 255f, tb = (target & 255) / 255f;
+		Vector4f out = color;
+		if (isEnabled() && recolor.on()) {
+			int target = level.dimension() == Level.NETHER ? nether.argb() : level.dimension() == Level.END ? end.argb() : overworld.argb();
+			out = mix(out, (target >> 16 & 255) / 255f, (target >> 8 & 255) / 255f, (target & 255) / 255f, strength.f(), lum, inOverworld);
+		}
+		float[] biome = BiomeEffectsFeature.get().fogTint();
+		if (biome[3] > 0f) {
+			out = mix(out, biome[0], biome[1], biome[2], biome[3], lum, inOverworld);
+		}
+		return out;
+	}
+
+	/** {@code base} moved towards the colour by {@code s}; in the overworld the colour is scaled to {@code lum} first. */
+	public static Vector4f mix(Vector4f base, float tr, float tg, float tb, float s, float lum, boolean scale) {
 		float tl = Math.max(0.001f, Math.max(tr, Math.max(tg, tb)));
-		float k = level.dimension() == Level.OVERWORLD ? lum / tl : 1f;
+		float k = scale ? lum / tl : 1f;
 		return new Vector4f(
-			color.x + (Math.min(1f, tr * k) - color.x) * s,
-			color.y + (Math.min(1f, tg * k) - color.y) * s,
-			color.z + (Math.min(1f, tb * k) - color.z) * s,
-			color.w
+			base.x + (Math.min(1f, tr * k) - base.x) * s,
+			base.y + (Math.min(1f, tg * k) - base.y) * s,
+			base.z + (Math.min(1f, tb * k) - base.z) * s,
+			base.w
 		);
 	}
 }

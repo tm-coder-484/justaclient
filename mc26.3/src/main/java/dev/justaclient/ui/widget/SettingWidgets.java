@@ -1,5 +1,6 @@
 package dev.justaclient.ui.widget;
 
+import dev.justaclient.feature.setting.ActionSetting;
 import dev.justaclient.feature.setting.BoolSetting;
 import dev.justaclient.feature.setting.ChoiceSetting;
 import dev.justaclient.feature.setting.ColorSetting;
@@ -18,6 +19,7 @@ public final class SettingWidgets {
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public static Widget create(Setting<?> setting, float x, float y, float width) {
 		return switch (setting) {
+			case ActionSetting a -> new Button(x, y, width, 18f, a.name, false, a.action);
 			case BoolSetting b -> new Toggle(x, y, width, b.name, b::get, b::set);
 			case NumberSetting n -> new Slider(x, y, width, n.name, n.min, n.max, n.step, n::get, n::set, n.format);
 			case ChoiceSetting c -> new Segmented(x, y, width, c.name, c.options, c.labels(), c::get, c::set);

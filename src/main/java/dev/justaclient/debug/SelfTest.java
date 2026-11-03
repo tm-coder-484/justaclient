@@ -124,6 +124,8 @@ public final class SelfTest {
 			anvilMath();
 			storageOffers();
 			chatText();
+			biomeLooks();
+			capeLayout();
 		} catch (RuntimeException | IOException e) {
 			fail("unexpected exception", e.toString());
 		} finally {
@@ -862,6 +864,65 @@ public final class SelfTest {
 			check("the game's rules make splash potions with gunpowder", real.result(swift, "minecraft:gunpowder").equals(java.util.Optional.of(splashSwift)),
 				real.result(swift, "minecraft:gunpowder").toString());
 		}
+	}
+
+	private static void biomeLooks() {
+		var feature = dev.justaclient.feature.impl.BiomeEffectsFeature.get();
+		check("biome effects: swamp has a preset look", feature.existing("minecraft:swamp") != null
+			&& feature.existing("minecraft:swamp").changesAnything(), "no swamp preset");
+		var look = new dev.justaclient.feature.impl.BiomeEffectsFeature.Look();
+		check("biome effects: a blank look changes nothing", !look.changesAnything(), "blank look changes something");
+		look.fog.set(true);
+		look.fogColor.set("#336699");
+		look.ambience.set(dev.justaclient.feature.impl.BiomeEffectsFeature.Ambience.SOUL);
+		var back = dev.justaclient.feature.impl.BiomeEffectsFeature.Look.load(look.save());
+		check("biome effects: a look survives saving", back.fog.on() && back.fogColor.argb() == look.fogColor.argb()
+			&& back.ambience.get() == look.ambience.get() && back.save().equals(look.save()), back.save().toString());
+		var store = feature.settings().stream().filter(st -> st.id.equals("biomes")).findFirst().orElse(null);
+		var saved = store == null ? null : store.save();
+		if (store != null) {
+			store.load(saved);
+		}
+		check("biome effects: the biome list loads back the same", store != null && store.save().equals(saved), "differs after a round trip");
+		float[] now = {0.2f, 0.4f, 0.6f, 0.5f};
+		dev.justaclient.feature.impl.BiomeEffectsFeature.blendTo(now, 0xFFFF0000, 0f, 0.5f);
+		check("biome effects: fading out keeps the colour", now[0] == 0.2f && now[1] == 0.4f && Math.abs(now[3] - 0.25f) < 1e-4,
+			java.util.Arrays.toString(now));
+		dev.justaclient.feature.impl.BiomeEffectsFeature.blendTo(now, 0xFFFF0000, 1f, 1f);
+		check("biome effects: a full blend reaches the target", Math.abs(now[0] - 1f) < 1e-4 && now[1] == 0f && Math.abs(now[3] - 1f) < 1e-4,
+			java.util.Arrays.toString(now));
+		var base = new org.joml.Vector4f(0.1f, 0.1f, 0.1f, 1f);
+		var mixed = dev.justaclient.feature.impl.FogFeature.mix(base, 1f, 0f, 0f, 1f, 0.1f, true);
+		check("biome effects: overworld fog colour keeps vanilla brightness", Math.abs(mixed.x - 0.1f) < 1e-4 && mixed.y == 0f,
+			mixed.x + "," + mixed.y);
+	}
+
+	private static void capeLayout() {
+		int[] tex = new int[64 * 32];
+		tex[5] = 0xFF123456;
+		var t = dev.justaclient.common.cosmetics.CapeLayout.build(tex, 64, 32);
+		check("cape: a 64 x 32 cape texture is used as it is", !t.fitted() && t.width() == 64 && t.at(5, 0) == 0xFF123456, "changed");
+		int[] of = new int[92 * 44];
+		of[92 * 3 + 7] = 0xFF00FF00;
+		t = dev.justaclient.common.cosmetics.CapeLayout.build(of, 92, 44);
+		check("cape: an OptiFine 92 x 44 cape is padded to 128 x 64", !t.fitted() && t.width() == 128 && t.height() == 64 && t.at(7, 3) == 0xFF00FF00,
+			t.width() + "x" + t.height());
+		int[] pic = new int[20 * 32];
+		for (int y = 0; y < 32; y++) {
+			for (int x = 0; x < 20; x++) {
+				pic[y * 20 + x] = x < 10 ? 0xFFFF0000 : 0xFF0000FF;
+			}
+		}
+		t = dev.justaclient.common.cosmetics.CapeLayout.build(pic, 20, 32);
+		int s = t.width() / 64;
+		check("cape: a picture is fitted at scale 2", t.fitted() && s == 2 && t.height() == 64, t.width() + "x" + t.height());
+		check("cape: the outside shows the picture", t.at(1 * s, 1 * s) == 0xFFFF0000 && t.at(11 * s - 1, 1 * s) == 0xFF0000FF,
+			Integer.toHexString(t.at(1 * s, 1 * s)));
+		// The inside is mirrored, so the red half is on the right there, and darker.
+		check("cape: the inside is a darker mirror", t.at(22 * s - 1, 1 * s) == 0xFFA50000 && t.at(12 * s, 1 * s) == 0xFF0000A5,
+			Integer.toHexString(t.at(22 * s - 1, 1 * s)));
+		check("cape: the elytra wing is painted too", t.at(24 * s, 2 * s) == 0xFFFF0000, Integer.toHexString(t.at(24 * s, 2 * s)));
+		check("cape: the edge carries the picture's border", t.at(0, 1 * s) == 0xFFFF0000 && t.at(11 * s, 1 * s) == 0xFF0000FF, "edge differs");
 	}
 
 	private static void check(String name, boolean ok, String detail) {

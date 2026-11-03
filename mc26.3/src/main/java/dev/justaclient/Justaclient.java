@@ -85,6 +85,7 @@ public final class Justaclient implements ClientModInitializer {
 		HatsFeature.init();
 		TrailsFeature.init();
 		AmbientParticlesFeature.init();
+		dev.justaclient.feature.impl.BiomeEffectsFeature.init();
 		CosmeticsFeature.init();
 		WaypointsFeature.init();
 		AutoReconnectFeature.init();

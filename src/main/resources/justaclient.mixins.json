@@ -4,6 +4,7 @@
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"AbstractClientPlayerMixin",
+		"WingsLayerMixin",
 		"AbstractContainerScreenAccessor",
 		"AbstractFurnaceMenuAccessor",
 		"AbstractRecipeBookScreenAccessor",

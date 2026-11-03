@@ -260,6 +260,22 @@ public final class ImageBackground {
 
 	// Decoding
 
+	/** A decoded picture: every frame as ARGB pixels and how long each shows. A still picture has one frame. */
+	public record Frames(int width, int height, List<int[]> argb, int[] delays) {
+	}
+
+	/** Decodes a PNG, JPG or GIF (with every frame), scaled down to at most {@code maxSize} on its longer side. */
+	public static Frames frames(Path file, int maxSize) throws IOException {
+		Decoded d = decode(file, maxSize, false);
+		int[] delays = new int[d.frames().size()];
+		List<int[]> argb = new ArrayList<>();
+		for (int i = 0; i < delays.length; i++) {
+			delays[i] = d.frames().get(i).delayMs();
+			argb.add(d.frames().get(i).argb());
+		}
+		return new Frames(d.width(), d.height(), argb, delays);
+	}
+
 	private static Decoded decode(Path file, int maxSize, boolean blur) throws IOException {
 		String lower = file.getFileName().toString().toLowerCase(Locale.ROOT);
 		if (lower.endsWith(".gif")) {

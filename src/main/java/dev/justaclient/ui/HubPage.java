@@ -64,6 +64,8 @@ public final class HubPage {
 			dev.justaclient.feature.impl.KitsFeature.class, KitsScreen::new, () -> true));
 		TILES.add(new Tile(Icons.PACKAGE_SEARCH, "Storage", "Search the chests you opened and find your way back",
 			dev.justaclient.feature.impl.StorageMemoryFeature.class, StorageScreen::new, () -> true));
+		TILES.add(new Tile(Icons.LEAF, "Biome effects", "Particles, tint, fog colour and ambience for each biome",
+			dev.justaclient.feature.impl.BiomeEffectsFeature.class, BiomeEffectsScreen::new, () -> true));
 		TILES.add(new Tile(Icons.FLASK, "Labs", "Experimental features and the self-test", LabsFeature.class, LabsScreen::new, () -> true));
 	}
 
