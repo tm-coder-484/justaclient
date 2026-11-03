@@ -73,11 +73,20 @@ public final class RelayProtocol {
 		return o.toString();
 	}
 
+	/** {@code text} cut to {@link #MAX_TEXT} characters, never in the middle of an emoji (a surrogate pair). */
+	public static String cut(String text) {
+		if (text.length() <= MAX_TEXT) {
+			return text;
+		}
+		int end = Character.isHighSurrogate(text.charAt(MAX_TEXT - 1)) ? MAX_TEXT - 1 : MAX_TEXT;
+		return text.substring(0, end);
+	}
+
 	public static String dm(String id, String to, String text) {
 		JsonObject o = type("dm");
 		o.addProperty("id", id);
 		o.addProperty("to", to);
-		o.addProperty("text", text.length() > MAX_TEXT ? text.substring(0, MAX_TEXT) : text);
+		o.addProperty("text", cut(text));
 		return o.toString();
 	}
 

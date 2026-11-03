@@ -108,4 +108,13 @@ class RelayProtocolTest {
 		assertFalse(RelayProtocol.bool(o, "d"));
 		assertFalse(RelayProtocol.bool(o, "e"));
 	}
+
+	@Test
+	void cuttingNeverSplitsAnEmoji() {
+		String text = "x".repeat(RelayProtocol.MAX_TEXT - 1) + "\uD83D\uDE00 and more";
+		String cut = RelayProtocol.cut(text);
+		assertEquals(RelayProtocol.MAX_TEXT - 1, cut.length());
+		assertFalse(Character.isHighSurrogate(cut.charAt(cut.length() - 1)));
+		assertEquals("short", RelayProtocol.cut("short"));
+	}
 }

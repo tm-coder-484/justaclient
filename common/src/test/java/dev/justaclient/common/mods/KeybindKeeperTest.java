@@ -58,4 +58,13 @@ class KeybindKeeperTest {
 		KeybindKeeper.restoreMissing(options, Map.of("key_key.x", "key_key.x:key.keyboard.x"), Set.of());
 		assertFalse(Files.exists(options));
 	}
+
+	@Test
+	void aRestoredBindStartsOnItsOwnLineWhenTheFileHasNoFinalNewline() throws IOException {
+		Path options = Files.writeString(dir.resolve("options-nonl.txt"), "key_key.mod.x:key.keyboard.x\nfov:70");
+		Map<String, String> before = KeybindKeeper.readKeybinds(options);
+		Files.writeString(options, "fov:70");
+		KeybindKeeper.restoreMissing(options, before, Set.of());
+		assertEquals(List.of("fov:70", "key_key.mod.x:key.keyboard.x"), Files.readAllLines(options));
+	}
 }

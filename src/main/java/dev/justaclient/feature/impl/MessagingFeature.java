@@ -198,9 +198,7 @@ public final class MessagingFeature extends Feature {
 		if (clean.isEmpty()) {
 			return false;
 		}
-		if (clean.length() > RelayProtocol.MAX_TEXT) {
-			clean = clean.substring(0, RelayProtocol.MAX_TEXT);
-		}
+		clean = RelayProtocol.cut(clean);
 		String id = UUID.randomUUID().toString().substring(0, 12);
 		boolean sent = relay.send(RelayProtocol.dm(id, friend, clean));
 		conversations.add(friend, new Conversations.Message(id, true, clean, System.currentTimeMillis(), sent ? "sending" : "offline"));

@@ -27,15 +27,24 @@ public final class DeathRecapScreen extends JacScreen {
 	private float top;
 	private float bottom;
 	private DeathRecapFeature.@Nullable Recap shown;
+	/** Read once: the history is a file in the world folder, too slow to parse every frame. */
+	private @Nullable List<DeathRecapFeature.Recap> history;
 
 	public DeathRecapScreen(@Nullable Screen parent) {
 		super("Death recap", parent);
 	}
 
+	private List<DeathRecapFeature.Recap> history() {
+		if (history == null) {
+			history = DeathRecapFeature.get().history();
+		}
+		return history;
+	}
+
 	@Override
 	protected void draw(GuiGraphics g, int mx, int my, float t) {
 		float a = t;
-		List<DeathRecapFeature.Recap> list = DeathRecapFeature.get().history();
+		List<DeathRecapFeature.Recap> list = history();
 		float cardW = 200f;
 		lw = 170f;
 		pw = Math.min(width - 24f, lw + cardW + PAD * 3);
@@ -92,7 +101,7 @@ public final class DeathRecapScreen extends JacScreen {
 		}
 		if (mx >= px + PAD && mx < px + PAD + lw && my >= top && my < bottom) {
 			int i = (int) ((my - top + scroll.get()) / ROW);
-			if (i >= 0 && i < DeathRecapFeature.get().history().size()) {
+			if (i >= 0 && i < history().size()) {
 				dev.justaclient.feature.impl.GuiSoundsFeature.menuClick();
 				selected = i;
 			}
