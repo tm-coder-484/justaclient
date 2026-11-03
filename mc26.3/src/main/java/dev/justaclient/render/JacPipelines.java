@@ -121,6 +121,16 @@ public final class JacPipelines {
 			.build()
 	);
 
+	/** The same glow, drawn over blocks: outlines of places you already found, such as a remembered chest. */
+	public static final RenderPipeline WORLD_FX_XRAY = RenderPipelines.register(
+		RenderPipeline.builder(WORLD_FX_SNIPPET)
+			.withLocation(Justaclient.id("pipeline/world_fx_xray"))
+			.withFragmentShader(Justaclient.id("core/world_fx"))
+			.withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+			.withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+			.build()
+	);
+
 	/** The same sprites added onto the sky, for stars and shooting stars. */
 	public static final RenderPipeline SKY_FX = RenderPipelines.register(
 		RenderPipeline.builder(WORLD_FX_SNIPPET)

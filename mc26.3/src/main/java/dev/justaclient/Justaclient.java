@@ -94,6 +94,7 @@ public final class Justaclient implements ClientModInitializer {
 		dev.justaclient.feature.impl.FurnaceInfoFeature.init();
 		dev.justaclient.feature.impl.FoodInfoFeature.init();
 		dev.justaclient.feature.impl.PotionGuideFeature.init();
+		dev.justaclient.feature.impl.StorageMemoryFeature.init();
 		JacCommands.init();
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
 			SessionHistory.onJoin(client);
@@ -127,6 +128,7 @@ public final class Justaclient implements ClientModInitializer {
 		KeyMappingHelper.registerKeyMapping(OPEN_MAP);
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			CombatTracker.tick();
+			dev.justaclient.waypoint.Locate.tick();
 			ExploredMap.tick(client);
 			SessionStats.tick();
 			SessionHistory.tick(client);

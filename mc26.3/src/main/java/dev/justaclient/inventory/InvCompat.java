@@ -91,6 +91,12 @@ public final class InvCompat {
 		return out;
 	}
 
+	/** The items stored inside a shulker box (or any item holding a container), empty for other items. */
+	public static List<ItemStack> contents(ItemStack stack) {
+		var c = stack.get(net.minecraft.core.component.DataComponents.CONTAINER);
+		return c == null ? List.of() : c.nonEmptyItemCopyStream().toList();
+	}
+
 	/** The game's brewing recipes, read once from its own data. */
 	public static BrewGraph brewing() {
 		if (graph == null) {

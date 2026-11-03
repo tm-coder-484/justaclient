@@ -180,6 +180,9 @@ public final class Waypoints {
 
 	public static void track(@Nullable String name) {
 		tracking = name;
+		if (name != null) {
+			Locate.clear();
+		}
 	}
 
 	public static void load() {

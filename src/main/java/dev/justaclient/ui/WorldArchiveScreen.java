@@ -285,7 +285,7 @@ public final class WorldArchiveScreen extends JacScreen {
 		}
 	}
 
-	private static String dimension(String id) {
+	static String dimension(String id) {
 		return switch (id) {
 			case "minecraft:overworld" -> "Overworld";
 			case "minecraft:the_nether" -> "Nether";

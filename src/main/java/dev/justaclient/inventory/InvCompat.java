@@ -44,6 +44,12 @@ public final class InvCompat {
 		return fast ? ticks / 2 : ticks;
 	}
 
+	/** The items stored inside a shulker box (or any item holding a container), empty for other items. */
+	public static List<ItemStack> contents(ItemStack stack) {
+		var c = stack.get(DataComponents.CONTAINER);
+		return c == null ? List.of() : c.nonEmptyStream().toList();
+	}
+
 	/** The brewing rules of the world you are in (the server's, including data packs), rebuilt when they change. */
 	public static BrewGraph brewing() {
 		Minecraft mc = Minecraft.getInstance();

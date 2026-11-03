@@ -111,6 +111,7 @@ public final class SelfTest {
 			settingTypes();
 			brewRoutes();
 			streamWorldNames();
+			storageIndex();
 		} catch (RuntimeException | IOException e) {
 			fail("unexpected exception", e.toString());
 		} finally {
@@ -617,6 +618,41 @@ public final class SelfTest {
 				}
 			}
 		}
+	}
+
+	/** Storage memory search: amounts, shulker contents, stack maths and the saved file. */
+	private static void storageIndex() {
+		var Q = (java.util.function.Function<String, dev.justaclient.common.storage.StorageIndex.Query>)
+			dev.justaclient.common.storage.StorageIndex.Query::parse;
+		var q = Q.apply("Iron 32+");
+		check("storage: \"iron 32+\" is iron, at least 32", q.text().equals("iron") && q.min() == 32 && q.max() == Integer.MAX_VALUE, q.toString());
+		q = Q.apply("<5 torch");
+		check("storage: \"<5 torch\" is at most 4", q.text().equals("torch") && q.min() == 0 && q.max() == 4, q.toString());
+		q = Q.apply(">=10 oak log");
+		check("storage: words and an amount mix", q.text().equals("oak log") && q.min() == 10, q.toString());
+		var index = new dev.justaclient.common.storage.StorageIndex();
+		var shulker = new dev.justaclient.common.storage.StorageIndex.Item("minecraft:shulker_box", 1, "Shulker Box",
+			List.of(new dev.justaclient.common.storage.StorageIndex.Item("minecraft:iron_ingot", 40, "Iron Ingot")));
+		var chest = new dev.justaclient.common.storage.StorageIndex.Container("block", "minecraft:overworld", 1, 64, 2, "minecraft:chest", 27, 2,
+			List.of(new dev.justaclient.common.storage.StorageIndex.Item("minecraft:iron_ingot", 10, "Iron Ingot"), shulker), 1L);
+		chest.other = new int[] {2, 64, 2};
+		index.put(chest);
+		index.put(new dev.justaclient.common.storage.StorageIndex.Container("block", "minecraft:overworld", 9, 64, 9, "minecraft:barrel", 27, 1,
+			List.of(new dev.justaclient.common.storage.StorageIndex.Item("minecraft:iron_ingot", 3, "Iron Ingot")), 1L));
+		var hits = index.search(Q.apply("iron 32+"));
+		check("storage: shulker contents count toward the amount", hits.size() == 1 && hits.get(0).count() == 50 && hits.get(0).inShulkers() == 40,
+			hits.toString());
+		var totals = dev.justaclient.common.storage.StorageIndex.totals(index.search(Q.apply("iron ingot")));
+		check("storage: totals add every container", totals.size() == 1 && totals.get(0).getValue() == 53, totals.toString());
+		check("storage: stack maths", dev.justaclient.common.storage.StorageIndex.stacks(140, 64).equals("2 stacks + 12")
+			&& dev.justaclient.common.storage.StorageIndex.stacks(64, 64).equals("1 stack") && dev.justaclient.common.storage.StorageIndex.stacks(5, 1)
+			.equals("5"), dev.justaclient.common.storage.StorageIndex.stacks(140, 64));
+		var json = index.toJson();
+		json.getAsJsonArray("containers").add(new com.google.gson.JsonPrimitive("broken"));
+		var back = dev.justaclient.common.storage.StorageIndex.fromJson(json);
+		var again = back.get(chest.key());
+		check("storage: the saved file reads back (a bad entry is skipped)", back.size() == 2 && again != null && again.other != null
+			&& again.other[0] == 2 && again.count("minecraft:iron_ingot") == 50, back.size() + " containers");
 	}
 
 	private static void brewRoutes() {
