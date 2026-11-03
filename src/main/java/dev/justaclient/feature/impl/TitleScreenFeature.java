@@ -47,9 +47,14 @@ public final class TitleScreenFeature extends Feature {
 	private final NumberSetting dim = number("dim", "Darken", 0.25, 0, 0.8, 0.05, v -> Math.round(v * 100) + "%")
 		.visibleWhen(() -> background() == Background.IMAGE);
 	private final BoolSetting imageBlur = bool("image_blur", "Blur the picture", false).visibleWhen(() -> background() == Background.IMAGE);
+	private final BoolSetting tips = bool("tips", "Random tips", true);
 
 	public TitleScreenFeature() {
 		super("title_screen", "Title screen", "A cleaner title screen in the client's style", Category.UTILITY, Icons.LAYOUT_DASHBOARD, true);
+	}
+
+	public boolean showsTips() {
+		return tips.on();
 	}
 
 	public Background background() {

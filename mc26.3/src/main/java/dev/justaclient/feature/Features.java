@@ -56,6 +56,13 @@ import dev.justaclient.feature.impl.PerformanceModeFeature;
 import dev.justaclient.feature.impl.TrinketFeature;
 import dev.justaclient.feature.impl.WindowFeature;
 import dev.justaclient.feature.impl.ZoomFeature;
+import dev.justaclient.feature.impl.MacrosFeature;
+import dev.justaclient.feature.impl.CrashHelperFeature;
+import dev.justaclient.feature.impl.HudEditorFeature;
+import dev.justaclient.feature.impl.ProfileBackupFeature;
+import dev.justaclient.feature.impl.SessionHistoryFeature;
+import dev.justaclient.feature.impl.FeedbackFeature;
+import dev.justaclient.hud.widgets.TodoHud;
 import dev.justaclient.hud.HudFeature;
 import dev.justaclient.hud.Notifications;
 import dev.justaclient.hud.widgets.ArmorHud;
@@ -120,6 +127,8 @@ public final class Features {
 		register(new DayCycleHud());
 		register(new HeldItemHud());
 		register(new DurabilityHud());
+		register(new TodoHud());
+		register(new HudEditorFeature());
 		register(new MinimapHud());
 		register(new GpsHud());
 		register(new NowPlayingHud());
@@ -169,6 +178,8 @@ public final class Features {
 		register(new FriendsFeature());
 		register(new StreamModeFeature());
 		register(new ToggleSprintFeature());
+		register(new MacrosFeature());
+		register(new SessionHistoryFeature());
 		register(new AutoReconnectFeature());
 		register(new ExitConfirmFeature());
 		register(new DiscordPresenceFeature());
@@ -180,6 +191,9 @@ public final class Features {
 		register(new TiersFeature());
 		register(new PerformanceModeFeature());
 		register(new WindowFeature());
+		register(new ProfileBackupFeature());
+		register(new FeedbackFeature());
+		register(new CrashHelperFeature());
 	}
 
 	private static void register(Feature feature) {

@@ -52,6 +52,10 @@ public abstract class Feature {
 		return enabled;
 	}
 
+	public boolean enabledByDefault() {
+		return enabledByDefault;
+	}
+
 	public void setEnabled(boolean enabled) {
 		if (this.enabled != enabled) {
 			this.enabled = enabled;

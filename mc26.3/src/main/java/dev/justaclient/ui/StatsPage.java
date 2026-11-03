@@ -28,13 +28,37 @@ final class StatsPage {
 	static void leave() {
 		armedAt = -1;
 		java.util.Arrays.fill(bars, 0f);
+		SessionsTab.leave();
 	}
+
+	private static int tab;
+	private static final float[] tabX = new float[2];
+	private static final float[] tabW = new float[2];
+	private static float tabY;
 
 	static void draw(GuiGraphicsExtractor g, float x, float y, float w, float h, float a, double mx, double my) {
 		LifetimeStats.Data d = LifetimeStats.data();
 		float radius = Math.min(6f, JacConfig.get().style.cornerRadius);
 		int accent = JacConfig.accent();
 		JacText.draw(g, "Stats", x, y, Colors.fade(Theme.TEXT, a), Theme.TITLE - 1.5f, JacText.Weight.SEMIBOLD);
+		// Overview and Sessions tabs beside the title.
+		float cx = x + JacText.width("Stats", Theme.TITLE - 1.5f, JacText.Weight.SEMIBOLD) + 10;
+		tabY = y - 1;
+		String[] tabs = {"Overview", "Sessions"};
+		for (int i = 0; i < tabs.length; i++) {
+			float cw = JacText.width(tabs[i], Theme.SMALL, JacText.Weight.SEMIBOLD) + 14;
+			tabX[i] = cx;
+			tabW[i] = cw;
+			boolean hover = mx >= cx && mx < cx + cw && my >= tabY && my < tabY + 12;
+			Draw.rect(g, cx, tabY, cw, 12, 6f, Colors.fade(tab == i ? Colors.withAlpha(accent, 0xC0) : hover ? Theme.CONTROL_HOVER : Theme.CONTROL, a));
+			JacText.drawCentered(g, tabs[i], cx + cw / 2f, tabY + 3.5f, Colors.fade(tab == i ? 0xFFFFFFFF : Theme.TEXT_DIM, a), Theme.SMALL,
+				JacText.Weight.SEMIBOLD);
+			cx += cw + 4;
+		}
+		if (tab == 1) {
+			SessionsTab.draw(g, x, y, w, h, a, mx, my);
+			return;
+		}
 		String hint = "Since " + d.since + "  ·  " + d.sessions + (d.sessions == 1 ? " session" : " sessions");
 		JacText.draw(g, hint, x + w - JacText.width(hint, Theme.SMALL, JacText.Weight.REGULAR), y + 2, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL,
 			JacText.Weight.REGULAR);
@@ -133,6 +157,15 @@ final class StatsPage {
 	}
 
 	static boolean click(double mx, double my) {
+		for (int i = 0; i < 2; i++) {
+			if (mx >= tabX[i] && mx < tabX[i] + tabW[i] && my >= tabY && my < tabY + 12) {
+				tab = i;
+				return true;
+			}
+		}
+		if (tab == 1) {
+			return SessionsTab.click(mx, my);
+		}
 		if (mx >= resetX && mx < resetX + resetW && my >= resetY - 2 && my < resetY + 9) {
 			if (armedAt >= 0 && System.currentTimeMillis() - armedAt < 3000) {
 				LifetimeStats.reset();
@@ -145,6 +178,10 @@ final class StatsPage {
 		return false;
 	}
 
+	static boolean scroll(double amount) {
+		return tab == 1 && SessionsTab.scroll(amount);
+	}
+
 	static String duration(long seconds) {
 		long h = seconds / 3600;
 		long m = seconds / 60 % 60;
@@ -154,14 +191,14 @@ final class StatsPage {
 		return m > 0 ? m + "m" : seconds + "s";
 	}
 
-	private static String compact(long n) {
+	static String compact(long n) {
 		if (n >= 1_000_000) {
 			return String.format(Locale.ROOT, "%.1fM", n / 1e6);
 		}
 		return n >= 10_000 ? String.format(Locale.ROOT, "%.1fk", n / 1e3) : String.valueOf(n);
 	}
 
-	private static String distance(double blocks) {
+	static String distance(double blocks) {
 		return blocks >= 1000 ? String.format(Locale.ROOT, "%.1f km", blocks / 1000) : Math.round(blocks) + " m";
 	}
 }

@@ -11,6 +11,7 @@ public final class SessionStatsHud extends RowsHud {
 	private final BoolSetting combat = bool("combat", "Kills, deaths and K/D", true);
 	private final BoolSetting mined = bool("mined", "Blocks mined", true);
 	private final BoolSetting walked = bool("walked", "Distance travelled", true);
+	private final BoolSetting picked = bool("picked", "Items picked up", false);
 
 	public SessionStatsHud() {
 		super("session_stats", "Session stats", "Play time, kills, deaths, blocks and distance this session", Icons.ACTIVITY, false, 0f, 0.7f);
@@ -36,6 +37,9 @@ public final class SessionStatsHud extends RowsHud {
 		if (walked.on()) {
 			double d = preview ? 2400 : SessionStats.distance();
 			rows.add(new Row("Travelled", d >= 1000 ? String.format("%.2f km", d / 1000) : String.format("%.0f m", d)));
+		}
+		if (picked.on()) {
+			rows.add(new Row("Picked up", String.valueOf(preview ? 518 : SessionStats.pickedUp())));
 		}
 	}
 }

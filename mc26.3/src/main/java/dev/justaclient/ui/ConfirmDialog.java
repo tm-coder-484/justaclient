@@ -17,7 +17,7 @@ import com.mojang.blaze3d.platform.InputConstants;
  * A small "are you sure?" card in the client's style. Any of the client's screens can host one as an overlay, and
  * {@link JacConfirmScreen} hosts one over vanilla screens. Enter confirms, Escape cancels.
  */
-public final class ConfirmDialog {
+public final class ConfirmDialog implements Overlay {
 	private static final float W = 220f;
 	private static final float PAD = 14f;
 	private final Icons icon;
@@ -61,6 +61,7 @@ public final class ConfirmDialog {
 	}
 
 	/** Draws the dimmed backdrop and the card centred on a screen of the given size. */
+	@Override
 	public void render(GuiGraphicsExtractor g, int screenW, int screenH, double mx, double my) {
 		float t = in.animateTo(1f).get();
 		h = PAD + 14f + 8f + lines.size() * 10f + 12f + 18f + PAD;
@@ -89,6 +90,7 @@ public final class ConfirmDialog {
 	}
 
 	/** Every click is taken while the dialog is open; a click outside the card cancels. */
+	@Override
 	public boolean mouseClicked(double mx, double my, int button) {
 		if (confirm == null) {
 			return true;
@@ -102,6 +104,7 @@ public final class ConfirmDialog {
 		return true;
 	}
 
+	@Override
 	public boolean keyPressed(int key) {
 		if (key == InputConstants.KEY_ESCAPE) {
 			onCancel.run();

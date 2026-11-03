@@ -110,6 +110,7 @@ public final class WorldMapScreen extends Screen {
 
 	@Override
 	protected void init() {
+		minecraft.textInputManager().startTextInput(this);
 		LocalPlayer player = minecraft.player;
 		if (player != null && builtLevel == null) {
 			viewX = player.getX();
@@ -804,6 +805,7 @@ public final class WorldMapScreen extends Screen {
 	@Override
 	public void removed() {
 		commit();
+		minecraft.textInputManager().stopTextInput(this);
 	}
 
 	@Override

@@ -123,6 +123,8 @@ public final class NowPlayingHud extends HudFeature {
 	private final NumberSetting lyricTiming = number("lyric_timing", "Lyrics timing (+ shows them earlier)", 0.2, -1.0, 1.0, 0.05,
 		v -> String.format("%+.2f s", v)).visibleWhen(this::wantsLyrics);
 	private final BoolSetting skyInfo = bool("sky_info", "Cover and song name in the sky", true).visibleWhen(() -> sky.get() != SkyMode.OFF);
+	private final BoolSetting skyControls = bool("sky_controls", "Previous, play and next beside the song (click with chat open)", true)
+		.visibleWhen(() -> sky.get() != SkyMode.OFF && skyInfo.on());
 	private final BoolSetting equalizer = bool("equalizer", "Moving bars while playing", true);
 	private final BoolSetting showPaused = bool("show_paused", "Keep showing while paused", true);
 	private final KeySetting playKey = key("play_key", "Play / pause key", KeySetting.NONE);
@@ -157,6 +159,11 @@ public final class NowPlayingHud extends HudFeature {
 	private boolean lyricsShown;
 	/** Where the media buttons were last drawn, in widget space, for clicks from the chat screen. */
 	private final float[] buttonX = new float[3];
+	/** The sky buttons, in GUI pixels, from the last frame they were drawn. */
+	private final float[] skyButtonX = new float[3];
+	private float skyButtonY;
+	private float skyButtonR;
+	private long skyButtonsDrawn;
 	private float buttonY;
 
 	public NowPlayingHud() {
@@ -460,7 +467,9 @@ public final class NowPlayingHud extends HudFeature {
 		boolean playing = s.hasTrack() && s.status() == MediaState.Status.PLAYING;
 		boolean lyricsReady = sky.get() == SkyMode.NOTES || NowPlaying.lyrics().status() == Lyrics.Status.SYNCED;
 		boolean info = skyInfo.on() && s.hasTrack();
-		float a = skyAlpha.animateTo(playing && (lyricsReady || info) ? 1f : 0f).get();
+		// While the chat is open the controls stay up when paused, so you can press play again.
+		boolean chatOpen = mc.screen instanceof net.minecraft.client.gui.screens.ChatScreen && info && skyControls.on();
+		float a = skyAlpha.animateTo(playing && (lyricsReady || info) || chatOpen ? 1f : 0f).get();
 		if (a < 0.01f) {
 			return;
 		}
@@ -730,6 +739,46 @@ public final class NowPlayingHud extends HudFeature {
 				Draw.rect(g, bx + i * barsW / 4f, base - h, barW, h, barW / 2f, Colors.fade(Colors.withAlpha(Colors.lerp(accent, 0xFFFFFFFF, 0.3f), 0xE8), a));
 			}
 		}
+		if (skyControls.on()) {
+			drawSkyControls(g, s, left + rowW + gap * 1.4f, top + coverSize / 2f, size, a);
+		}
+	}
+
+	private void drawSkyControls(GuiGraphics g, MediaState s, float x, float cy, float size, float a) {
+		Minecraft mc = Minecraft.getInstance();
+		boolean chat = mc.screen instanceof net.minecraft.client.gui.screens.ChatScreen;
+		double mx = mc.mouseHandler.getScaledXPos(mc.getWindow());
+		double my = mc.mouseHandler.getScaledYPos(mc.getWindow());
+		float r = Math.max(5f, size * 0.42f);
+		Icons[] icons = {Icons.SKIP_BACK, s.status() == MediaState.Status.PLAYING ? Icons.PAUSE : Icons.PLAY, Icons.SKIP_FORWARD};
+		skyButtonY = cy;
+		skyButtonR = r;
+		for (int i = 0; i < 3; i++) {
+			float bx = x + r + i * r * 2.3f;
+			skyButtonX[i] = bx;
+			boolean hover = chat && Math.hypot(mx - bx, my - cy) <= r;
+			// Dim when the chat is closed: they can only be clicked while it frees the mouse.
+			float alpha = a * (chat ? 1f : 0.55f);
+			Draw.circle(g, bx, cy, r, Colors.fade(i == 1 ? Colors.withAlpha(accent, hover ? 0xF0 : 0xB0) : hover ? 0x50FFFFFF : 0x2AFFFFFF, alpha));
+			float is = r * 1.05f;
+			JacText.icon(g, icons[i], bx - is / 2f, cy - is / 2f, is, Colors.fade(0xFFFFFFFF, alpha));
+		}
+		skyButtonsDrawn = System.nanoTime();
+	}
+
+	/** True if a click with the chat open hit one of the sky buttons, which then sends the command. */
+	private boolean clickSky(double x, double y) {
+		if (!skyControls.on() || System.nanoTime() - skyButtonsDrawn > 200_000_000L) {
+			return false;
+		}
+		MediaSource.Command[] commands = {MediaSource.Command.PREVIOUS, MediaSource.Command.TOGGLE, MediaSource.Command.NEXT};
+		for (int i = 0; i < 3; i++) {
+			if (Math.hypot(x - skyButtonX[i], y - skyButtonY) <= skyButtonR) {
+				NowPlaying.send(commands[i]);
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** Music notes that rise and sway around the anchor, one burst per beat-ish interval. */
@@ -800,7 +849,13 @@ public final class NowPlayingHud extends HudFeature {
 	/** A click on the chat screen in GUI coordinates. Returns true if it pressed one of the card's media buttons. */
 	public static boolean clickFromChat(double x, double y, int screenWidth, int screenHeight) {
 		NowPlayingHud hud = dev.justaclient.feature.Features.get(NowPlayingHud.class);
-		if (hud == null || !hud.isEnabled() || !hud.hasContent()) {
+		if (hud == null || !hud.isEnabled()) {
+			return false;
+		}
+		if (hud.clickSky(x, y)) {
+			return true;
+		}
+		if (!hud.hasContent()) {
 			return false;
 		}
 		float scale = hud.scale.f();

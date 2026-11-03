@@ -22,6 +22,8 @@ public final class JacConfig {
 	public StyleTokens style = new StyleTokens();
 	/** Name of the active feature profile in {@code config/justaclient/profiles/}. */
 	public String profile = "Default";
+	/** Recent searches in the menu, newest first. */
+	public java.util.List<String> searchHistory = new java.util.ArrayList<>();
 
 	public static JacConfig get() {
 		return instance;
@@ -39,11 +41,29 @@ public final class JacConfig {
 					if (loaded.profile == null || loaded.profile.isBlank()) {
 						loaded.profile = "Default";
 					}
+					if (loaded.searchHistory == null) {
+						loaded.searchHistory = new java.util.ArrayList<>();
+					}
+					loaded.searchHistory.removeIf(q -> q == null || q.isBlank());
 					instance = loaded;
 				}
 			} catch (IOException | JsonParseException e) {
 				Justaclient.LOGGER.warn("Could not read {}, using defaults", FILE, e);
 			}
+		}
+		save();
+	}
+
+	/** Puts a search at the front of the history, keeping the newest six. */
+	public static void rememberSearch(String query) {
+		String q = query.strip();
+		if (q.length() < 2) {
+			return;
+		}
+		instance.searchHistory.removeIf(old -> old.equalsIgnoreCase(q));
+		instance.searchHistory.addFirst(q);
+		while (instance.searchHistory.size() > 6) {
+			instance.searchHistory.removeLast();
 		}
 		save();
 	}

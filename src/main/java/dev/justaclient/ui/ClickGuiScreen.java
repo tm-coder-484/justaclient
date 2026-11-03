@@ -81,6 +81,8 @@ public final class ClickGuiScreen extends Screen {
 	private static final int THEME = 0;
 	private static final int PERF = 1;
 	private static final int STATS = 2;
+	private static final int NOTES = 3;
+	private static final int FEEDBACK = 4;
 	private int page;
 	private static int lastPage;
 
@@ -106,9 +108,9 @@ public final class ClickGuiScreen extends Screen {
 
 	private boolean profileMenu;
 	/** Rows after the profile names in the profile menu: new, copy, paste, delete, open folder, reset all. */
-	private static final int ACTIONS = 6;
+	private static final int ACTIONS = 8;
 	/** An "are you sure?" card drawn over the menu, e.g. before Reset all. */
-	private @Nullable ConfirmDialog dialog;
+	private @Nullable Overlay dialog;
 	/** Set when a key binder takes a key, so that key's typed character does not also land in the search. */
 	private boolean swallowChar;
 	/** The search box was clicked: it shows a caret even while empty. Typing anywhere still searches. */
@@ -126,6 +128,14 @@ public final class ClickGuiScreen extends Screen {
 	public static ClickGuiScreen showing(@Nullable Screen parent, Feature feature) {
 		lastCategory = feature.category;
 		lastFeature = feature;
+		return new ClickGuiScreen(parent);
+	}
+
+	/** Opens on the Feedback page as a bug report with {@code message} filled in, e.g. from the crash helper. */
+	public static ClickGuiScreen feedback(@Nullable Screen parent, String message) {
+		lastCategory = null;
+		lastPage = FEEDBACK;
+		FeedbackPage.prefill(message);
 		return new ClickGuiScreen(parent);
 	}
 
@@ -206,6 +216,8 @@ public final class ClickGuiScreen extends Screen {
 		page = next2;
 		lastPage = next2;
 		StatsPage.leave();
+		NotesPage.leave();
+		FeedbackPage.leave();
 		category = next;
 		lastCategory = next;
 		query = "";
@@ -272,7 +284,7 @@ public final class ClickGuiScreen extends Screen {
 		g.disableScissor();
 		Draw.rect(g, 0, BODY_H, W, 0.75f, 0, Colors.fade(Theme.DIVIDER, t));
 		Draw.rect(g, SIDEBAR, 0, 0.75f, BODY_H, 0, Colors.fade(Theme.DIVIDER, t));
-		if (!isThemePage() && !isPerfPage() && !isStatsPage()) {
+		if (!isThemePage() && !isPerfPage() && !isStatsPage() && !isNotesPage() && !isFeedbackPage()) {
 			Draw.rect(g, SET_X, 0, 0.75f, BODY_H, 0, Colors.fade(Theme.DIVIDER, t));
 		}
 
@@ -285,12 +297,17 @@ public final class ClickGuiScreen extends Screen {
 		} else if (isStatsPage()) {
 			float a = t * pageIn.get();
 			StatsPage.draw(g, LIST_X + 14, 14, W - LIST_X - 28, BODY_H - 14, a, lx, ly);
+		} else if (isNotesPage()) {
+			NotesPage.draw(g, LIST_X + 14, 14, W - LIST_X - 28, BODY_H - 14, t * pageIn.get(), lx, ly);
+		} else if (isFeedbackPage()) {
+			FeedbackPage.draw(g, LIST_X + 14, 14, W - LIST_X - 28, BODY_H - 14, t * pageIn.get(), lx, ly);
 		} else {
 			drawList(g, lx, ly, t);
 			drawSettings(g, lx, ly, t);
 		}
 		drawFooter(g, lx, ly, t);
 		drawProfileMenu(g, lx, ly, t);
+		drawSearchHistory(g, lx, ly, t);
 		g.pose().popMatrix();
 		// Key and character events for one key press arrive before the next frame, so a frame ends the swallow window.
 		swallowChar = false;
@@ -309,6 +326,34 @@ public final class ClickGuiScreen extends Screen {
 
 	private boolean isStatsPage() {
 		return category == null && query.isBlank() && page == STATS;
+	}
+
+	private boolean isNotesPage() {
+		return category == null && query.isBlank() && page == NOTES;
+	}
+
+	private boolean isFeedbackPage() {
+		return category == null && query.isBlank() && page == FEEDBACK;
+	}
+
+	/** Pages listed under the categories: which page each opens, with its icon and label. */
+	private static int pageOf(Object item) {
+		return item == PerformancePage.class ? PERF : item == StatsPage.class ? STATS : item == NotesPage.class ? NOTES
+			: item == FeedbackPage.class ? FEEDBACK : THEME;
+	}
+
+	private static Icons pageIcon(Object item) {
+		return item == ThemePage.class ? Icons.PALETTE : item == StatsPage.class ? Icons.CHART_COLUMN : item == NotesPage.class ? Icons.PENCIL
+			: item == FeedbackPage.class ? Icons.FLAG : Icons.ACTIVITY;
+	}
+
+	private static String pageLabel(Object item) {
+		return item == ThemePage.class ? "Theme" : item == StatsPage.class ? "Stats" : item == NotesPage.class ? "Notes"
+			: item == FeedbackPage.class ? "Feedback" : "Performance";
+	}
+
+	private boolean isPageShown(Object item) {
+		return category == null && query.isBlank() && !(item instanceof Category) && page == pageOf(item);
 	}
 
 	private void drawSidebar(GuiGraphics g, double mx, double my, float t) {
@@ -351,7 +396,7 @@ public final class ClickGuiScreen extends Screen {
 		int activeIndex = -1;
 		for (int i = 0; i < items.size(); i++) {
 			Object item = items.get(i);
-			if (!searching && (item == category || item == ThemePage.class && isThemePage() || item == PerformancePage.class && isPerfPage() || item == StatsPage.class && isStatsPage())) {
+			if (!searching && (item == category || isPageShown(item))) {
 				activeIndex = i;
 			}
 		}
@@ -376,9 +421,8 @@ public final class ClickGuiScreen extends Screen {
 				Draw.rect(g, 10, y, SIDEBAR - 20, 17, r, Colors.fade(Colors.withAlpha(0xFFFFFF, 0x0E), t * h));
 			}
 			boolean active = i == activeIndex;
-			Icons icon = item instanceof Category c ? c.icon : item == ThemePage.class ? Icons.PALETTE : item == StatsPage.class ? Icons.CHART_COLUMN
-				: Icons.ACTIVITY;
-			String label = item instanceof Category c ? c.label : item == ThemePage.class ? "Theme" : item == StatsPage.class ? "Stats" : "Performance";
+			Icons icon = item instanceof Category c ? c.icon : pageIcon(item);
+			String label = item instanceof Category c ? c.label : pageLabel(item);
 			int color = Colors.lerp(Theme.TEXT_DIM, Theme.TEXT, active ? 1f : h * 0.6f);
 			JacText.icon(g, icon, 17, y + (17 - 7.5f) / 2f, 7.5f, Colors.fade(active ? JacConfig.accent() : color, t));
 			JacText.draw(g, label, 31, y + (17 - JacText.lineHeight(Theme.LABEL)) / 2f, Colors.fade(color, t), Theme.LABEL,
@@ -396,12 +440,17 @@ public final class ClickGuiScreen extends Screen {
 		items.add(ThemePage.class);
 		items.add(PerformancePage.class);
 		items.add(StatsPage.class);
+		items.add(NotesPage.class);
+		items.add(FeedbackPage.class);
 		return items;
 	}
 
 	private float navY(int index) {
-		int pages = navItems().indexOf(ThemePage.class);
-		return 58 + index * 19 + (index >= pages ? 12 : 0);
+		List<Object> items = navItems();
+		int pages = items.indexOf(ThemePage.class);
+		// Rows tighten when there are more than fit above the footer.
+		float step = Math.min(19f, (BODY_H - 6f - 58f - 10f - 17f) / Math.max(1, items.size() - 1));
+		return 58 + index * step + (index >= pages ? 10 : 0);
 	}
 
 	private void drawList(GuiGraphics g, double mx, double my, float t) {
@@ -556,6 +605,54 @@ public final class ClickGuiScreen extends Screen {
 		return String.format("Frame cost %.1f%%", FrameCost.share() * 100f);
 	}
 
+	private boolean searchHistoryShown() {
+		return dialog == null && searchFocused && query.isEmpty() && !JacConfig.get().searchHistory.isEmpty();
+	}
+
+	private static final float HISTORY_Y = 51f;
+
+	/** Recent searches under the search box while it is focused and empty. */
+	private void drawSearchHistory(GuiGraphics g, double mx, double my, float t) {
+		if (!searchHistoryShown()) {
+			return;
+		}
+		List<String> history = JacConfig.get().searchHistory;
+		float x = 10;
+		float w = SIDEBAR - 20;
+		float h = 14 + history.size() * 13f + 4;
+		g.nextStratum();
+		Draw.panel(g, x, HISTORY_Y, w, h, t);
+		JacText.draw(g, "Recent", x + 7, HISTORY_Y + 5, Colors.fade(Theme.TEXT_DIM, t), Theme.SMALL, JacText.Weight.SEMIBOLD);
+		for (int i = 0; i < history.size(); i++) {
+			float iy = HISTORY_Y + 14 + i * 13f;
+			boolean hover = mx >= x + 3 && mx < x + w - 3 && my >= iy && my < iy + 13;
+			if (hover) {
+				Draw.rect(g, x + 3, iy, w - 6, 13, 4f, Colors.fade(Theme.CONTROL_HOVER, t));
+			}
+			JacText.icon(g, Icons.CLOCK, x + 7, iy + 3.5f, 6f, Colors.fade(Theme.TEXT_DIM, t));
+			JacText.draw(g, fitEnd(history.get(i), w - 26), x + 17, iy + 3, Colors.fade(Theme.TEXT, t), Theme.LABEL, JacText.Weight.REGULAR);
+		}
+	}
+
+	/** Returns true if the click picked a recent search. */
+	private boolean clickSearchHistory(double mx, double my) {
+		if (!searchHistoryShown()) {
+			return false;
+		}
+		List<String> history = JacConfig.get().searchHistory;
+		float x = 10;
+		float w = SIDEBAR - 20;
+		for (int i = 0; i < history.size(); i++) {
+			float iy = HISTORY_Y + 14 + i * 13f;
+			if (mx >= x + 3 && mx < x + w - 3 && my >= iy && my < iy + 13) {
+				query = history.get(i);
+				refreshList();
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private float profileButtonWidth() {
 		return Math.max(64f, JacText.width(Profiles.active(), Theme.LABEL, JacText.Weight.SEMIBOLD) + 30f);
 	}
@@ -565,6 +662,8 @@ public final class ClickGuiScreen extends Screen {
 		items.add("+");
 		items.add("e");
 		items.add("i");
+		items.add("E");
+		items.add("I");
 		items.add("-");
 		items.add("/");
 		items.add("r");
@@ -603,6 +702,8 @@ public final class ClickGuiScreen extends Screen {
 				case "+" -> menuRow(g, Icons.PLUS, "New profile (copy)", x, iy, ty, color);
 				case "e" -> menuRow(g, Icons.UPLOAD, "Copy to clipboard", x, iy, ty, color);
 				case "i" -> menuRow(g, Icons.CLIPBOARD_PASTE, "Paste from clipboard", x, iy, ty, color);
+				case "E" -> menuRow(g, Icons.UPLOAD, "Export to file...", x, iy, ty, color);
+				case "I" -> menuRow(g, Icons.DOWNLOAD, "Import from file...", x, iy, ty, color);
 				case "-" -> menuRow(g, Icons.TRASH, "Delete this profile", x, iy, ty, color);
 				case "/" -> menuRow(g, Icons.LAYERS, "Open profiles folder", x, iy, ty, color);
 				case "r" -> menuRow(g, Icons.ROTATE_CCW, "Reset all settings", x, iy, ty, color);
@@ -654,6 +755,9 @@ public final class ClickGuiScreen extends Screen {
 		double my = toLocalY(event.y());
 		int button = event.button();
 		boolean inSearch = mx >= 10 && mx < SIDEBAR - 10 && my >= 32 && my < 49;
+		if (button == 0 && clickSearchHistory(mx, my)) {
+			return true;
+		}
 		searchFocused = inSearch && button == 0;
 
 		if (profileMenu) {
@@ -683,7 +787,7 @@ public final class ClickGuiScreen extends Screen {
 			float y = navY(i);
 			if (button == 0 && mx >= 10 && mx < SIDEBAR - 10 && my >= y && my < y + 17) {
 				Object item = items.get(i);
-				showPage(item instanceof Category c ? c : null, item == PerformancePage.class ? PERF : item == StatsPage.class ? STATS : THEME);
+				showPage(item instanceof Category c ? c : null, item instanceof Category ? THEME : pageOf(item));
 				return true;
 			}
 		}
@@ -697,6 +801,12 @@ public final class ClickGuiScreen extends Screen {
 			return true;
 		}
 		if (isStatsPage() && button == 0 && StatsPage.click(mx, my)) {
+			return true;
+		}
+		if (isNotesPage() && NotesPage.click(mx, my, button)) {
+			return true;
+		}
+		if (isFeedbackPage() && FeedbackPage.click(mx, my, button)) {
 			return true;
 		}
 		if (isThemePage()) {
@@ -725,6 +835,9 @@ public final class ClickGuiScreen extends Screen {
 					Profiles.save();
 				}
 				if (button == 0) {
+					if (!query.isBlank()) {
+						JacConfig.rememberSearch(query);
+					}
 					select(f);
 				}
 				return true;
@@ -780,6 +893,21 @@ public final class ClickGuiScreen extends Screen {
 					Notifications.push(Icons.CLIPBOARD_PASTE, imported, "imported");
 					rebuildWidgets();
 				}
+			}
+			case "E" -> {
+				dialog = new ProfileFilesDialog(true, () -> dialog = null, () -> dialog = null);
+				return;
+			}
+			case "I" -> {
+				dialog = new ProfileFilesDialog(false, () -> dialog = null, () -> {
+					dialog = null;
+					knobs.clear();
+					settingWidgets.clear();
+					rowY.clear();
+					refreshList();
+					select(selected);
+				});
+				return;
 			}
 			case "-" -> Profiles.deleteActive();
 			case "/" -> {
@@ -837,6 +965,12 @@ public final class ClickGuiScreen extends Screen {
 	public boolean mouseScrolled(double x, double y, double scrollX, double scrollY) {
 		double mx = toLocalX(x);
 		double my = toLocalY(y);
+		if (dialog != null) {
+			return dialog.mouseScrolled(scrollY);
+		}
+		if (isStatsPage() && mx >= LIST_X && StatsPage.scroll(scrollY)) {
+			return true;
+		}
 		if (mx >= LIST_X && mx < SET_X && !isThemePage()) {
 			listScrollTarget -= (float) scrollY * 24f;
 			return true;
@@ -850,6 +984,12 @@ public final class ClickGuiScreen extends Screen {
 
 	@Override
 	public boolean keyPressed(KeyEvent event) {
+		if (dialog == null && isNotesPage() && NotesPage.focused()) {
+			return NotesPage.keyPressed(event.key(), event.hasControlDown());
+		}
+		if (dialog == null && isFeedbackPage() && FeedbackPage.focused()) {
+			return FeedbackPage.keyPressed(event.key(), event.hasControlDown());
+		}
 		if (dialog != null) {
 			return dialog.keyPressed(event.key());
 		}
@@ -876,6 +1016,13 @@ public final class ClickGuiScreen extends Screen {
 			}
 			return true;
 		}
+		if ((key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) && !query.isBlank()) {
+			if (!shown.isEmpty()) {
+				JacConfig.rememberSearch(query);
+				select(shown.getFirst());
+			}
+			return true;
+		}
 		if (Justaclient.OPEN_MENU.matches(event) && query.isEmpty()) {
 			onClose();
 			return true;
@@ -890,8 +1037,14 @@ public final class ClickGuiScreen extends Screen {
 
 	@Override
 	public boolean charTyped(CharacterEvent event) {
+		if (dialog == null && isNotesPage() && NotesPage.focused()) {
+			return NotesPage.charTyped(event.codepointAsString());
+		}
+		if (dialog == null && isFeedbackPage() && FeedbackPage.focused()) {
+			return FeedbackPage.charTyped(event.codepointAsString());
+		}
 		if (dialog != null) {
-			return true;
+			return dialog.charTyped(event.codepointAsString());
 		}
 		if (swallowChar) {
 			swallowChar = false;
@@ -926,6 +1079,8 @@ public final class ClickGuiScreen extends Screen {
 		if (!closing) {
 			closing = true;
 			closeTo = parent;
+			NotesPage.leave();
+			FeedbackPage.leave();
 			saveAll();
 		}
 	}

@@ -6,7 +6,9 @@ import dev.justaclient.anim.Colors;
 import dev.justaclient.anim.Easing;
 import dev.justaclient.config.JacConfig;
 import dev.justaclient.feature.Features;
+import dev.justaclient.feature.impl.HudEditorFeature;
 import dev.justaclient.hud.HudFeature;
+import dev.justaclient.hud.HudLayouts;
 import dev.justaclient.hud.HudRenderer;
 import dev.justaclient.profile.Profiles;
 import dev.justaclient.render.Draw;
@@ -24,8 +26,9 @@ import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Drag HUD widgets into place. Widgets snap to the screen edges, the centre lines and each other's edges (hold Shift to
- * place freely); the scroll wheel resizes the widget under the mouse and a right click opens its settings.
+ * Drag HUD widgets into place. Widgets snap to the screen edges, the centre lines and each other's edges with a small gap
+ * (hold Shift to place freely). Drag a corner or scroll to resize, press A over a widget to change which point is
+ * anchored, right click for its settings. The Layout menu switches between saved layouts.
  */
 public final class HudEditorScreen extends Screen {
 	private static final float SNAP = 4f;
@@ -44,6 +47,16 @@ public final class HudEditorScreen extends Screen {
 	private final List<HudFeature> chipFeatures = new ArrayList<>();
 	private float[] resetBounds = new float[4];
 	private float[] doneBounds = new float[4];
+	private float[] layoutBounds = new float[4];
+	private boolean layoutMenu;
+	private final List<float[]> layoutRows = new ArrayList<>();
+	private final List<Runnable> layoutActions = new ArrayList<>();
+	/** Corner being dragged to resize: 0 top left, 1 top right, 2 bottom right, 3 bottom left; -1 when moving. */
+	private int corner = -1;
+	private float fixedX;
+	private float fixedY;
+	private static final float HANDLE = 4f;
+	private static final String[] ANCHOR_NAMES = {"top left", "top", "top right", "left", "centre", "right", "bottom left", "bottom", "bottom right"};
 
 	public HudEditorScreen(@Nullable Screen parent) {
 		super(Component.literal("Edit HUD layout"));
@@ -59,6 +72,10 @@ public final class HudEditorScreen extends Screen {
 	public void removed() {
 		HudRenderer.editing = false;
 		Profiles.save();
+	}
+
+	private static HudEditorFeature editor() {
+		return Features.get(HudEditorFeature.class);
 	}
 
 	private List<HudFeature> widgets() {
@@ -103,14 +120,38 @@ public final class HudEditorScreen extends Screen {
 			}
 			Draw.outline(g, x - 1.5f, y - 1.5f, w + 3, h + 3, JacConfig.get().style.cornerRadius + 1.5f, 0.75f,
 				Colors.fade(Colors.withAlpha(accent, Math.round(0x50 + 0xAF * hv)), t));
-			if (hv > 0.01f) {
-				String label = hud.name + "  " + Math.round(hud.scale.f() * 100) + "%";
-				float lw = JacText.width(label, Theme.SMALL, JacText.Weight.SEMIBOLD) + 8;
-				float ly = y - 12 < 2 ? y + h + 3 : y - 12;
-				Draw.rect(g, x, ly, lw, 10, 3f, Colors.fade(Colors.withAlpha(accent, 0xE0), t * hv));
-				JacText.draw(g, label, x + 4, ly + (10 - JacText.lineHeight(Theme.SMALL)) / 2f, Colors.fade(0xFFFFFFFF, t * hv), Theme.SMALL,
-					JacText.Weight.SEMIBOLD);
+		}
+		// Labels go on top of every widget, so a neighbour never hides one.
+		g.nextStratum();
+		for (HudFeature hud : widgets()) {
+			Animation anim = hover.get(hud);
+			float hv = anim == null ? 0f : anim.get();
+			if (hv <= 0.01f) {
+				continue;
 			}
+			layout(hud);
+			float x = hud.screenX(width);
+			float y = hud.screenY(height);
+			float w = hud.scaledWidth();
+			float h = hud.scaledHeight();
+			if (hv > 0.01f && editor().resizeHandles()) {
+				float[][] corners = {{x, y}, {x + w, y}, {x + w, y + h}, {x, y + h}};
+				for (float[] c : corners) {
+					Draw.rect(g, c[0] - HANDLE / 2f, c[1] - HANDLE / 2f, HANDLE, HANDLE, 1f, Colors.fade(0xFFFFFFFF, t * hv));
+					Draw.outline(g, c[0] - HANDLE / 2f, c[1] - HANDLE / 2f, HANDLE, HANDLE, 1f, 0.5f, Colors.fade(accent, t * hv));
+				}
+			}
+			if (hv > 0.01f && !Float.isNaN(hud.anchorX)) {
+				Draw.circle(g, x + hud.anchorX * w, y + hud.anchorY * h, 2.5f, Colors.fade(accent, t * hv));
+				Draw.circle(g, x + hud.anchorX * w, y + hud.anchorY * h, 1.2f, Colors.fade(0xFFFFFFFF, t * hv));
+			}
+			String label = hud.name + "  " + Math.round(hud.scale.f() * 100) + "%" + (Float.isNaN(hud.anchorX) ? "" : "  ·  " + anchorName(hud));
+			float lw = JacText.width(label, Theme.SMALL, JacText.Weight.SEMIBOLD) + 8;
+			float ly = y - 12 < 2 ? y + h + 3 : y - 12;
+			float lx = Math.min(x, width - lw - 2);
+			Draw.rect(g, lx, ly, lw, 10, 3f, Colors.fade(Colors.withAlpha(accent, 0xE0), t * hv));
+			JacText.draw(g, label, lx + 4, ly + (10 - JacText.lineHeight(Theme.SMALL)) / 2f, Colors.fade(0xFFFFFFFF, t * hv), Theme.SMALL,
+				JacText.Weight.SEMIBOLD);
 		}
 		if (dragging != null) {
 			if (guideX != null) {
@@ -121,18 +162,80 @@ public final class HudEditorScreen extends Screen {
 			}
 		}
 		drawToolbar(g, mouseX, mouseY, t);
+		drawLayoutMenu(g, mouseX, mouseY, t);
+	}
+
+	private static String anchorName(HudFeature hud) {
+		int col = Math.round(hud.anchorX * 2);
+		int row = Math.round(hud.anchorY * 2);
+		return ANCHOR_NAMES[row * 3 + col];
+	}
+
+	private void drawLayoutMenu(GuiGraphicsExtractor g, double mx, double my, float t) {
+		layoutRows.clear();
+		layoutActions.clear();
+		if (!layoutMenu) {
+			return;
+		}
+		List<HudLayouts.Layout> layouts = HudLayouts.all();
+		HudLayouts.Layout active = layouts.stream().filter(l -> l.name.equals(HudLayouts.active())).findFirst().orElse(null);
+		List<String> labels = new ArrayList<>();
+		List<Runnable> actions = new ArrayList<>();
+		List<HudLayouts.Layout> rowLayouts = new ArrayList<>();
+		for (HudLayouts.Layout l : layouts) {
+			labels.add(l.name);
+			actions.add(() -> HudLayouts.apply(l));
+			rowLayouts.add(l);
+		}
+		labels.add("+ Save current as a new layout");
+		actions.add(HudLayouts::saveCurrent);
+		rowLayouts.add(null);
+		if (active != null && !HudLayouts.isBuiltIn(active)) {
+			labels.add("Update " + active.name);
+			actions.add(() -> HudLayouts.overwrite(active));
+			rowLayouts.add(null);
+		}
+		float x = layoutBounds[0];
+		float y = layoutBounds[1] + layoutBounds[3] + 3;
+		float w = 150;
+		float h = labels.size() * 13f + 6;
+		Draw.panel(g, x, y, w, h, t);
+		for (int i = 0; i < labels.size(); i++) {
+			float iy = y + 3 + i * 13f;
+			boolean hov = mx >= x + 3 && mx < x + w - 3 && my >= iy && my < iy + 13;
+			if (hov) {
+				Draw.rect(g, x + 3, iy, w - 6, 13, 4f, Colors.fade(Theme.CONTROL_HOVER, t));
+			}
+			HudLayouts.Layout l = rowLayouts.get(i);
+			boolean isActive = l != null && l.name.equals(HudLayouts.active());
+			if (isActive) {
+				JacText.icon(g, Icons.CHECK, x + 7, iy + 3.5f, 6f, Colors.fade(JacConfig.accent(), t));
+			}
+			JacText.draw(g, labels.get(i), x + 17, iy + (13 - JacText.lineHeight(Theme.SMALL)) / 2f, Colors.fade(l == null ? Theme.TEXT_DIM : Theme.TEXT, t),
+				Theme.SMALL, isActive ? JacText.Weight.SEMIBOLD : JacText.Weight.REGULAR);
+			if (l != null && !HudLayouts.isBuiltIn(l)) {
+				boolean hx = hov && mx >= x + w - 16;
+				JacText.icon(g, Icons.X, x + w - 12, iy + 3.5f, 6f, Colors.fade(hx ? 0xFFF87171 : Theme.TEXT_DIM, t));
+				layoutRows.add(new float[] {x + w - 16, iy, 13, 13});
+				layoutActions.add(() -> HudLayouts.delete(l));
+			}
+			layoutRows.add(new float[] {x + 3, iy, w - 6, 13});
+			layoutActions.add(actions.get(i));
+		}
 	}
 
 	private void drawToolbar(GuiGraphicsExtractor g, double mx, double my, float t) {
 		List<HudFeature> off = Features.hud().stream().filter(h -> !h.isEnabled()).toList();
-		String hint = "Drag to move  ·  Scroll to resize  ·  Right click for settings  ·  Shift to place freely";
+		String hint = "Drag to move  ·  Drag a corner or scroll to resize  ·  A: anchor  ·  Right click: settings  ·  Shift: no snap";
 		float hintW = JacText.width(hint, Theme.SMALL, JacText.Weight.REGULAR);
 		float chipsW = 0f;
 		for (HudFeature hud : off) {
 			chipsW += JacText.width(hud.name, Theme.SMALL, JacText.Weight.SEMIBOLD) + 18 + 4;
 		}
 		float buttons = 44 + 4 + 40;
-		float w = Math.max(hintW, chipsW - 4 + (off.isEmpty() ? 0 : 6) + buttons) + 16;
+		String layoutLabel = "Layout: " + HudLayouts.active();
+		float layoutW = JacText.width(layoutLabel, Theme.SMALL, JacText.Weight.SEMIBOLD) + 20;
+		float w = Math.min(width - 8, Math.max(hintW, layoutW + 6 + chipsW - 4 + (off.isEmpty() ? 0 : 6) + buttons) + 16);
 		float x = (width - w) / 2f;
 		float y = 8f;
 		if (dragging != null) {
@@ -142,10 +245,21 @@ public final class HudEditorScreen extends Screen {
 		JacText.drawCentered(g, hint, width / 2f, y + 6, Colors.fade(Theme.TEXT_DIM, t), Theme.SMALL, JacText.Weight.REGULAR);
 		float rowY = y + BAR_H - 4;
 		float cx = x + 8;
+		layoutBounds = new float[] {cx, rowY, layoutW, 14};
+		boolean hl = inside(layoutBounds, mx, my) || layoutMenu;
+		Draw.rect(g, cx, rowY, layoutW, 14, 4f, Colors.fade(hl ? Theme.CONTROL_HOVER : Theme.CONTROL, t));
+		JacText.draw(g, layoutLabel, cx + 6, rowY + (14 - JacText.lineHeight(Theme.SMALL)) / 2f, Colors.fade(Theme.TEXT, t), Theme.SMALL,
+			JacText.Weight.SEMIBOLD);
+		JacText.icon(g, Icons.CHEVRON_DOWN, cx + layoutW - 11, rowY + 4, 6f, Colors.fade(Theme.TEXT_DIM, t));
+		cx += layoutW + 6;
 		chipBounds.clear();
 		chipFeatures.clear();
+		float chipsEnd = x + w - 8 - buttons - 6;
 		for (HudFeature hud : off) {
 			float cw = JacText.width(hud.name, Theme.SMALL, JacText.Weight.SEMIBOLD) + 18;
+			if (cx + cw > chipsEnd) {
+				break;
+			}
 			boolean hov = mx >= cx && mx < cx + cw && my >= rowY && my < rowY + 14;
 			Draw.rect(g, cx, rowY, cw, 14, 4f, Colors.fade(hov ? Theme.CONTROL_HOVER : Theme.CONTROL, t));
 			JacText.icon(g, Icons.PLUS, cx + 4, rowY + 3.5f, 7f, Colors.fade(JacConfig.accent(), t));
@@ -199,6 +313,22 @@ public final class HudEditorScreen extends Screen {
 	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
 		double mx = event.x();
 		double my = event.y();
+		if (layoutMenu) {
+			layoutMenu = false;
+			for (int i = 0; i < layoutRows.size(); i++) {
+				if (inside(layoutRows.get(i), mx, my)) {
+					layoutActions.get(i).run();
+					return true;
+				}
+			}
+			if (inside(layoutBounds, mx, my)) {
+				return true;
+			}
+		}
+		if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && inside(layoutBounds, mx, my)) {
+			layoutMenu = true;
+			return true;
+		}
 		if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
 			if (inside(doneBounds, mx, my)) {
 				onClose();
@@ -211,9 +341,27 @@ public final class HudEditorScreen extends Screen {
 			}
 			for (int i = 0; i < chipBounds.size(); i++) {
 				if (inside(chipBounds.get(i), mx, my)) {
-					chipFeatures.get(i).setEnabled(true);
+					chipFeatures.get(i).toggle();
 					Profiles.save();
 					return true;
+				}
+			}
+		}
+		if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && editor().resizeHandles()) {
+			for (HudFeature w : widgets()) {
+				layout(w);
+				float x = w.screenX(width);
+				float y = w.screenY(height);
+				float[][] corners = {{x, y}, {x + w.scaledWidth(), y}, {x + w.scaledWidth(), y + w.scaledHeight()}, {x, y + w.scaledHeight()}};
+				for (int c = 0; c < 4; c++) {
+					if (Math.abs(mx - corners[c][0]) <= HANDLE && Math.abs(my - corners[c][1]) <= HANDLE) {
+						dragging = w;
+						corner = c;
+						float[] opposite = corners[(c + 2) % 4];
+						fixedX = opposite[0];
+						fixedY = opposite[1];
+						return true;
+					}
 				}
 			}
 		}
@@ -228,6 +376,7 @@ public final class HudEditorScreen extends Screen {
 		}
 		if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
 			dragging = hud;
+			corner = -1;
 			grabX = (float) mx - hud.screenX(width);
 			grabY = (float) my - hud.screenY(height);
 			return true;
@@ -242,13 +391,17 @@ public final class HudEditorScreen extends Screen {
 		}
 		HudFeature hud = dragging;
 		layout(hud);
+		if (corner >= 0) {
+			resize(hud, (float) event.x(), (float) event.y());
+			return true;
+		}
 		float w = hud.scaledWidth();
 		float h = hud.scaledHeight();
 		float x = (float) event.x() - grabX;
 		float y = (float) event.y() - grabY;
 		guideX = null;
 		guideY = null;
-		if (!event.hasShiftDown()) {
+		if (!event.hasShiftDown() && editor().snaps()) {
 			float[] sx = snap(x, w, width, true, hud);
 			float[] sy = snap(y, h, height, false, hud);
 			x = sx[0];
@@ -260,6 +413,23 @@ public final class HudEditorScreen extends Screen {
 		return true;
 	}
 
+	/** Scales the widget so the dragged corner follows the mouse while the opposite corner stays put. */
+	private void resize(HudFeature hud, float mx, float my) {
+		float baseW = hud.width();
+		float baseH = hud.height();
+		if (baseW <= 0 || baseH <= 0) {
+			return;
+		}
+		float want = (Math.abs(mx - fixedX) / baseW + Math.abs(my - fixedY) / baseH) / 2f;
+		double snapped = Math.round(want / 0.05) * 0.05;
+		hud.scale.set(snapped);
+		float w = hud.scaledWidth();
+		float h = hud.scaledHeight();
+		boolean left = corner == 0 || corner == 3;
+		boolean top = corner == 0 || corner == 1;
+		hud.moveTo(left ? fixedX - w : fixedX, top ? fixedY - h : fixedY, width, height);
+	}
+
 	/** Returns the snapped position and the guide line to draw (NaN for none) along one axis. */
 	private float[] snap(float pos, float size, float screen, boolean horizontal, HudFeature self) {
 		float best = Float.MAX_VALUE;
@@ -269,7 +439,10 @@ public final class HudEditorScreen extends Screen {
 		// {position for the widget's start, guide line}
 		candidates.add(new float[] {HudFeature.MARGIN, HudFeature.MARGIN});
 		candidates.add(new float[] {screen - HudFeature.MARGIN - size, screen - HudFeature.MARGIN});
-		candidates.add(new float[] {(screen - size) / 2f, screen / 2f});
+		if (editor().snapsToCentres()) {
+			candidates.add(new float[] {(screen - size) / 2f, screen / 2f});
+		}
+		float gap = editor().gap();
 		for (HudFeature other : widgets()) {
 			if (other == self) {
 				continue;
@@ -279,8 +452,11 @@ public final class HudEditorScreen extends Screen {
 			float os = horizontal ? other.scaledWidth() : other.scaledHeight();
 			candidates.add(new float[] {o, o});
 			candidates.add(new float[] {o + os - size, o + os});
-			candidates.add(new float[] {o + os + 3f, o + os + 1.5f});
-			candidates.add(new float[] {o - size - 3f, o - 1.5f});
+			candidates.add(new float[] {o + os + gap, o + os + gap / 2f});
+			candidates.add(new float[] {o - size - gap, o - gap / 2f});
+			if (editor().snapsToCentres()) {
+				candidates.add(new float[] {o + os / 2f - size / 2f, o + os / 2f});
+			}
 		}
 		for (float[] c : candidates) {
 			float d = Math.abs(pos - c[0]);
@@ -296,7 +472,12 @@ public final class HudEditorScreen extends Screen {
 	@Override
 	public boolean mouseReleased(MouseButtonEvent event) {
 		if (dragging != null) {
+			if (corner < 0 && editor().autoAnchors()) {
+				layout(dragging);
+				dragging.anchorToNearest(width, height);
+			}
 			dragging = null;
+			corner = -1;
 			guideX = null;
 			guideY = null;
 			Profiles.save();
@@ -321,8 +502,25 @@ public final class HudEditorScreen extends Screen {
 	@Override
 	public boolean keyPressed(KeyEvent event) {
 		if (event.key() == InputConstants.KEY_ESCAPE) {
+			if (layoutMenu) {
+				layoutMenu = false;
+				return true;
+			}
 			onClose();
 			return true;
+		}
+		if (event.key() == InputConstants.KEY_A) {
+			double mx = minecraft.mouseHandler.getScaledXPos(minecraft.getWindow());
+			double my = minecraft.mouseHandler.getScaledYPos(minecraft.getWindow());
+			HudFeature hud = at(mx, my);
+			if (hud != null) {
+				layout(hud);
+				int index = Float.isNaN(hud.anchorX) ? -1 : Math.round(hud.anchorY * 2) * 3 + Math.round(hud.anchorX * 2);
+				int next = (index + 1) % 9;
+				hud.setAnchor((next % 3) / 2f, (next / 3) / 2f, width, height);
+				Profiles.save();
+				return true;
+			}
 		}
 		return super.keyPressed(event);
 	}

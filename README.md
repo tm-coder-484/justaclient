@@ -35,14 +35,16 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 | Typing in the menu | Searches every feature and setting (or click the search box). The x or a right click clears it, Esc clears it too, Esc again closes. |
 | Feature cards | Click to see settings, click the switch (or right click the card) to turn it on or off. |
 | **Toggle key** row | Click it and press any key to toggle that feature in game. Esc or Backspace unbinds. |
-| **Profile** (bottom left) | Switch profiles, copy the current one, copy it to the clipboard to share, paste one a friend sent, delete it, open the profiles folder, or reset everything (a backup is saved first). |
-| **Edit HUD layout** | Drag widgets; they snap to edges, the centre and each other (hold Shift to place freely). Scroll to resize, right click for settings. |
+| **Profile** (bottom left) | Switch profiles, copy the current one, copy it to the clipboard to share, paste one a friend sent, export to a file (choose which parts), import a file with a preview of what changes, delete it, open the profiles folder, or reset everything (a backup is saved first). |
+| **Edit HUD layout** | Drag widgets; they snap to edges, the centre and each other with a small gap (hold Shift to place freely). Drag a corner or scroll to resize, press **A** over a widget to change its anchor, right click for settings. **Layout** switches between Default, Combat, Explore, Minimal and your own saved layouts. |
+| **Notes** (menu sidebar) | A notepad and a todo list. Pin a todo to show it on the Pinned todos widget. |
+| **Feedback** (menu sidebar) | Send a bug report or idea, with your log, crash report, mod list or settings attached. Off until you turn it on and set your server (see `cloudflare/README.md`). |
 | **Theme** | Accent, panel opacity, corners, blur, outline, font and motion. Everything follows these. |
 | **Performance** (menu, or click the frame cost in the footer) | What each feature costs per frame, against the 5% budget. |
 | **C** (hold) | Zoom. Scroll while zooming to go further. The key is in Camera > Zoom. |
 | **I** | Inspect the held item (First person > Hand). |
 | **M** | Open the map. Drag (or arrow keys) to move, scroll to zoom, Space to find yourself, right-click to drop a waypoint, and click one to rename, move, recolour, track, hide or delete it. |
-| **Stats** (menu sidebar) | Lifetime play time, kills, deaths, blocks and records. |
+| **Stats** (menu sidebar) | Lifetime play time, kills, deaths, blocks and records. **Sessions** lists past sessions; click one to see what you carried and picked up. |
 | **T** (chat) over the Spotify card | Click its previous, play and next buttons. With the chat open you can also grab and throw the physics trinket. |
 | **B** | Save a waypoint where you stand. `/jwp list`, `/jwp gps <name>`, `/jwp remove <name>` manage them too. |
 | **Middle click** a player | Add or remove a friend. `/jfriend add <name>` and `/jfriend list` work too. |
@@ -52,6 +54,34 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 ![HUD editor with a snap guide](docs/screenshots/hud-editor.png)
 
 ## What is in this build
+
+### M8: HUD, profiles and tools (v0.8.1)
+
+Every new feature has its own switch, in both the 1.21.11 and 26.3 jars.
+
+- **HUD editor** (HUD > HUD editor): drag a widget's corner to resize it; widgets snap to the screen edges and to each
+  other with an adjustable gap (and to centre lines); a dropped widget anchors to its nearest corner or edge, so it
+  grows away from it when its content changes (press **A** to pick another anchor). **Layouts**: Default, Combat,
+  Explore and Minimal built in, save your own, switch from the editor or with a key. A widget you switch on goes to the
+  nearest free spot instead of on top of another one.
+- **Profiles**: *Export to file* (choose features on/off, settings, keys, HUD layout, theme) to
+  `config/justaclient/exports/`; *Import from file* lists exports, backups and your Downloads folder and shows what
+  would change before importing. **Auto backup** (Utility) copies your profile and theme on launch and every 30 minutes
+  when it changed, keeping the newest 20. The search box remembers recent searches.
+- **Session history** (Utility): each session is saved (world, time, kills, deaths, blocks, distance, pickups and what
+  you carried when you left) and listed in Stats > Sessions. The Session stats widget can show items picked up.
+- **Notes**: notepad and todo list in the menu, saved in `config/justaclient/notes.json`; **Pinned todos** widget.
+- **Tips**: a random tip under the title screen menu and on the loading screen (switches in Title screen and Loading
+  screen).
+- **Command macros** (Utility): 8 slots, each a key and a command or chat line.
+- **Spotify in the sky**: previous, play/pause and next beside the song name; click them with the chat open.
+- **Crash helper** (Utility, on): after a crash, the next launch explains it in plain words, names the mods that show
+  up in it, builds a diagnostic zip (crash, log, mod list, system, profile) in `config/justaclient/diagnostics/`, copies
+  the mod list, or opens a prefilled bug report. Nothing is sent unless you choose to.
+- **Feedback** (Utility, off until you turn it on): the Feedback page sends bug reports and ideas to your own Cloudflare
+  Worker with D1 (`cloudflare/`: run `deploy.bat`, then paste the address it prints into the Feedback page). Attach the
+  latest log, newest crash report, mod list and settings; send anonymously if you like; reports you sent are listed.
+- **Fixes**: the menu sidebar fits all its pages; on 26.3, typing in the menu search, notes and the map now reaches the game (SDL text input is switched on).
 
 ### M7: foundations and quick wins (v0.8.0)
 

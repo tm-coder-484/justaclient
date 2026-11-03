@@ -21,6 +21,7 @@ import dev.justaclient.feature.impl.WaypointsFeature;
 import dev.justaclient.hud.HudRenderer;
 import dev.justaclient.hud.PickupFeed;
 import dev.justaclient.hud.LifetimeStats;
+import dev.justaclient.hud.SessionHistory;
 import dev.justaclient.hud.SessionStats;
 import dev.justaclient.hud.widgets.NowPlayingHud;
 import dev.justaclient.hud.widgets.TimerHud;
@@ -55,6 +56,8 @@ public final class Justaclient implements ClientModInitializer {
 	public static final KeyMapping OPEN_MENU = new KeyMapping("key.justaclient.menu", InputConstants.KEY_RSHIFT, CATEGORY);
 	public static final KeyMapping OPEN_MAP = new KeyMapping("key.justaclient.map", InputConstants.KEY_M, CATEGORY);
 
+	private static boolean crashChecked;
+
 	public static Identifier id(String path) {
 		return Identifier.fromNamespaceAndPath(MOD_ID, path);
 	}
@@ -65,6 +68,7 @@ public final class Justaclient implements ClientModInitializer {
 		JacPipelines.init();
 		Features.init();
 		Profiles.load();
+		Features.get(dev.justaclient.feature.impl.ProfileBackupFeature.class).launched();
 		HudRenderer.init();
 		HotbarFeature.init();
 		BlockHighlightFeature.init();
@@ -82,14 +86,21 @@ public final class Justaclient implements ClientModInitializer {
 		WeaponCompareFeature.init();
 		JacCommands.init();
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+			SessionHistory.onJoin(client);
 			SessionStats.reset();
 			CombatTracker.resetSession();
 			Features.get(TimerHud.class).onJoin();
 			LifetimeStats.onJoin();
 			JacTitleScreen.freeBackground();
 		});
-		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> LifetimeStats.onLeave());
-		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> LifetimeStats.save());
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+			SessionHistory.finish();
+			LifetimeStats.onLeave();
+		});
+		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+			SessionHistory.finish();
+			LifetimeStats.save();
+		});
 		ExploredMap.init();
 		KeyMappingHelper.registerKeyMapping(OPEN_MENU);
 		KeyMappingHelper.registerKeyMapping(OPEN_MAP);
@@ -97,6 +108,7 @@ public final class Justaclient implements ClientModInitializer {
 			CombatTracker.tick();
 			ExploredMap.tick(client);
 			SessionStats.tick();
+			SessionHistory.tick(client);
 			PickupFeed.tick(client);
 			LifetimeStats.tick();
 			Features.tick(client);
@@ -124,6 +136,15 @@ public final class Justaclient implements ClientModInitializer {
 					Features.get(TrinketFeature.class).release();
 					return true;
 				});
+			}
+			if ((screen instanceof TitleScreen || screen instanceof JacTitleScreen) && !crashChecked) {
+				crashChecked = true;
+				if (Features.get(dev.justaclient.feature.impl.CrashHelperFeature.class).isEnabled()) {
+					dev.justaclient.crash.CrashHelper.Crash crash = dev.justaclient.crash.CrashHelper.unseen();
+					if (crash != null) {
+						client.execute(() -> client.gui.setScreen(new dev.justaclient.ui.CrashHelperScreen(client.gui.screen(), crash)));
+					}
+				}
 			}
 			if (screen instanceof TitleScreen) {
 				ScreenKeyboardEvents.afterKeyPress(screen).register((current, event) -> {

@@ -25,8 +25,16 @@ public abstract class Widget {
 		this.y = y;
 	}
 
+	public float x() {
+		return x;
+	}
+
 	public float y() {
 		return y;
+	}
+
+	public float width() {
+		return width;
 	}
 
 	public float height() {

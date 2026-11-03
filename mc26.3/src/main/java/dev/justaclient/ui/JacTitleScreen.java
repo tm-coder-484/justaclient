@@ -43,6 +43,8 @@ import org.jspecify.annotations.Nullable;
  * vanilla screen does (worlds, servers, Realms, options, language, accessibility, credits) in the client's own style.
  */
 public final class JacTitleScreen extends Screen {
+	/** One tip per visit to the title screen. */
+	private final String tip = dev.justaclient.common.Tips.random();
 	private static final float ROW_H = 20f;
 	private static final float MENU_W = 156f;
 	private static final float SMALL_LINKS_GAP = 8f;
@@ -249,6 +251,10 @@ public final class JacTitleScreen extends Screen {
 		float ly = menuY + h + SMALL_LINKS_GAP;
 		link(g, "Language", menuX + 4, ly, mouseX, mouseY - slide * 0.6f, a);
 		link(g, "Accessibility", menuX + 4 + JacText.width("Language", Theme.SMALL, JacText.Weight.REGULAR) + 12, ly, mouseX, mouseY - slide * 0.6f, a);
+		if (Features.get(TitleScreenFeature.class).showsTips()) {
+			JacText.icon(g, Icons.LIGHTBULB, menuX + 4, ly + 16f, 6.5f, Colors.fade(accent, a));
+			JacText.draw(g, tip, menuX + 14, ly + 16.5f, Colors.fade(Theme.TEXT_DIM, a * 0.9f), Theme.SMALL, JacText.Weight.REGULAR);
+		}
 		g.pose().popMatrix();
 
 		drawAccount(g, a);

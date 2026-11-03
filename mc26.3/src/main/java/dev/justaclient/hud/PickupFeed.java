@@ -31,6 +31,7 @@ public final class PickupFeed {
 		Minecraft mc = Minecraft.getInstance();
 		if (mc.player != null && playerId == mc.player.getId() && taken instanceof ItemEntity item) {
 			Notifications.pickedUp(item.getItem(), amount);
+			SessionStats.onPickup(item.getItem().getItem(), amount);
 		}
 	}
 

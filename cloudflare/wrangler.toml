@@ -1,0 +1,14 @@
+# Justaclient services on Cloudflare Workers. Feedback now (M8); the messaging relay joins this Worker in M11.
+name = "justaclient"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "justaclient"
+# deploy.bat / deploy.sh fill this in the first time they run.
+database_id = "REPLACE_WITH_DATABASE_ID"
+
+[vars]
+# Optional: set a secret with `npx wrangler secret put ADMIN_TOKEN` to read reports at /feedback?token=...
+MAX_FIELD_BYTES = "400000"
