@@ -26,6 +26,7 @@ import net.minecraft.world.entity.player.Player;
  * <li>{@code /jfriend add|remove <name>}, {@code /jfriend list}</li>
  * <li>{@code /potions} (or {@code /jpotions}): the potion guide</li>
  * <li>{@code /storage} (or {@code /jstorage}): search the containers you opened</li>
+ * <li>{@code /landmarks} (or {@code /jlandmarks}): the landmark board</li>
  * <li>{@code /jmedia}: what the Spotify card sees (player, track, timeline, cover, lyrics), for working out why
  * something is missing</li>
  * </ul>
@@ -86,6 +87,13 @@ public final class JacCommands {
 				}
 				return 1;
 			}));
+			for (String name : new String[] {"landmarks", "jlandmarks"}) {
+				dispatcher.register(literal(name).executes(ctx -> {
+					Minecraft mc = Minecraft.getInstance();
+					mc.execute(() -> mc.gui.setScreen(new dev.justaclient.ui.LandmarksScreen(null)));
+					return 1;
+				}));
+			}
 			for (String name : new String[] {"storage", "jstorage"}) {
 				dispatcher.register(literal(name).executes(ctx -> {
 					Minecraft mc = Minecraft.getInstance();

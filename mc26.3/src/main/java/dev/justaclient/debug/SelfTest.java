@@ -112,6 +112,7 @@ public final class SelfTest {
 			brewRoutes();
 			streamWorldNames();
 			storageIndex();
+			waypointData();
 		} catch (RuntimeException | IOException e) {
 			fail("unexpected exception", e.toString());
 		} finally {
@@ -620,6 +621,21 @@ public final class SelfTest {
 		}
 	}
 
+	/** Waypoints saved before the upgrade load as visited; structure names read well. */
+	private static void waypointData() {
+		var read = dev.justaclient.waypoint.Waypoints.parse(new java.io.StringReader(
+			"{\"sp:old\":[{\"name\":\"Base\",\"x\":1,\"y\":2,\"z\":3,\"dimension\":\"minecraft:overworld\",\"color\":-10443270,\"visible\":true},"
+				+ "{\"x\":0}],\"sp:broken\":null}"));
+		var list = read == null ? null : read.get("sp:old");
+		check("waypoints: an older save loads as visited, a nameless entry is dropped", list != null && list.size() == 1 && list.get(0).visited
+			&& list.get(0).structure == null && !read.containsKey("sp:broken"), String.valueOf(read));
+		check("waypoints: structure names", dev.justaclient.waypoint.Waypoints.structureName("minecraft:village_plains").equals("Village plains")
+			&& dev.justaclient.waypoint.Waypoints.structureName("minecraft:ancient_city").equals("Ancient city"),
+			dev.justaclient.waypoint.Waypoints.structureName("minecraft:village_plains"));
+		check("waypoints: colour tags follow the palette", dev.justaclient.waypoint.Waypoints.tag(dev.justaclient.waypoint.Waypoints.PALETTE[6]) == 6
+			&& dev.justaclient.waypoint.Waypoints.tag(0xFF123456) == -1, "wrong tag");
+	}
+
 	/** Storage memory search: amounts, shulker contents, stack maths and the saved file. */
 	private static void storageIndex() {
 		var Q = (java.util.function.Function<String, dev.justaclient.common.storage.StorageIndex.Query>)
@@ -647,6 +663,12 @@ public final class SelfTest {
 		check("storage: stack maths", dev.justaclient.common.storage.StorageIndex.stacks(140, 64).equals("2 stacks + 12")
 			&& dev.justaclient.common.storage.StorageIndex.stacks(64, 64).equals("1 stack") && dev.justaclient.common.storage.StorageIndex.stacks(5, 1)
 			.equals("5"), dev.justaclient.common.storage.StorageIndex.stacks(140, 64));
+		long now = 1_000_000_000L;
+		check("storage: last checked wording", dev.justaclient.common.storage.StorageIndex.ago(now - 20_000, now).equals("just now")
+			&& dev.justaclient.common.storage.StorageIndex.ago(now - 12 * 60_000, now).equals("12 minutes ago")
+			&& dev.justaclient.common.storage.StorageIndex.ago(now - 3_600_000, now).equals("1 hour ago")
+			&& dev.justaclient.common.storage.StorageIndex.ago(now - 2 * 86_400_000L, now).equals("2 days ago"),
+			dev.justaclient.common.storage.StorageIndex.ago(now - 12 * 60_000, now));
 		var json = index.toJson();
 		json.getAsJsonArray("containers").add(new com.google.gson.JsonPrimitive("broken"));
 		var back = dev.justaclient.common.storage.StorageIndex.fromJson(json);

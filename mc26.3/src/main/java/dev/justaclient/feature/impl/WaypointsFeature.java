@@ -36,11 +36,40 @@ public final class WaypointsFeature extends Feature {
 	private final BoolSetting distance = bool("distance", "Show distance", true).visibleWhen(labels::on);
 	private final BoolSetting deaths = bool("deaths", "Mark where you died", true);
 	private final NumberSetting range = number("range", "Hide beyond", 0, 0, 5000, 100, v -> v == 0 ? "Never" : String.format("%.0f m", v));
+	private final BoolSetting autoStructures = bool("auto_structures", "Save structures you walk into (singleplayer)", false);
+	/** The names of the colour tags, one per colour in {@link Waypoints#PALETTE}. */
+	private static final String[] TAG_COLOURS = {"Blue", "Green", "Yellow", "Pink", "Purple", "Red", "Teal"};
+	private static final String[] TAG_DEFAULTS = {"Home", "Farm", "Mine", "Build", "Portal", "Danger", "Structure"};
+	/** The colour tag structures are saved under. */
+	public static final int STRUCTURE_TAG = 6;
+	private final dev.justaclient.feature.setting.TextSetting[] tagNames = new dev.justaclient.feature.setting.TextSetting[TAG_COLOURS.length];
 	private boolean keyWasDown;
 	private boolean wasDead;
+	private int ticks;
+	private boolean lookingUp;
 
 	public WaypointsFeature() {
 		super("waypoints", "Waypoints", "Beams and labels for saved places, plus a death point", Category.UTILITY, Icons.MAP_PIN, true);
+		for (int i = 0; i < TAG_COLOURS.length; i++) {
+			tagNames[i] = add(new dev.justaclient.feature.setting.TextSetting("tag_" + (i + 1), TAG_COLOURS[i] + " tag", TAG_DEFAULTS[i], 16));
+		}
+	}
+
+	public static WaypointsFeature get() {
+		return Features.get(WaypointsFeature.class);
+	}
+
+	/** The label of a colour tag ({@link Waypoints#tag}), "Other" for a custom colour. */
+	public String tagName(int tag) {
+		if (tag < 0 || tag >= tagNames.length) {
+			return "Other";
+		}
+		String name = tagNames[tag].get().trim();
+		return name.isEmpty() ? TAG_DEFAULTS[tag] : name;
+	}
+
+	public int tagCount() {
+		return tagNames.length;
 	}
 
 	public static void init() {
@@ -63,6 +92,83 @@ public final class WaypointsFeature extends Feature {
 			Waypoints.death(player.getBlockX(), player.getBlockY(), player.getBlockZ());
 		}
 		wasDead = dead;
+		if (player == null || ++ticks % 20 != 0) {
+			return;
+		}
+		// Places saved from afar count as visited once you get close.
+		boolean changed = false;
+		for (Waypoint w : Waypoints.here()) {
+			if (!w.visited && player.distanceToSqr(w.x + 0.5, w.y + 0.5, w.z + 0.5) < Waypoints.VISIT_RANGE * Waypoints.VISIT_RANGE) {
+				w.visited = true;
+				changed = true;
+			}
+		}
+		if (changed) {
+			Waypoints.save();
+		}
+		if (autoStructures.on() && ticks % 100 == 0) {
+			findStructure(mc, player);
+		}
+	}
+
+	/**
+	 * Singleplayer only: asks your own world which structure you are standing in and saves it once. Servers don't tell
+	 * the game where structures are, so nothing is looked up there.
+	 */
+	private void findStructure(Minecraft mc, LocalPlayer player) {
+		net.minecraft.client.server.IntegratedServer server = mc.getSingleplayerServer();
+		if (server == null || mc.level == null || lookingUp) {
+			return;
+		}
+		var dimension = mc.level.dimension();
+		net.minecraft.core.BlockPos pos = player.blockPosition();
+		String world = Waypoints.worldKey();
+		lookingUp = true;
+		server.execute(() -> {
+			String found = null;
+			net.minecraft.core.BlockPos centre = null;
+			try {
+				net.minecraft.server.level.ServerLevel level = server.getLevel(dimension);
+				if (level != null) {
+					var structures = level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
+					for (var structure : level.structureManager().getAllStructuresAt(pos).keySet()) {
+						var start = level.structureManager().getStructureAt(pos, structure);
+						var key = structures.getKey(structure);
+						if (start.isValid() && key != null) {
+							found = key.toString();
+							centre = start.getBoundingBox().getCenter();
+							break;
+						}
+					}
+				}
+			} catch (RuntimeException e) {
+				dev.justaclient.Justaclient.LOGGER.warn("Structure lookup failed", e);
+			}
+			String id = found;
+			net.minecraft.core.BlockPos at = centre;
+			mc.execute(() -> {
+				lookingUp = false;
+				if (id != null && at != null && world != null && world.equals(Waypoints.worldKey())) {
+					saveStructure(id, at);
+				}
+			});
+		});
+	}
+
+	private void saveStructure(String id, net.minecraft.core.BlockPos at) {
+		for (Waypoint w : Waypoints.here()) {
+			double dx = w.x - at.getX();
+			double dz = w.z - at.getZ();
+			if (id.equals(w.structure) && dx * dx + dz * dz < 128 * 128) {
+				return;
+			}
+		}
+		Waypoint w = Waypoints.add(Waypoints.freeName(Waypoints.structureName(id)), at.getX(), at.getY(), at.getZ());
+		w.structure = id;
+		w.visited = true;
+		w.color = Waypoints.PALETTE[STRUCTURE_TAG];
+		Waypoints.save();
+		Notifications.push(Icons.LANDMARK, "Landmark saved", w.name);
 	}
 
 	private boolean inRange(Waypoint w, Vec3 from) {

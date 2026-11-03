@@ -58,6 +58,8 @@ public final class HubPage {
 			WorldArchiveScreen::new, () -> true));
 		TILES.add(new Tile(Icons.FLASK_ROUND, "Potion guide", "Every potion's brewing route, with the brewing stand helper",
 			dev.justaclient.feature.impl.PotionGuideFeature.class, PotionGuideScreen::new, () -> true));
+		TILES.add(new Tile(Icons.LANDMARK, "Landmarks", "Every waypoint as a card, by colour tag, with the ones you haven't visited",
+			dev.justaclient.feature.impl.WaypointsFeature.class, LandmarksScreen::new, () -> true));
 		TILES.add(new Tile(Icons.PACKAGE_SEARCH, "Storage", "Search the chests you opened and find your way back",
 			dev.justaclient.feature.impl.StorageMemoryFeature.class, StorageScreen::new, () -> true));
 		TILES.add(new Tile(Icons.FLASK, "Labs", "Experimental features and the self-test", LabsFeature.class, LabsScreen::new, () -> true));

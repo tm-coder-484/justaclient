@@ -104,8 +104,16 @@ public final class WorldMapScreen extends Screen {
 	private final List<Widget> chrome = new ArrayList<>();
 	private boolean dirty;
 
+	private @Nullable Waypoint focus;
+
 	public WorldMapScreen() {
 		super(Component.literal("Map"));
+	}
+
+	/** Opens the map centred on a waypoint, with it selected for editing. */
+	public WorldMapScreen(Waypoint focus) {
+		this();
+		this.focus = focus;
 	}
 
 	@Override
@@ -114,6 +122,13 @@ public final class WorldMapScreen extends Screen {
 		if (player != null && builtLevel == null) {
 			viewX = player.getX();
 			viewZ = player.getZ();
+		}
+		if (focus != null) {
+			viewX = focus.x + 0.5;
+			viewZ = focus.z + 0.5;
+			Waypoint f = focus;
+			focus = null;
+			select(f);
 		}
 		chrome.clear();
 		chrome.add(new Button(SIDE_X, 30, SIDE_W, 18, Icons.PLUS, "Add waypoint here", true, this::addHere));
@@ -166,7 +181,7 @@ public final class WorldMapScreen extends Screen {
 		}
 		y += 31f;
 		List<String> palette = Arrays.stream(Waypoints.PALETTE).mapToObj(Colors::toHex).toList();
-		editor.add(new Swatches(SIDE_X, y, SIDE_W, "Colour", palette, () -> Colors.toHex(w.color), hex -> {
+		editor.add(new Swatches(SIDE_X, y, SIDE_W, "Colour tag", palette, () -> Colors.toHex(w.color), hex -> {
 			w.color = Colors.parse(hex, w.color);
 			dirty = true;
 		}));

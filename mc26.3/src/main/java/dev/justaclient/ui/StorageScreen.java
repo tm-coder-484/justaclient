@@ -31,7 +31,7 @@ import org.jspecify.annotations.Nullable;
 public final class StorageScreen extends JacScreen {
 	private static final float PAD = 12f;
 	private static final float ROW = 18f;
-	private static final float CROW = 30f;
+	private static final float CROW = 41f;
 
 	private final InputBox search = new InputBox("", 40, "Search: iron, 64 oak log, <5 torch", Icons.SEARCH);
 	private final Scroller listScroll = new Scroller();
@@ -193,16 +193,16 @@ public final class StorageScreen extends JacScreen {
 			StorageIndex.Hit h = holders.get(i);
 			StorageIndex.Container c = h.container();
 			Draw.rect(g, rx, ry, rw, CROW, 5f, Colors.fade(Theme.CONTROL, a));
-			InvItems.draw(g, InvItems.stack(c.block), rx + 6, ry + 7, 16);
+			InvItems.draw(g, InvItems.stack(c.block), rx + 6, ry + 12.5f, 16);
 			float bx = rx + rw - 6 - 18;
 			// The amount sits left of the GPS button; shulker contents get their own small line under it.
 			String n = String.valueOf(h.count());
 			float nw = JacText.width(n, Theme.LABEL, JacText.Weight.SEMIBOLD);
 			String sh = h.inShulkers() > 0 ? h.inShulkers() + " in shulkers" : "";
 			float sw = sh.isEmpty() ? 0 : JacText.width(sh, Theme.SMALL, JacText.Weight.REGULAR);
-			JacText.draw(g, n, bx - 54 - nw, ry + (sh.isEmpty() ? 10.5f : 5), Colors.fade(accent, a), Theme.LABEL, JacText.Weight.SEMIBOLD);
+			JacText.draw(g, n, bx - 54 - nw, ry + (sh.isEmpty() ? 16f : 10.5f), Colors.fade(accent, a), Theme.LABEL, JacText.Weight.SEMIBOLD);
 			if (!sh.isEmpty()) {
-				JacText.draw(g, sh, bx - 54 - sw, ry + 17, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL, JacText.Weight.REGULAR);
+				JacText.draw(g, sh, bx - 54 - sw, ry + 22.5f, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL, JacText.Weight.REGULAR);
 			}
 			float textW = bx - 54 - Math.max(nw, sw) - 8 - (rx + 28);
 			String title = InvItems.itemName(c.block) + (c.other != null ? " (double)" : "");
@@ -215,12 +215,19 @@ public final class StorageScreen extends JacScreen {
 			where += " · " + c.used + "/" + c.slots;
 			JacText.draw(g, fit(where, Theme.SMALL, JacText.Weight.REGULAR, textW), rx + 28, ry + 17, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL,
 				JacText.Weight.REGULAR);
+			// What's inside may have changed since: older looks turn amber, then red.
+			long age = System.currentTimeMillis() - c.seen;
+			int ageColor = c.seen <= 0 || age > 86_400_000L ? 0xFFF87171 : age > 3_600_000L ? 0xFFFBBF24 : Theme.TEXT_DIM;
+			JacText.icon(g, Icons.CLOCK, rx + 28, ry + 28.5f, 6f, Colors.fade(ageColor, a));
+			JacText.draw(g, fit("Last checked: " + StorageIndex.ago(c.seen, System.currentTimeMillis()), Theme.SMALL, JacText.Weight.REGULAR,
+				bx - 56 - (rx + 37)),
+				rx + 37, ry + 28.5f, Colors.fade(ageColor, a), Theme.SMALL, JacText.Weight.REGULAR);
 			if (!c.isEnder() && c.dimension.equals(Waypoints.dimension())) {
 				boolean tracked = Locate.isTracked(StorageMemoryFeature.target(c, ""));
-				button(g, bx - 48, ry + 7, 44, tracked ? "On GPS" : "GPS", tracked ? Icons.CHECK : Icons.NAVIGATION, tracked, mx, my, a);
+				button(g, bx - 48, ry + 12.5f, 44, tracked ? "On GPS" : "GPS", tracked ? Icons.CHECK : Icons.NAVIGATION, tracked, mx, my, a);
 			}
-			boolean fhot = mx >= bx && mx < bx + 16 && my >= ry + 7 && my < ry + 23 && my >= rtop && my < bottom;
-			JacText.icon(g, Icons.TRASH, bx + 4, ry + 11, 8f, Colors.fade(fhot ? 0xFFF87171 : Theme.TEXT_DIM, a));
+			boolean fhot = mx >= bx && mx < bx + 16 && my >= ry + 12.5f && my < ry + 28.5f && my >= rtop && my < bottom;
+			JacText.icon(g, Icons.TRASH, bx + 4, ry + 16.5f, 8f, Colors.fade(fhot ? 0xFFF87171 : Theme.TEXT_DIM, a));
 		}
 		g.disableScissor();
 	}
@@ -269,7 +276,7 @@ public final class StorageScreen extends JacScreen {
 		float ry = rtop + i * (CROW + 3) - rightScroll.get();
 		StorageIndex.Container c = holders.get(i).container();
 		float bx = rx + rw - 6 - 18;
-		if (my < ry + 7 || my >= ry + 23) {
+		if (my < ry + 12.5f || my >= ry + 28.5f) {
 			return true;
 		}
 		if (mx >= bx && mx < bx + 16) {

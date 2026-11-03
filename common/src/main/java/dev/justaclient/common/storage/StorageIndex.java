@@ -210,6 +210,30 @@ public final class StorageIndex {
 		return out;
 	}
 
+	/** "just now", "12 minutes ago", "3 hours ago", "2 days ago": how long since {@code seen} (milliseconds). */
+	public static String ago(long seen, long now) {
+		long s = Math.max(0, (now - seen) / 1000);
+		if (seen <= 0) {
+			return "a while ago";
+		}
+		if (s < 60) {
+			return "just now";
+		}
+		long n;
+		String unit;
+		if (s < 3600) {
+			n = s / 60;
+			unit = "minute";
+		} else if (s < 86400) {
+			n = s / 3600;
+			unit = "hour";
+		} else {
+			n = s / 86400;
+			unit = "day";
+		}
+		return n + " " + unit + (n == 1 ? "" : "s") + " ago";
+	}
+
 	/** "3 stacks + 12", "1 stack", "40" for an item that stacks to {@code stack}. */
 	public static String stacks(int count, int stack) {
 		if (stack <= 1 || count < stack) {
