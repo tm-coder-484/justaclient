@@ -191,7 +191,7 @@ public final class WorldArchiveScreen extends JacScreen {
 				Draw.rect(g, lx, y, LIST_W, ROW, 5f, Colors.fade(sel ? Colors.withAlpha(accent, 0x40) : Theme.CONTROL, a));
 			}
 			JacText.icon(g, w.server() ? Icons.SERVER : Icons.HOUSE, lx + 7, y + 9.5f, 7f, Colors.fade(sel ? accent : Theme.TEXT_DIM, a));
-			String name = StreamModeFeature.hidesCoordinates() && w.server() ? "Server" : w.name;
+			String name = StreamModeFeature.worldName(w.server(), w.name);
 			JacText.draw(g, fit(name, Theme.LABEL, JacText.Weight.SEMIBOLD, LIST_W - 26), lx + 20, y + 5, Colors.fade(Theme.TEXT, a), Theme.LABEL,
 				JacText.Weight.SEMIBOLD);
 			String sub = w.key.equals(here) ? "Playing now" : w.last != null ? w.last.format(DAY) : w.waypoints.size() + " waypoints";
@@ -204,7 +204,7 @@ public final class WorldArchiveScreen extends JacScreen {
 	private void drawWorld(GuiGraphics g, World w, int mx, int my, float a) {
 		int accent = JacConfig.accent();
 		float y = py + 38;
-		JacText.draw(g, fit(w.name, Theme.TITLE, JacText.Weight.SEMIBOLD, rw), rx, y, Colors.fade(Theme.TEXT, a), Theme.TITLE, JacText.Weight.SEMIBOLD);
+		JacText.draw(g, fit(StreamModeFeature.worldName(w.server(), w.name), Theme.TITLE, JacText.Weight.SEMIBOLD, rw), rx, y, Colors.fade(Theme.TEXT, a), Theme.TITLE, JacText.Weight.SEMIBOLD);
 		String kind = w.server() ? "Server" : "Singleplayer";
 		JacText.draw(g, kind + (w.last != null ? " · last played " + w.last.format(WHEN) : ""), rx, y + 12, Colors.fade(Theme.TEXT_DIM, a),
 			Theme.SMALL, JacText.Weight.REGULAR);

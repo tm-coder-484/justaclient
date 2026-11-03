@@ -424,12 +424,30 @@ public final class Profiles {
 			root.add("style", GSON.toJsonTree(JacConfig.get().style));
 		}
 		Files.createDirectories(EXPORTS);
-		String stamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm"));
-		Path file = EXPORTS.resolve(file(active()).getFileName().toString().replace(".json", "") + "_" + stamp + ".json");
-		try (Writer writer = Files.newBufferedWriter(file)) {
-			GSON.toJson(root, writer);
+		String stamp = exportStamp(java.time.LocalDateTime.now());
+		String base = exportBase(stamp);
+		// Two exports in the same minute get " (2)", " (3)"...: an export never writes over a file already there.
+		for (int n = 1; ; n++) {
+			Path file = EXPORTS.resolve(base + (n == 1 ? "" : " (" + n + ")") + ".json");
+			try (Writer writer = Files.newBufferedWriter(file, java.nio.file.StandardOpenOption.CREATE_NEW, java.nio.file.StandardOpenOption.WRITE)) {
+				GSON.toJson(root, writer);
+				return file;
+			} catch (java.nio.file.FileAlreadyExistsException taken) {
+				if (n >= 999) {
+					throw taken;
+				}
+			}
 		}
-		return file;
+	}
+
+	/** The file name (without ".json") an export of the active profile made at this minute stamp starts from. */
+	public static String exportBase(String stamp) {
+		return file(active()).getFileName().toString().replace(".json", "") + "_" + stamp;
+	}
+
+	/** The minute stamp exports are named with. */
+	public static String exportStamp(java.time.LocalDateTime when) {
+		return when.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm"));
 	}
 
 	/** A file that can be imported, with where it was found. */

@@ -81,6 +81,21 @@ public final class SelfTest {
 		} catch (IOException e) {
 			fail("could not write the sentinel export", e.toString());
 		}
+		// So are user exports named for this minute and the next: the self-test's own exports must pick other names.
+		List<Path> minuteSentinels = new ArrayList<>();
+		java.time.LocalDateTime now = java.time.LocalDateTime.now();
+		for (java.time.LocalDateTime when : List.of(now, now.plusMinutes(1))) {
+			Path p = Profiles.EXPORTS.resolve(Profiles.exportBase(Profiles.exportStamp(when)) + ".json");
+			try {
+				if (!Files.exists(p)) {
+					Files.createDirectories(p.getParent());
+					Files.writeString(p, "user export " + NS);
+					minuteSentinels.add(p);
+				}
+			} catch (IOException e) {
+				fail("could not write the minute sentinel", e.toString());
+			}
+		}
 		java.util.Map<Path, String> userFiles = userFiles();
 		try {
 			lifecycle();
@@ -95,6 +110,7 @@ public final class SelfTest {
 			listsAndKeys();
 			settingTypes();
 			brewRoutes();
+			streamWorldNames();
 		} catch (RuntimeException | IOException e) {
 			fail("unexpected exception", e.toString());
 		} finally {
@@ -120,6 +136,13 @@ public final class SelfTest {
 				// Left behind; harmless.
 			}
 		}
+		for (Path p : minuteSentinels) {
+			try {
+				Files.deleteIfExists(p);
+			} catch (IOException e) {
+				// Left behind; harmless.
+			}
+		}
 		lines.add(failed == 0 ? "ALL PASSED" : failed + " FAILED");
 		try {
 			Files.createDirectories(REPORT.getParent());
@@ -129,6 +152,45 @@ public final class SelfTest {
 		}
 		lines.forEach(l -> Justaclient.LOGGER.info("[selftest] {}", l));
 		return List.copyOf(lines);
+	}
+
+	/** Server worlds can be named by their address, so the name follows the "Hide server address" switch, not the coordinates one. */
+	private static void streamWorldNames() {
+		var stream = Features.get(dev.justaclient.feature.impl.StreamModeFeature.class);
+		dev.justaclient.feature.setting.BoolSetting coords = null;
+		dev.justaclient.feature.setting.BoolSetting server = null;
+		for (var setting : stream.settings()) {
+			if (setting instanceof dev.justaclient.feature.setting.BoolSetting b && b.id.equals("coordinates")) {
+				coords = b;
+			} else if (setting instanceof dev.justaclient.feature.setting.BoolSetting b && b.id.equals("server")) {
+				server = b;
+			}
+		}
+		if (coords == null || server == null) {
+			fail("stream mode settings", "not found");
+			return;
+		}
+		boolean wasOn = stream.isEnabled();
+		boolean oldCoords = coords.get();
+		boolean oldServer = server.get();
+		String address = "mp:10.0.0.5";
+		try {
+			stream.setEnabled(true);
+			coords.set(true);
+			server.set(false);
+			check("stream mode: hiding coordinates alone shows the server name",
+				dev.justaclient.feature.impl.StreamModeFeature.worldName(true, address).equals(address), "hid it");
+			coords.set(false);
+			server.set(true);
+			check("stream mode: hiding the server address hides a server world's name",
+				dev.justaclient.feature.impl.StreamModeFeature.worldName(true, address).equals("Server"), "shown");
+			check("stream mode: singleplayer world names stay",
+				dev.justaclient.feature.impl.StreamModeFeature.worldName(false, "My world").equals("My world"), "hidden");
+		} finally {
+			coords.set(oldCoords);
+			server.set(oldServer);
+			stream.setEnabled(wasOn);
+		}
 	}
 
 	private static void lifecycle() {

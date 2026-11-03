@@ -39,4 +39,13 @@ public final class StreamModeFeature extends Feature {
 	public static boolean hidesServer() {
 		return get().isEnabled() && get().server.on();
 	}
+
+	/** A world's name as shown: a server world can be named by its address, so it reads "Server" while the address is hidden. */
+	public static String worldName(boolean server, String name) {
+		return worldName(server, name, hidesServer());
+	}
+
+	public static String worldName(boolean server, String name, boolean hideServer) {
+		return hideServer && server ? "Server" : name;
+	}
 }
