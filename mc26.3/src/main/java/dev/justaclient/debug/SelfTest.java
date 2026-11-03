@@ -121,6 +121,7 @@ public final class SelfTest {
 			deathRecap();
 			kits();
 			anvilMath();
+			storageOffers();
 		} catch (RuntimeException | IOException e) {
 			fail("unexpected exception", e.toString());
 		} finally {
@@ -650,6 +651,32 @@ public final class SelfTest {
 		var back = dev.justaclient.common.kits.Kit.fromJson(json);
 		check("kits: the saved file reads back (same name twice keeps the first, a bad slot is skipped)", back.size() == 1
 			&& back.get(0).slots.size() == 2 && back.get(0).at(40) != null && back.get(0).created == 1L, back.size() + " kits");
+	}
+
+	/** A "this chest has it" offer only applies in the world and dimension it was made in (Sol #15). */
+	private static void storageOffers() {
+		check("storage offer: only good in the world and dimension it was made in",
+			dev.justaclient.inventory.StorageFinder.isHere("a", "minecraft:overworld", "a", "minecraft:overworld")
+				&& !dev.justaclient.inventory.StorageFinder.isHere("a", "minecraft:overworld", "b", "minecraft:overworld")
+				&& !dev.justaclient.inventory.StorageFinder.isHere("a", "minecraft:overworld", "a", "minecraft:the_nether")
+				&& !dev.justaclient.inventory.StorageFinder.isHere("a", "minecraft:overworld", null, null)
+				&& !dev.justaclient.inventory.StorageFinder.isHere(null, null, null, null), "isHere wrong");
+		var target = new dev.justaclient.waypoint.Locate.Target("test", dev.justaclient.render.Icons.PACKAGE_SEARCH, 0, 0, 0,
+			"minecraft:overworld", 0xFFFFFFFF, 0, 0, 0);
+		String world = dev.justaclient.waypoint.Waypoints.worldKey();
+		dev.justaclient.inventory.StorageFinder.offerForTest(target, NS + "-other-world", dev.justaclient.waypoint.Waypoints.dimension());
+		boolean otherWorld = dev.justaclient.inventory.StorageFinder.hasOffer() || dev.justaclient.inventory.StorageFinder.accept();
+		check("storage offer: one made in another world is not shown or taken up", !otherWorld, "offer from another world was live");
+		if (world != null) {
+			dev.justaclient.inventory.StorageFinder.offerForTest(target, world, dev.justaclient.waypoint.Waypoints.dimension());
+			boolean here = dev.justaclient.inventory.StorageFinder.hasOffer();
+			dev.justaclient.inventory.StorageFinder.clear();
+			check("storage offer: one made here is live, and clear() drops it", here && !dev.justaclient.inventory.StorageFinder.hasOffer(),
+				"here=" + here);
+		} else {
+			lines.add("SKIP storage offer in this world (run /jselftest in a world)");
+		}
+		dev.justaclient.inventory.StorageFinder.clear();
 	}
 
 	/** The anvil's level rules the helper uses to decide a pair is worth listing. */

@@ -24,6 +24,9 @@ public final class StorageFinder {
 	private static final long OFFER_MILLIS = 20_000L;
 	private static Locate.@Nullable Target offer;
 	private static long offerUntil;
+	/** The world and dimension the offer was made in; it is only good there. */
+	private static @Nullable String offerWorld;
+	private static @Nullable String offerDimension;
 	private static String offerLine = "";
 
 	private StorageFinder() {
@@ -106,6 +109,8 @@ public final class StorageFinder {
 		String where = InvItems.itemName(found.block) + " · " + Math.round(Math.sqrt(bestDist)) + " m";
 		offer = StorageMemoryFeature.target(found, what + " · " + InvItems.itemName(found.block));
 		offerUntil = System.currentTimeMillis() + OFFER_MILLIS;
+		offerWorld = Waypoints.worldKey();
+		offerDimension = dim;
 		offerLine = why + ": " + what + " · " + where;
 		Notifications.push(Icons.PACKAGE_SEARCH, why + ": " + what, "in " + where + " · " + storage.gpsKeyName() + " for GPS");
 	}
@@ -113,11 +118,11 @@ public final class StorageFinder {
 	/** Called when the GPS key is pressed: takes up the latest offer if it is still fresh. */
 	public static boolean accept() {
 		Locate.Target t = offer;
-		if (t == null || System.currentTimeMillis() > offerUntil) {
-			offer = null;
+		if (!hasOffer()) {
+			clear();
 			return false;
 		}
-		offer = null;
+		clear();
 		Locate.track(t);
 		Locate.highlight(t, 45f);
 		Notifications.push(Icons.NAVIGATION, "GPS set", t.label());
@@ -133,6 +138,28 @@ public final class StorageFinder {
 	}
 
 	public static boolean hasOffer() {
-		return offer != null && System.currentTimeMillis() <= offerUntil;
+		return offer != null && System.currentTimeMillis() <= offerUntil && isHere(offerWorld, offerDimension, Waypoints.worldKey(),
+			Waypoints.dimension());
+	}
+
+	/** True if an offer made in {@code world}/{@code dimension} still applies where you are now. */
+	public static boolean isHere(@Nullable String world, @Nullable String dimension, @Nullable String nowWorld, @Nullable String nowDimension) {
+		return world != null && world.equals(nowWorld) && dimension != null && dimension.equals(nowDimension);
+	}
+
+	/** For the self-test: an offer as if it had been made in {@code world}/{@code dimension}. */
+	public static void offerForTest(Locate.Target target, @Nullable String world, @Nullable String dimension) {
+		offer = target;
+		offerUntil = System.currentTimeMillis() + OFFER_MILLIS;
+		offerLine = "test";
+		offerWorld = world;
+		offerDimension = dimension;
+	}
+
+	/** Drops any open offer (on disconnect, or once it is taken up). */
+	public static void clear() {
+		offer = null;
+		offerWorld = null;
+		offerDimension = null;
 	}
 }

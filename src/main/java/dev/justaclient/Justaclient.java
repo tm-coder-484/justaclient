@@ -111,6 +111,7 @@ public final class Justaclient implements ClientModInitializer {
 			dev.justaclient.feature.impl.KeybindsFeature.get().onJoin(client.getCurrentServer());
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+			dev.justaclient.inventory.StorageFinder.clear();
 			SessionHistory.finish();
 			LifetimeStats.onLeave();
 			NotesStore.saveAll();
