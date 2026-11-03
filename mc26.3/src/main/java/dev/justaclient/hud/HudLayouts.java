@@ -12,6 +12,7 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -64,6 +65,12 @@ public final class HudLayouts {
 					}
 				} catch (IOException | JsonParseException e) {
 					Justaclient.LOGGER.warn("Could not read {}", FILE, e);
+					// Set aside so the next save (any layout change) does not write over the layouts in it.
+					try {
+						Files.move(FILE, FILE.resolveSibling(FILE.getFileName() + "." + System.currentTimeMillis() + ".broken"));
+					} catch (IOException moveFailed) {
+						Justaclient.LOGGER.warn("Could not set aside {}", FILE, moveFailed);
+					}
 				}
 			}
 		}
@@ -73,9 +80,12 @@ public final class HudLayouts {
 	private static void write() {
 		try {
 			Files.createDirectories(FILE.getParent());
-			try (Writer writer = Files.newBufferedWriter(FILE)) {
+			// Written beside it and moved over it, so a crash mid-write cannot leave half a file.
+			Path tmp = FILE.resolveSibling(FILE.getFileName() + ".tmp");
+			try (Writer writer = Files.newBufferedWriter(tmp)) {
 				GSON.toJson(saved(), writer);
 			}
+			Files.move(tmp, FILE, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
 		} catch (IOException e) {
 			Justaclient.LOGGER.warn("Could not write {}", FILE, e);
 		}

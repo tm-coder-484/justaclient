@@ -10,6 +10,7 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import net.fabricmc.loader.api.FabricLoader;
 
 /** Client settings, stored as JSON in {@code config/justaclient.json}. */
@@ -51,6 +52,12 @@ public final class JacConfig {
 				}
 			} catch (IOException | JsonParseException e) {
 				Justaclient.LOGGER.warn("Could not read {}, using defaults", FILE, e);
+				// Kept aside, since the save below would otherwise write the defaults over it.
+				try {
+					Files.move(FILE, FILE.resolveSibling(FILE.getFileName() + "." + System.currentTimeMillis() + ".broken"));
+				} catch (IOException moveFailed) {
+					Justaclient.LOGGER.warn("Could not set aside {}", FILE, moveFailed);
+				}
 			}
 		}
 		save();
@@ -73,9 +80,12 @@ public final class JacConfig {
 	public static void save() {
 		try {
 			Files.createDirectories(FILE.getParent());
-			try (Writer writer = Files.newBufferedWriter(FILE)) {
+			// Written beside it and moved over it, so a crash mid-write cannot leave half a file.
+			Path tmp = FILE.resolveSibling(FILE.getFileName() + ".tmp");
+			try (Writer writer = Files.newBufferedWriter(tmp)) {
 				GSON.toJson(instance, writer);
 			}
+			Files.move(tmp, FILE, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
 		} catch (IOException e) {
 			Justaclient.LOGGER.warn("Could not write {}", FILE, e);
 		}

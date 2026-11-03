@@ -54,7 +54,17 @@ public final class WorldStore {
 			return JsonParser.parseReader(reader);
 		} catch (IOException | RuntimeException e) {
 			Justaclient.LOGGER.warn("Could not read {}", file, e);
+			keepAside(file);
 			return null;
+		}
+	}
+
+	/** Moves an unreadable file out of the way, so the next write (from an empty start) does not replace what was in it. */
+	public static void keepAside(Path file) {
+		try {
+			Files.move(file, file.resolveSibling(file.getFileName() + "." + System.currentTimeMillis() + ".broken"));
+		} catch (IOException e) {
+			Justaclient.LOGGER.warn("Could not set aside {}", file, e);
 		}
 	}
 

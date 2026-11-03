@@ -18,6 +18,7 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -143,9 +144,12 @@ public final class Profiles {
 		Path file = file(active());
 		try {
 			Files.createDirectories(DIR);
-			try (Writer writer = Files.newBufferedWriter(file)) {
+			// Written beside it and moved over it, so a crash mid-write cannot leave half a profile.
+			Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+			try (Writer writer = Files.newBufferedWriter(tmp)) {
 				GSON.toJson(snapshot(), writer);
 			}
+			Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
 		} catch (IOException e) {
 			Justaclient.LOGGER.warn("Could not write profile {}", file, e);
 		}
@@ -193,11 +197,14 @@ public final class Profiles {
 			try (Writer writer = Files.newBufferedWriter(BACKUPS.resolve(name))) {
 				GSON.toJson(root, writer);
 			}
-			try (Stream<Path> files = Files.list(BACKUPS)) {
-				List<Path> old = files.filter(f -> f.toString().endsWith(".json"))
-					.sorted((a, b) -> Long.compare(b.toFile().lastModified(), a.toFile().lastModified())).skip(keepBackups()).toList();
-				for (Path f : old) {
-					Files.deleteIfExists(f);
+			// A reset's backup is its only undo, so launch and timed backups do not push it out; it is pruned on its own.
+			for (boolean resets : new boolean[] {false, true}) {
+				try (Stream<Path> files = Files.list(BACKUPS)) {
+					List<Path> old = files.filter(f -> f.toString().endsWith(".json") && f.getFileName().toString().contains("_before-reset_") == resets)
+						.sorted((a, b) -> Long.compare(b.toFile().lastModified(), a.toFile().lastModified())).skip(keepBackups()).toList();
+					for (Path f : old) {
+						Files.deleteIfExists(f);
+					}
 				}
 			}
 			return name;
@@ -587,7 +594,12 @@ public final class Profiles {
 	}
 
 	private static String safeName(String name) {
-		return name.replaceAll("[^A-Za-z0-9 _.-]", "_");
+		String s = name.replaceAll("[^A-Za-z0-9 _.-]", "_");
+		// Windows treats CON, NUL, COM1 and the like as devices, even with an extension, so such a profile could never be saved.
+		if (java.io.File.separatorChar == '\\' && s.split("\\.", 2)[0].strip().matches("(?i)con|prn|aux|nul|com[1-9]|lpt[1-9]")) {
+			s = "_" + s;
+		}
+		return s;
 	}
 
 	private static JsonObject snapshot() {
