@@ -232,7 +232,7 @@ public final class Modrinth {
 			JsonObject f = e.getAsJsonObject();
 			JsonObject hashes = f.has("hashes") && f.get("hashes").isJsonObject() ? f.getAsJsonObject("hashes") : new JsonObject();
 			files.add(new FileRef(str(f, "url"), str(f, "filename"), str(hashes, "sha1").toLowerCase(Locale.ROOT),
-				str(hashes, "sha512").toLowerCase(Locale.ROOT), num(f, "size"), f.has("primary") && f.get("primary").getAsBoolean()));
+				str(hashes, "sha512").toLowerCase(Locale.ROOT), num(f, "size"), f.has("primary") && f.get("primary").isJsonPrimitive() && f.get("primary").getAsBoolean()));
 		}
 		List<Dependency> deps = new ArrayList<>();
 		for (JsonElement e : arr(v, "dependencies")) {

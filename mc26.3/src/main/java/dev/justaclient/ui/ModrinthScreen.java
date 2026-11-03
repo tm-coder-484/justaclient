@@ -6,6 +6,7 @@ import dev.justaclient.anim.Colors;
 import dev.justaclient.common.modrinth.Modrinth;
 import dev.justaclient.common.modrinth.ModUpdate;
 import dev.justaclient.common.modrinth.ModrinthApi;
+import dev.justaclient.common.mods.JarMetadata;
 import dev.justaclient.common.mods.ManagedMod;
 import dev.justaclient.common.mods.ModManager;
 import dev.justaclient.common.mods.ModStatus;
@@ -341,6 +342,14 @@ public final class ModrinthScreen extends JacScreen {
 					job.label = "Installed and checked. Restart to load it";
 					ModUpdate.Result update = ModUpdate.retireOld(before == null || before.file().equals(done.path()) ? null : enabledMod(before.file()),
 						done.path());
+					if (update.oldOff() && update.newActive()) {
+						// Fabric will not start with two mods of one id; catch a copy Modrinth did not recognise.
+						JarMetadata meta = JarMetadata.read(update.newFile());
+						ManagedMod other = meta == null ? null : ModUpdate.clash(meta.id(), update.newFile(), ModManager.scan());
+						if (other != null) {
+							update = ModUpdate.keepOne(other, update.newFile());
+						}
+					}
 					job.label += update.message();
 					job.file = update.newFile();
 					active = update.newActive();
