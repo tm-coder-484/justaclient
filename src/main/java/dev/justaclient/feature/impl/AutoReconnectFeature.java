@@ -61,6 +61,17 @@ public final class AutoReconnectFeature extends Feature {
 		lastServer = data;
 	}
 
+	/** The address a retry would go to, or null. */
+	public static @Nullable String retryTarget() {
+		return lastServer == null ? null : lastServer.ip;
+	}
+
+	/** Forgets the retry target, e.g. after the self test. */
+	public static void clearTarget() {
+		lastServer = null;
+		attempt = 0;
+	}
+
 	public static void init() {
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
 			ServerData data = client.getCurrentServer();

@@ -78,6 +78,12 @@ public final class JacCommands {
 					})))
 				.then(literal("hide").then(argument("name", StringArgumentType.greedyString()).suggests(WAYPOINTS).executes(ctx -> visible(ctx, false))))
 				.then(literal("show").then(argument("name", StringArgumentType.greedyString()).suggests(WAYPOINTS).executes(ctx -> visible(ctx, true)))));
+			dispatcher.register(literal("jselftest").executes(ctx -> {
+				for (String line : dev.justaclient.debug.SelfTest.run()) {
+					ctx.getSource().sendFeedback(Component.literal(line).withStyle(line.startsWith("FAIL") ? ChatFormatting.RED : ChatFormatting.GRAY));
+				}
+				return 1;
+			}));
 			dispatcher.register(literal("jmedia").executes(ctx -> {
 				ctx.getSource().sendFeedback(Component.literal("Justaclient media").withStyle(ChatFormatting.BOLD));
 				for (String line : NowPlaying.describe()) {

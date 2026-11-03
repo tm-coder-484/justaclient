@@ -72,6 +72,7 @@ public final class Justaclient implements ClientModInitializer {
 		Features.init();
 		Profiles.load();
 		Features.get(dev.justaclient.feature.impl.ProfileBackupFeature.class).launched();
+		dev.justaclient.debug.SelfTest.maybeRunAtStartup();
 		HudRenderer.init();
 		HotbarFeature.init();
 		BlockHighlightFeature.init();
