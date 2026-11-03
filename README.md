@@ -57,6 +57,31 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 
 ## What is in this build
 
+### M11: chat, world and social (v0.11.0)
+
+Every new feature has its own switch, in both the 1.21.11 and 26.3 jars. Messages and Auto GG are off by default;
+Messages only connects to a relay you deploy yourself (see `cloudflare/README.md`).
+
+- **Chat** category. **Chat timestamps** (three styles, own colour), **Chat highlights** (your name and keywords in a
+  colour, with an optional sound and popup; mentions are collected), **Chat history** (`/chatlog`): this session's chat
+  by tab (All, Mentions, Private, your own keyword tabs), with search (`from:Name`, `has:link`, `is:mention`,
+  `is:private`, `is:system`) and click to copy (plain, with time, or quoted). **Chat scroll memory** keeps your place
+  when chat closes. **Saved messages**: Ctrl+S in chat saves what you typed, Alt+1 to 9 puts one back.
+- **Command shortcuts**: `/cmd 1` to `/cmd 8` run your Macros slots by number (`/cmd` lists them).
+- **Auto GG**: your own messages and triggers, at most one per game, with a cooldown and a list of servers it may run
+  on; never in singleplayer and never in reply to player chat.
+- **Biome effects** (`/biomes`): every biome can have its own particles (fireflies, drifting motes, linked dots or none),
+  daylight colour, fog colour and a quiet ambience, each with its own switch. Walking between biomes blends them. A few
+  biomes (swamp, cherry grove, pale garden, desert, snow, nether forests) come with a look. It never thins fog.
+- **Custom cape**: a PNG or GIF (animated GIFs play) in `config/justaclient/capes`, or a cape in your theme colours,
+  on your player and optionally your elytra. Only you see it. Cape textures (64 x 32, OptiFine 46 x 22) are used as they
+  are; any other picture is fitted onto the cape.
+- **Messages** (`/jmessages`, `/jdm <friend> <text>`): friends' online status and profiles, and direct messages between
+  Justaclient players who have each other as friends, through your own Cloudflare Worker. Sign-in is checked with
+  Mojang; the relay keeps a message only until it is delivered; history stays on your computer.
+- **Social** and **Tools** categories tidy the menu: Friends, Discord status, Tiers, Name protect and Messages under
+  Social; the copy, crash, console, feedback, Labs, backup, session and archive tools under Tools.
+
 ### M10: containers and survival (v0.10.0)
 
 Every new feature has its own switch, in both the 1.21.11 and 26.3 jars. The anvil and crafting helpers are off by

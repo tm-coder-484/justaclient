@@ -1,7 +1,10 @@
-// Justaclient Worker: receives in-client feedback and stores it in D1.
+// Justaclient Worker: in-client feedback (stored in D1) and the messaging relay (a Durable Object, see relay.js).
+// GET  /relay      WebSocket: friends, presence, profiles and direct messages
 // POST /feedback   { kind, message, player?, clientVersion, minecraftVersion, os, mods?, settings?, latestLog?, crashReport? }
 // GET  /feedback?token=ADMIN_TOKEN&limit=50   lists recent reports (only when the ADMIN_TOKEN secret is set)
 // GET  /health
+export { Relay } from "./relay.js";
+
 const KINDS = new Set(["bug", "idea", "other"]);
 const PER_HOUR = 10;
 
@@ -25,7 +28,13 @@ async function sha256(text) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname === "/health") return json({ ok: true });
+    if (url.pathname === "/health") return json({ ok: true, relay: true });
+
+    if (url.pathname === "/relay") {
+      if (request.headers.get("Upgrade") !== "websocket") return json({ error: "Connect with a WebSocket." }, 426);
+      const hub = env.RELAY.get(env.RELAY.idFromName("hub"));
+      return hub.fetch(request);
+    }
 
     if (url.pathname === "/feedback" && request.method === "POST") {
       let body;

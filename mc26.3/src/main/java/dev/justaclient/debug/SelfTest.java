@@ -126,6 +126,7 @@ public final class SelfTest {
 			chatText();
 			biomeLooks();
 			capeLayout();
+			relayProtocol();
 		} catch (RuntimeException | IOException e) {
 			fail("unexpected exception", e.toString());
 		} finally {
@@ -923,6 +924,48 @@ public final class SelfTest {
 			Integer.toHexString(t.at(22 * s - 1, 1 * s)));
 		check("cape: the elytra wing is painted too", t.at(24 * s, 2 * s) == 0xFFFF0000, Integer.toHexString(t.at(24 * s, 2 * s)));
 		check("cape: the edge carries the picture's border", t.at(0, 1 * s) == 0xFFFF0000 && t.at(11 * s, 1 * s) == 0xFF0000FF, "edge differs");
+	}
+
+	private static void relayProtocol() throws IOException {
+		check("relay: https Worker address becomes wss://.../relay",
+			"wss://justaclient.me.workers.dev/relay".equals(dev.justaclient.common.relay.RelayProtocol.socketUrl("https://justaclient.me.workers.dev/")),
+			String.valueOf(dev.justaclient.common.relay.RelayProtocol.socketUrl("https://justaclient.me.workers.dev/")));
+		check("relay: http and bare addresses", "ws://localhost:8787/relay".equals(dev.justaclient.common.relay.RelayProtocol.socketUrl("http://localhost:8787"))
+			&& "wss://x.dev/relay".equals(dev.justaclient.common.relay.RelayProtocol.socketUrl("x.dev"))
+			&& dev.justaclient.common.relay.RelayProtocol.socketUrl("  ") == null, "wrong address");
+		var dm = dev.justaclient.common.relay.RelayProtocol.parse(dev.justaclient.common.relay.RelayProtocol.dm("a1", "Bob", "x".repeat(700)));
+		check("relay: a message is cut to 500 characters before sending", dm != null && dev.justaclient.common.relay.RelayProtocol.str(dm, "text").length() == 500,
+			String.valueOf(dm));
+		var p = dev.justaclient.common.relay.RelayProtocol.presence(dev.justaclient.common.relay.RelayProtocol.parse(
+			"{\"t\":\"presence\",\"name\":\"Bob\",\"online\":true,\"status\":\"Mining\",\"lastSeen\":5}"));
+		check("relay: presence is read", p.online() && !p.pending() && p.status().equals("Mining") && p.lastSeen() == 5, p.toString());
+		check("relay: junk frames are ignored", dev.justaclient.common.relay.RelayProtocol.parse("not json") == null
+			&& dev.justaclient.common.relay.RelayProtocol.parse("[1,2]") == null, "parsed junk");
+		var c = new dev.justaclient.common.relay.Conversations();
+		c.add("Bob", new dev.justaclient.common.relay.Conversations.Message("1", false, "hi", 1, ""));
+		c.add("bob", new dev.justaclient.common.relay.Conversations.Message("1", false, "hi", 1, ""));
+		c.add("Bob", new dev.justaclient.common.relay.Conversations.Message("2", true, "yo", 2, "sending"));
+		check("messages: one conversation per friend, duplicates dropped", c.with("BOB").size() == 2 && c.unread("bob") == 1, c.with("bob").size() + "");
+		check("messages: an ack updates your message", c.setState("2", "delivered") && "delivered".equals(c.with("Bob").get(1).state), "not updated");
+		Path tmp = Files.createTempFile("jac-messages", ".json");
+		try {
+			c.save(tmp);
+			var back = new dev.justaclient.common.relay.Conversations();
+			back.load(tmp);
+			check("messages: history survives saving", back.with("bob").size() == 2 && back.unread("bob") == 1 && "yo".equals(back.with("bob").get(1).text),
+				back.with("bob").size() + "");
+			Files.writeString(tmp, "{broken");
+			back.load(tmp);
+			check("messages: a broken history file loads as empty", back.with("bob").isEmpty(), "kept data");
+		} finally {
+			Files.deleteIfExists(tmp);
+		}
+		for (int i = 0; i < dev.justaclient.common.relay.Conversations.MAX + 20; i++) {
+			c.add("Cara", new dev.justaclient.common.relay.Conversations.Message("m" + i, true, "n", i, "delivered"));
+		}
+		check("messages: a conversation keeps its newest " + dev.justaclient.common.relay.Conversations.MAX,
+			c.with("cara").size() == dev.justaclient.common.relay.Conversations.MAX && "m20".equals(c.with("cara").getFirst().id), c.with("cara").size() + "");
+		check("messages: off by default", !dev.justaclient.feature.impl.MessagingFeature.get().enabledByDefault(), "on by default");
 	}
 
 	private static void check(String name, boolean ok, String detail) {

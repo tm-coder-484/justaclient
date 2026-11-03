@@ -154,6 +154,23 @@ public final class JacCommands {
 					return 1;
 				}));
 			}
+			for (String name : new String[] {"jmessages", "jdm"}) {
+				dispatcher.register(literal(name).executes(ctx -> {
+					dev.justaclient.feature.impl.MessagingFeature.openScreen(null);
+					return 1;
+				}).then(argument("friend", StringArgumentType.word()).suggests(FRIENDS).executes(ctx -> {
+					dev.justaclient.feature.impl.MessagingFeature.openScreen(StringArgumentType.getString(ctx, "friend"));
+					return 1;
+				}).then(argument("text", StringArgumentType.greedyString()).executes(ctx -> {
+					var m = dev.justaclient.feature.impl.MessagingFeature.get();
+					String to = StringArgumentType.getString(ctx, "friend");
+					if (!m.isEnabled()) {
+						return reply(ctx, false, "", "Turn on Social > Messages first");
+					}
+					boolean sent = m.send(to, StringArgumentType.getString(ctx, "text"));
+					return reply(ctx, sent, "To " + to + ": " + StringArgumentType.getString(ctx, "text"), "Not connected to the relay: " + m.connectionLine());
+				}))));
+			}
 			for (String name : new String[] {"biomes", "jbiomes"}) {
 				dispatcher.register(literal(name).executes(ctx -> open(new dev.justaclient.ui.BiomeEffectsScreen(null))));
 			}

@@ -177,6 +177,7 @@ public final class Features {
 		register(new HatsFeature());
 		register(new SkinFeature());
 		register(new dev.justaclient.feature.impl.CapeFeature());
+		register(new dev.justaclient.feature.impl.MessagingFeature());
 		register(new ZoomFeature());
 		register(new CameraFeature());
 		register(new CopyCoordinatesFeature());

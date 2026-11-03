@@ -1,5 +1,5 @@
 #!/bin/sh
-# Deploys the Justaclient Worker (feedback) to your Cloudflare account. Needs Node.js 20+.
+# Deploys the Justaclient Worker (feedback and the messaging relay) to your Cloudflare account. Needs Node.js 20+.
 set -e
 cd "$(dirname "$0")"
 npx --yes wrangler@3 login

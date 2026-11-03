@@ -1,5 +1,5 @@
 @echo off
-rem Deploys the Justaclient Worker (feedback) to your Cloudflare account. Needs Node.js 20+ (https://nodejs.org).
+rem Deploys the Justaclient Worker (feedback and the messaging relay) to your Cloudflare account. Needs Node.js 20+ (https://nodejs.org).
 cd /d "%~dp0"
 where npx >nul 2>nul || (echo Node.js is not installed. Get it from https://nodejs.org and run this again. & pause & exit /b 1)
 echo Signing in to Cloudflare (a browser window opens the first time)...
