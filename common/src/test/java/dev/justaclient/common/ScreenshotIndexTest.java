@@ -97,6 +97,15 @@ class ScreenshotIndexTest {
 	void aBrokenFileStartsEmptyAndIsKeptAside() throws IOException {
 		Path file = Files.writeString(dir.resolve("screenshots.json"), "{\"shots\": 5}");
 		assertTrue(ScreenshotIndex.load(file).shots.isEmpty());
-		assertTrue(Files.exists(dir.resolve("screenshots.json.broken")));
+		assertTrue(Files.exists(broken("screenshots.json")));
+	}
+
+	/** The one file set aside as {@code <name>.<time>.broken}. */
+	private Path broken(String name) throws IOException {
+		try (java.util.stream.Stream<Path> files = Files.list(dir)) {
+			List<Path> found = files.filter(f -> f.getFileName().toString().startsWith(name + ".") && f.toString().endsWith(".broken")).toList();
+			assertEquals(1, found.size(), found.toString());
+			return found.getFirst();
+		}
 	}
 }

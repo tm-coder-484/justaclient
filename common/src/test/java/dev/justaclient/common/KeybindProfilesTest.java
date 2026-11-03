@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -87,7 +88,16 @@ class KeybindProfilesTest {
 	void aBrokenFileStartsEmptyAndIsKeptAside() throws IOException {
 		Path file = Files.writeString(dir.resolve("keybinds.json"), "{\"profiles\": [");
 		assertTrue(KeybindProfiles.load(file).profiles.isEmpty());
-		assertTrue(Files.exists(dir.resolve("keybinds.json.broken")));
+		assertTrue(Files.exists(broken("keybinds.json")));
 		assertFalse(Files.exists(file));
+	}
+
+	/** The one file set aside as {@code <name>.<time>.broken}. */
+	private Path broken(String name) throws IOException {
+		try (java.util.stream.Stream<Path> files = Files.list(dir)) {
+			List<Path> found = files.filter(f -> f.getFileName().toString().startsWith(name + ".") && f.toString().endsWith(".broken")).toList();
+			assertEquals(1, found.size(), found.toString());
+			return found.getFirst();
+		}
 	}
 }

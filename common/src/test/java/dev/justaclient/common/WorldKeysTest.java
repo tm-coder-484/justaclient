@@ -69,4 +69,17 @@ class WorldKeysTest {
 	void theSameKeyAlwaysGivesTheSameFolder() {
 		assertEquals(WorldKeys.folder("mp:Play.Example.com"), WorldKeys.folder("mp:Play.Example.com"));
 	}
+
+	@Test
+	void namesInOtherScriptsGetTheirOwnFolders() {
+		String a = WorldKeys.folder("sp:世界");
+		String b = WorldKeys.folder("sp:家园");
+		String c = WorldKeys.folder("sp:Мир");
+		assertNotEquals(a, b);
+		assertNotEquals(a, c);
+		assertSafe(a);
+		assertSafe(c);
+		// Plain names keep the folder they always had.
+		assertEquals("sp_world", WorldKeys.folder("sp:World"));
+	}
 }

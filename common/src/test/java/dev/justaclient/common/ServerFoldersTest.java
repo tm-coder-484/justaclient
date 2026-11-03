@@ -110,7 +110,16 @@ class ServerFoldersTest {
 	void aBrokenFileStartsEmptyAndIsKeptAside() throws IOException {
 		Path file = Files.writeString(dir.resolve("servers.json"), "{ broken");
 		assertTrue(ServerFolders.load(file).folders.isEmpty());
-		assertEquals("{ broken", Files.readString(dir.resolve("servers.json.broken")));
+		assertEquals("{ broken", Files.readString(broken("servers.json")));
 		assertFalse(Files.exists(file));
+	}
+
+	/** The one file set aside as {@code <name>.<time>.broken}. */
+	private Path broken(String name) throws IOException {
+		try (java.util.stream.Stream<Path> files = Files.list(dir)) {
+			List<Path> found = files.filter(f -> f.getFileName().toString().startsWith(name + ".") && f.toString().endsWith(".broken")).toList();
+			assertEquals(1, found.size(), found.toString());
+			return found.getFirst();
+		}
 	}
 }
