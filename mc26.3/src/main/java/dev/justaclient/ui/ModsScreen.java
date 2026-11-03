@@ -509,6 +509,16 @@ public final class ModsScreen extends JacScreen {
 			JacText.draw(g, note, px + pw - PAD - bw - 8 - JacText.width(note, Theme.SMALL, JacText.Weight.REGULAR), fy + 4.5f,
 				Colors.fade(WARN, a), Theme.SMALL, JacText.Weight.REGULAR);
 		}
+		List<String> conflicts = DeferredRenames.conflicts();
+		if (!conflicts.isEmpty()) {
+			// A pending rename would overwrite another file; say so instead of dropping it.
+			String text = "Both " + conflicts.getFirst() + " exist. Remove one in the Mods folder"
+				+ (conflicts.size() > 1 ? " (+" + (conflicts.size() - 1) + " more)" : "");
+			float right = restartButton != null && buttons.contains(restartButton) ? px + pw / 2f : px + pw - PAD;
+			JacText.icon(g, Icons.TRIANGLE_ALERT, px + PAD + 108, fy + 4.5f, 7f, Colors.fade(WARN, a));
+			JacText.draw(g, fit(text, Theme.SMALL, JacText.Weight.REGULAR, right - (px + PAD + 120)), px + PAD + 120, fy + 5, Colors.fade(WARN, a),
+				Theme.SMALL, JacText.Weight.REGULAR);
+		}
 		for (Button b : buttons) {
 			b.render(g, mx, my, a);
 		}

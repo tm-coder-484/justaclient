@@ -36,7 +36,7 @@ public final class RenameHelper {
 		});
 		List<String[]> remaining = new ArrayList<>();
 		for (String[] entry : readPending(pendingFile)) {
-			if (!apply(Path.of(entry[0]), Path.of(entry[1]), log)) {
+			if (!apply(Path.of(entry[0]), Path.of(entry[1]), log).finished) {
 				remaining.add(entry);
 			}
 		}
@@ -75,22 +75,64 @@ public final class RenameHelper {
 		Files.write(file, lines, StandardCharsets.UTF_8);
 	}
 
-	private static boolean apply(Path from, Path to, PrintStream log) throws InterruptedException {
-		for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
-			if (!Files.exists(from) || Files.exists(to)) {
-				log.println(LocalDateTime.now() + " Skipped " + from + " -> " + to.getFileName());
-				return true;
-			}
-			try {
-				Files.move(from, to);
-				log.println(LocalDateTime.now() + " Renamed " + from + " -> " + to.getFileName());
-				return true;
-			} catch (IOException e) {
-				Thread.sleep(RETRY_MILLIS);
-			}
+	/** What one try at a pending rename found. */
+	public enum Outcome {
+		/** Renamed now. */
+		DONE(true),
+		/** Already renamed: the source is gone and the target is there. */
+		ALREADY_DONE(true),
+		/** Neither file exists any more, so there is nothing left to do. */
+		GONE(true),
+		/** Both files exist. Renaming would overwrite one, so the entry stays pending until the player removes one. */
+		CONFLICT(false),
+		/** The move failed, most likely because the game still holds the jar. */
+		LOCKED(false);
+
+		/** Whether the entry can leave the pending list. */
+		public final boolean finished;
+
+		Outcome(boolean finished) {
+			this.finished = finished;
 		}
-		log.println(LocalDateTime.now() + " Couldn't rename " + from + " -> " + to.getFileName() + "; will retry next time");
-		return false;
+	}
+
+	/** Tries a pending rename once, never overwriting an existing target. */
+	public static Outcome tryOnce(Path from, Path to) {
+		boolean source = Files.exists(from);
+		boolean target = Files.exists(to);
+		if (!source) {
+			return target ? Outcome.ALREADY_DONE : Outcome.GONE;
+		}
+		if (target) {
+			return Outcome.CONFLICT;
+		}
+		try {
+			Files.move(from, to);
+			return Outcome.DONE;
+		} catch (IOException e) {
+			return Files.exists(to) && !Files.exists(from) ? Outcome.DONE : Outcome.LOCKED;
+		}
+	}
+
+	/** Applies one entry, retrying while the jar is locked. Returns the final outcome. */
+	static Outcome apply(Path from, Path to, PrintStream log) throws InterruptedException {
+		Outcome outcome = Outcome.LOCKED;
+		for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
+			outcome = tryOnce(from, to);
+			if (outcome != Outcome.LOCKED) {
+				break;
+			}
+			Thread.sleep(RETRY_MILLIS);
+		}
+		String what = switch (outcome) {
+			case DONE -> "Renamed";
+			case ALREADY_DONE -> "Already renamed";
+			case GONE -> "Dropped (neither file exists)";
+			case CONFLICT -> "Kept pending, both files exist:";
+			case LOCKED -> "Couldn't rename, will retry next time:";
+		};
+		log.println(LocalDateTime.now() + " " + what + " " + from + " -> " + to.getFileName());
+		return outcome;
 	}
 
 	public static List<String[]> readPending(Path file) throws IOException {

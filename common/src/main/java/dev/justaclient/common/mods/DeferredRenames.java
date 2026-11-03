@@ -23,6 +23,8 @@ import org.slf4j.LoggerFactory;
 public final class DeferredRenames {
 	private static final Logger LOG = LoggerFactory.getLogger("justaclient");
 	private static final Map<String, Path> PENDING = new LinkedHashMap<>();
+	/** Pending renames whose source and target both exist, by source path; shown in the Mods panel. */
+	private static final Map<String, Path> CONFLICTS = new LinkedHashMap<>();
 	private static boolean helperStarted;
 	private static boolean relaunchRequested;
 
@@ -48,13 +50,18 @@ public final class DeferredRenames {
 			for (String[] entry : RenameHelper.readPending(pendingFile())) {
 				Path from = ModFiles.normalize(Path.of(entry[0]));
 				Path to = ModFiles.normalize(Path.of(entry[1]));
-				if (Files.exists(from) && !Files.exists(to)) {
-					try {
-						Files.move(from, to);
-						LOG.info("Applied pending rename {} -> {}", from, to.getFileName());
-					} catch (IOException e) {
-						PENDING.put(from.toString(), to);
+				RenameHelper.Outcome outcome = RenameHelper.tryOnce(from, to);
+				switch (outcome) {
+					case DONE -> LOG.info("Applied pending rename {} -> {}", from, to.getFileName());
+					case CONFLICT -> {
+						LOG.warn("Pending rename {} -> {} kept: both files exist", from, to.getFileName());
+						CONFLICTS.put(from.toString(), to);
 					}
+					default -> {
+					}
+				}
+				if (!outcome.finished) {
+					PENDING.put(from.toString(), to);
 				}
 			}
 			save();
@@ -65,6 +72,13 @@ public final class DeferredRenames {
 
 	public static synchronized boolean isPending(Path from) {
 		return PENDING.containsKey(ModFiles.normalize(from).toString());
+	}
+
+	/** Pending renames that can't happen because both files exist, as "source -> target" file names. */
+	public static synchronized List<String> conflicts() {
+		List<String> out = new ArrayList<>();
+		CONFLICTS.forEach((from, to) -> out.add(Path.of(from).getFileName() + " and " + to.getFileName()));
+		return out;
 	}
 
 	public static synchronized boolean anyPending() {
@@ -78,6 +92,7 @@ public final class DeferredRenames {
 
 	static synchronized void remove(Path from) {
 		PENDING.remove(ModFiles.normalize(from).toString());
+		CONFLICTS.remove(ModFiles.normalize(from).toString());
 		save();
 	}
 

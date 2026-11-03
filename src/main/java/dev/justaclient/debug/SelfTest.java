@@ -69,6 +69,19 @@ public final class SelfTest {
 		String profile = Profiles.active();
 		Profiles.save();
 		int before = Profiles.fingerprint();
+		// A file at the name older self-tests used must come through untouched, like every other file already there.
+		Path legacy = Profiles.EXPORTS.resolve("selftest-bad.json");
+		boolean ownSentinel = false;
+		try {
+			if (!Files.exists(legacy)) {
+				Files.createDirectories(legacy.getParent());
+				Files.writeString(legacy, "user file " + NS);
+				ownSentinel = true;
+			}
+		} catch (IOException e) {
+			fail("could not write the sentinel export", e.toString());
+		}
+		java.util.Map<Path, String> userFiles = userFiles();
 		try {
 			lifecycle();
 			filenameCollision(profile);
@@ -78,6 +91,7 @@ public final class SelfTest {
 			retryTarget();
 			uniqueIds();
 			modSwitching();
+			renameConflicts();
 			listsAndKeys();
 		} catch (RuntimeException | IOException e) {
 			fail("unexpected exception", e.toString());
@@ -88,6 +102,22 @@ public final class SelfTest {
 			AutoReconnectFeature.restoreTarget(target);
 		}
 		check("setup unchanged after all checks", Profiles.fingerprint() == before, "fingerprint differs");
+		java.util.Map<Path, String> after = userFiles();
+		List<String> changed = new ArrayList<>();
+		String activeFile = Profiles.active() + ".json";
+		userFiles.forEach((path, hash) -> {
+			if (!after.containsKey(path) || !path.getFileName().toString().equals(activeFile) && !after.get(path).equals(hash)) {
+				changed.add(path.getFileName().toString());
+			}
+		});
+		check("files that were already there are kept unchanged", changed.isEmpty(), "changed or gone: " + changed);
+		if (ownSentinel) {
+			try {
+				Files.deleteIfExists(legacy);
+			} catch (IOException e) {
+				// Left behind; harmless.
+			}
+		}
 		lines.add(failed == 0 ? "ALL PASSED" : failed + " FAILED");
 		try {
 			Files.createDirectories(REPORT.getParent());
@@ -151,7 +181,7 @@ public final class SelfTest {
 			check("import rejects " + text + " without changes", name == null && Profiles.fingerprint() == print && Profiles.active().equals(profile),
 				"imported as " + name);
 		}
-		Path file = Profiles.EXPORTS.resolve("selftest-bad.json");
+		Path file = Profiles.EXPORTS.resolve(NS + "-bad.json");
 		Files.createDirectories(file.getParent());
 		Files.writeString(file, bad[1]);
 		try {
@@ -345,6 +375,70 @@ public final class SelfTest {
 				"net.fabricmc.loader.impl.launch.knot.KnotClient", "--username", "x")), String.valueOf(modrinth));
 			check("no restart command for an unknown launcher", dev.justaclient.common.mods.Relauncher.buildDirectCommand("java", "some.Other", List.of(),
 				"cp", List.of()).isEmpty(), "built one");
+		} finally {
+			try (Stream<Path> files = Files.list(dir)) {
+				for (Path p : files.toList()) {
+					Files.deleteIfExists(p);
+				}
+			}
+			Files.deleteIfExists(dir);
+		}
+	}
+
+	/** Every file under the profiles, exports and backups folders, with a hash of its contents. */
+	private static java.util.Map<Path, String> userFiles() {
+		java.util.Map<Path, String> out = new java.util.HashMap<>();
+		for (Path dir : List.of(Profiles.DIR, Profiles.EXPORTS, Profiles.BACKUPS)) {
+			if (!Files.isDirectory(dir)) {
+				continue;
+			}
+			try (Stream<Path> files = Files.walk(dir)) {
+				for (Path p : files.filter(Files::isRegularFile).toList()) {
+					out.put(p, java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(p))));
+				}
+			} catch (IOException | java.security.NoSuchAlgorithmException | RuntimeException e) {
+				fail("could not list " + dir, e.toString());
+			}
+		}
+		return out;
+	}
+
+	/** Deferred renames never overwrite: a source and target that both exist stay pending, in a scratch folder. */
+	private static void renameConflicts() throws IOException {
+		Path dir = Files.createTempDirectory("jac-selftest-renames");
+		try {
+			Path both = dir.resolve("both.jar");
+			Path bothOff = dir.resolve("both.jar.disabled");
+			Files.writeString(both, "enabled copy");
+			Files.writeString(bothOff, "different disabled copy");
+			Path plain = dir.resolve("plain.jar");
+			Files.writeString(plain, "plain");
+			Path done = dir.resolve("done.jar.disabled");
+			Files.writeString(done, "already renamed");
+			Path pending = dir.resolve("pending-renames.txt");
+			dev.justaclient.common.mods.RenameHelper.writePending(pending, List.of(
+				new String[] {both.toString(), bothOff.toString()},
+				new String[] {plain.toString(), dir.resolve("plain.jar.disabled").toString()},
+				new String[] {dir.resolve("done.jar").toString(), done.toString()},
+				new String[] {dir.resolve("gone.jar").toString(), dir.resolve("gone.jar.disabled").toString()}));
+			check("rename onto an existing file is a conflict", dev.justaclient.common.mods.RenameHelper.tryOnce(both, bothOff)
+				== dev.justaclient.common.mods.RenameHelper.Outcome.CONFLICT, "not a conflict");
+			// Run the real helper; a pid that does not exist means it does not wait.
+			java.io.PrintStream out = System.out;
+			try {
+				System.setOut(new java.io.PrintStream(java.io.OutputStream.nullOutputStream()));
+				dev.justaclient.common.mods.RenameHelper.main(new String[] {String.valueOf(Long.MAX_VALUE), pending.toString()});
+			} catch (Exception e) {
+				fail("rename helper threw", e.toString());
+			} finally {
+				System.setOut(out);
+			}
+			List<String[]> left = dev.justaclient.common.mods.RenameHelper.readPending(pending);
+			check("helper keeps a conflicting rename pending", left.size() == 1 && left.getFirst()[0].equals(both.toString()),
+				left.size() + " left");
+			check("helper leaves both conflicting files as they were", Files.readString(both).equals("enabled copy")
+				&& Files.readString(bothOff).equals("different disabled copy"), "a file changed");
+			check("helper still does the renames it can", Files.exists(dir.resolve("plain.jar.disabled")) && !Files.exists(plain), "plain not renamed");
 		} finally {
 			try (Stream<Path> files = Files.list(dir)) {
 				for (Path p : files.toList()) {
