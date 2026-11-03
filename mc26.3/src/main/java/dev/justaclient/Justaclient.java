@@ -95,6 +95,7 @@ public final class Justaclient implements ClientModInitializer {
 		dev.justaclient.feature.impl.FoodInfoFeature.init();
 		dev.justaclient.feature.impl.PotionGuideFeature.init();
 		dev.justaclient.feature.impl.StorageMemoryFeature.init();
+		dev.justaclient.feature.impl.DeathRecapFeature.init();
 		JacCommands.init();
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
 			SessionHistory.onJoin(client);

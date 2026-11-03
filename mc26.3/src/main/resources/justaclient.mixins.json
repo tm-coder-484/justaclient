@@ -15,6 +15,7 @@
 		"ClientClockInstanceMixin",
 		"ClientPacketListenerMixin",
 		"ConnectScreenMixin",
+		"DeathScreenAccessor",
 		"DisconnectedScreenAccessor",
 		"EndCrystalRendererMixin",
 		"EntityHitboxDebugRendererMixin",

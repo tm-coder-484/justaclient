@@ -86,7 +86,8 @@ public final class Locate {
 		long now = System.currentTimeMillis();
 		HIGHLIGHTS.removeIf(h -> h.until < now);
 		Target t = tracked();
-		if (player == null || t == null) {
+		// No arriving while dead: the GPS can be set to where you died from the death screen.
+		if (player == null || t == null || player.isDeadOrDying()) {
 			return;
 		}
 		double dx = t.centreX() - player.getX();

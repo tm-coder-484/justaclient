@@ -36,6 +36,11 @@ public final class InvCompat {
 	private InvCompat() {
 	}
 
+	/** True if a screen mouse event's button number is the left button (it counts from 1 on this version). */
+	public static boolean isLeft(int button) {
+		return button == 1;
+	}
+
 	/** Runs {@code painter} after the screen has drawn everything, every frame it is open. */
 	public static void afterDraw(Screen screen, Painter painter) {
 		ScreenEvents.afterExtract(screen).register(painter::paint);

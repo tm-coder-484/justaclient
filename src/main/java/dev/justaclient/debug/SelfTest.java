@@ -113,6 +113,7 @@ public final class SelfTest {
 			streamWorldNames();
 			storageIndex();
 			waypointData();
+			deathRecap();
 		} catch (RuntimeException | IOException e) {
 			fail("unexpected exception", e.toString());
 		} finally {
@@ -619,6 +620,16 @@ public final class SelfTest {
 				}
 			}
 		}
+	}
+
+	/** Death recap wording. */
+	private static void deathRecap() {
+		check("death recap: damage names", dev.justaclient.feature.impl.DeathRecapFeature.damageName("minecraft:mob_attack").equals("Mob attack")
+			&& dev.justaclient.feature.impl.DeathRecapFeature.damageName("").equals("Damage"), dev.justaclient.feature.impl.DeathRecapFeature.damageName(
+			"minecraft:mob_attack"));
+		check("death recap: time alive", dev.justaclient.feature.impl.DeathRecapFeature.duration(45_000).equals("45 s")
+			&& dev.justaclient.feature.impl.DeathRecapFeature.duration(754_000).equals("12:34")
+			&& dev.justaclient.feature.impl.DeathRecapFeature.duration(3_723_000).equals("1:02:03"), dev.justaclient.feature.impl.DeathRecapFeature.duration(754_000));
 	}
 
 	/** Waypoints saved before the upgrade load as visited; structure names read well. */

@@ -203,6 +203,7 @@ public final class Features {
 		register(new dev.justaclient.feature.impl.FoodInfoFeature());
 		register(new dev.justaclient.feature.impl.PotionGuideFeature());
 		register(new dev.justaclient.feature.impl.StorageMemoryFeature());
+		register(new dev.justaclient.feature.impl.DeathRecapFeature());
 		register(new TitleScreenFeature());
 		register(new LoadingScreenFeature());
 		register(new WeatherToastFeature());

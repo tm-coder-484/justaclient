@@ -34,6 +34,8 @@ abstract class ClientPacketListenerMixin {
 	@Inject(method = "handleDamageEvent", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;handleDamageEvent(Lnet/minecraft/world/damagesource/DamageSource;)V"))
 	private void justaclient$onDamage(ClientboundDamageEventPacket packet, CallbackInfo ci, @Local Entity entity) {
 		CombatTracker.onDamage(entity, packet.sourceCauseId(), packet.sourceDirectId());
+		dev.justaclient.feature.impl.DeathRecapFeature.onHurt(entity, packet.sourceType().unwrapKey().map(k -> k.identifier().toString()).orElse(""),
+			packet.sourceCauseId(), packet.sourceDirectId());
 	}
 
 	/** Entity event 35 is a totem of undying popping; this runs where vanilla starts its totem particles. */
