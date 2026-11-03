@@ -4,6 +4,9 @@
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"AbstractClientPlayerMixin",
+		"AbstractContainerScreenAccessor",
+		"AbstractFurnaceMenuAccessor",
+		"FoodDataAccessor",
 		"AbstractScrollAreaMixin",
 		"AbstractWidgetMixin",
 		"BiomeMixin",

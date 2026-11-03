@@ -6,6 +6,7 @@ import dev.justaclient.feature.impl.OverlaysFeature;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -24,5 +25,10 @@ abstract class GuiMixin {
 		target = "Lnet/minecraft/client/player/LocalPlayer;getEffectBlendFactor(Lnet/minecraft/core/Holder;F)F"))
 	private float justaclient$nauseaOverlay(float nausea) {
 		return Features.get(OverlaysFeature.class).hidesNausea() ? 0f : nausea;
+	}
+
+	@Inject(method = "renderFood", at = @At("TAIL"))
+	private void justaclient$foodInfo(GuiGraphics g, Player player, int y, int right, CallbackInfo ci) {
+		Features.get(dev.justaclient.feature.impl.FoodInfoFeature.class).drawHungerBar(g, player, y, right);
 	}
 }

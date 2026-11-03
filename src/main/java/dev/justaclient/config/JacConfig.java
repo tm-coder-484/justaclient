@@ -24,6 +24,8 @@ public final class JacConfig {
 	public String profile = "Default";
 	/** Recent searches in the menu, newest first. */
 	public java.util.List<String> searchHistory = new java.util.ArrayList<>();
+	/** The HUD editor's top bar was folded away (H or its button brings it back). */
+	public boolean hudEditorBarHidden;
 
 	public static JacConfig get() {
 		return instance;

@@ -93,6 +93,8 @@ public final class SelfTest {
 			modSwitching();
 			renameConflicts();
 			listsAndKeys();
+			settingTypes();
+			brewRoutes();
 		} catch (RuntimeException | IOException e) {
 			fail("unexpected exception", e.toString());
 		} finally {
@@ -514,6 +516,108 @@ public final class SelfTest {
 		AutoReconnectFeature.connecting(new ServerData("B", "b.selftest.invalid", ServerData.Type.OTHER));
 		check("retry goes to the server being joined", "b.selftest.invalid".equals(AutoReconnectFeature.retryTarget()),
 			"target " + AutoReconnectFeature.retryTarget());
+	}
+
+	private static void settingTypes() throws IOException {
+		dev.justaclient.feature.setting.ListSetting list = new dev.justaclient.feature.setting.ListSetting("t", "T", List.of(), 3, 5, "");
+		list.load(new com.google.gson.JsonPrimitive("Steve, alex,, STEVE ,toolongname,c,d"));
+		check("list setting reads an old comma string, trimmed and de-duplicated", list.get().equals(List.of("Steve", "alex", "toolo")),
+			list.get().toString());
+		check("list setting stops at its size limit", !list.add("x") && list.get().size() == 3, list.get().toString());
+		check("list setting removes ignoring case", list.remove("ALEX") && list.get().equals(List.of("Steve", "toolo")), list.get().toString());
+		com.google.gson.JsonElement saved = list.save();
+		list.set(List.of());
+		list.load(saved);
+		check("list setting round trips as an array", saved.isJsonArray() && list.get().equals(List.of("Steve", "toolo")), saved.toString());
+		list.load(new com.google.gson.JsonObject());
+		check("list setting ignores a malformed value", list.get().equals(List.of("Steve", "toolo")), list.get().toString());
+
+		Path dir = Files.createTempDirectory(NS + "-files");
+		try {
+			Files.writeString(dir.resolve("b.png"), "x");
+			Files.writeString(dir.resolve("A.jpg"), "x");
+			Files.writeString(dir.resolve("notes.txt"), "x");
+			Files.createDirectories(dir.resolve("folder.png"));
+			dev.justaclient.feature.setting.FileSetting file = new dev.justaclient.feature.setting.FileSetting("f", "F", () -> dir,
+				List.of(".png", ".jpg"), "");
+			check("file setting lists only matching files, sorted", file.choices().equals(List.of("A.jpg", "b.png")), file.choices().toString());
+			check("blank file setting means the first file", dir.resolve("A.jpg").equals(file.resolve()), String.valueOf(file.resolve()));
+			file.set("b.png");
+			check("file setting resolves the chosen file", dir.resolve("b.png").equals(file.resolve()), String.valueOf(file.resolve()));
+			file.set("../b.png");
+			check("file setting refuses names that leave the folder", file.get().isEmpty(), file.get());
+			file.set("gone.png");
+			check("a chosen file that is gone resolves to nothing", file.resolve() == null, String.valueOf(file.resolve()));
+		} finally {
+			try (java.util.stream.Stream<Path> walk = Files.walk(dir)) {
+				for (Path p : walk.sorted(java.util.Comparator.reverseOrder()).toList()) {
+					Files.deleteIfExists(p);
+				}
+			}
+		}
+	}
+
+	private static void brewRoutes() {
+		String w = dev.justaclient.common.potions.BrewGraph.POTION;
+		String splash = dev.justaclient.common.potions.BrewGraph.SPLASH;
+		java.util.function.BiFunction<String, String, dev.justaclient.common.potions.BrewGraph.State> st =
+			dev.justaclient.common.potions.BrewGraph.State::new;
+		var water = dev.justaclient.common.potions.BrewGraph.WATER;
+		var awkward = st.apply(w, "minecraft:awkward");
+		var swift = st.apply(w, "minecraft:swiftness");
+		var longSwift = st.apply(w, "minecraft:long_swiftness");
+		var splashSwift = st.apply(splash, "minecraft:swiftness");
+		var graph = new dev.justaclient.common.potions.BrewGraph(List.of(
+			new dev.justaclient.common.potions.BrewGraph.Mix(swift, "minecraft:redstone", longSwift),
+			new dev.justaclient.common.potions.BrewGraph.Mix(water, "minecraft:nether_wart", awkward),
+			new dev.justaclient.common.potions.BrewGraph.Mix(awkward, "minecraft:sugar", swift),
+			new dev.justaclient.common.potions.BrewGraph.Mix(swift, "minecraft:gunpowder", splashSwift)));
+		var route = graph.route(longSwift).orElse(List.of());
+		check("brew route goes water, wart, sugar, redstone", route.stream().map(dev.justaclient.common.potions.BrewGraph.Step::reagent).toList()
+			.equals(List.of("minecraft:nether_wart", "minecraft:sugar", "minecraft:redstone")), route.toString());
+		check("next brew continues part way along", graph.next(awkward, longSwift).map(s -> s.reagent()).orElse("").equals("minecraft:sugar"),
+			graph.next(awkward, longSwift).toString());
+		check("no next brew from a bottle that can't get there", graph.next(splashSwift, longSwift).isEmpty(),
+			graph.next(splashSwift, longSwift).toString());
+		var splashWater = st.apply(splash, "minecraft:water");
+		var splashAwkward = st.apply(splash, "minecraft:awkward");
+		var both = new dev.justaclient.common.potions.BrewGraph(List.of(
+			new dev.justaclient.common.potions.BrewGraph.Mix(water, "minecraft:gunpowder", splashWater),
+			new dev.justaclient.common.potions.BrewGraph.Mix(splashWater, "minecraft:nether_wart", splashAwkward),
+			new dev.justaclient.common.potions.BrewGraph.Mix(splashAwkward, "minecraft:sugar", splashSwift),
+			new dev.justaclient.common.potions.BrewGraph.Mix(water, "minecraft:nether_wart", awkward),
+			new dev.justaclient.common.potions.BrewGraph.Mix(awkward, "minecraft:sugar", swift),
+			new dev.justaclient.common.potions.BrewGraph.Mix(swift, "minecraft:gunpowder", splashSwift)));
+		var splashRoute = both.route(splashSwift).orElse(List.of()).stream().map(dev.justaclient.common.potions.BrewGraph.Step::reagent).toList();
+		check("a splash route adds the gunpowder last", splashRoute.equals(List.of("minecraft:nether_wart", "minecraft:sugar", "minecraft:gunpowder")),
+			splashRoute.toString());
+		com.google.gson.JsonObject recipe = com.google.gson.JsonParser.parseString("{\"type\":\"minecraft:brewing\",\"input\":{\"item\":"
+			+ "\"minecraft:potion\",\"potion_contents\":{\"potions\":\"minecraft:water\"}},\"output\":{\"components\":{\"minecraft:potion_contents\":"
+			+ "{\"potion\":\"minecraft:awkward\"}},\"id\":\"minecraft:potion\"},\"reagent\":{\"item\":\"minecraft:nether_wart\"}}").getAsJsonObject();
+		check("brewing recipe file is read", dev.justaclient.common.potions.BrewGraph.parseRecipe(recipe)
+			.equals(java.util.Optional.of(new dev.justaclient.common.potions.BrewGraph.Mix(water, "minecraft:nether_wart", awkward))), recipe.toString());
+		recipe.getAsJsonObject("reagent").addProperty("item", "#minecraft:wart_tag");
+		check("a tag ingredient is skipped, not misread", dev.justaclient.common.potions.BrewGraph.parseRecipe(recipe).isEmpty(), "read it");
+		// Item stacks can't be made this early at start-up, so the fuel checks run from /jselftest in a world.
+		if (net.minecraft.client.Minecraft.getInstance().level == null) {
+			lines.add("SKIP fuel times (run /jselftest in a world)");
+		} else {
+			int coal = dev.justaclient.inventory.InvCompat.burnTicks(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COAL), false);
+			int fast = dev.justaclient.inventory.InvCompat.burnTicks(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COAL), true);
+			check("coal burns 1600 ticks, 800 in a blast furnace", coal == 1600 && fast == 800, coal + " / " + fast);
+			check("stone is not fuel", dev.justaclient.inventory.InvCompat.burnTicks(new net.minecraft.world.item.ItemStack(
+				net.minecraft.world.item.Items.STONE), false) == 0, "it is");
+		}
+		var real = dev.justaclient.inventory.InvCompat.brewing();
+		if (real.isEmpty()) {
+			lines.add("SKIP the game's brewing rules (join a world on 1.21.11 to load them)");
+		} else {
+			var steps = real.route(swift).orElse(List.of());
+			check("the game's rules brew Swiftness with nether wart then sugar", steps.stream().map(s -> s.reagent()).toList()
+				.equals(List.of("minecraft:nether_wart", "minecraft:sugar")), steps.toString());
+			check("the game's rules make splash potions with gunpowder", real.result(swift, "minecraft:gunpowder").equals(java.util.Optional.of(splashSwift)),
+				real.result(swift, "minecraft:gunpowder").toString());
+		}
 	}
 
 	private static void check(String name, boolean ok, String detail) {

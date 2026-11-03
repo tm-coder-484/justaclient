@@ -8,16 +8,12 @@ import dev.justaclient.feature.Features;
 import dev.justaclient.feature.setting.BoolSetting;
 import dev.justaclient.feature.setting.ChoiceSetting;
 import dev.justaclient.feature.setting.NumberSetting;
-import dev.justaclient.feature.setting.TextSetting;
+import dev.justaclient.feature.setting.FileSetting;
 import dev.justaclient.render.Draw;
 import dev.justaclient.render.Icons;
 import dev.justaclient.render.ImageBackground;
 import dev.justaclient.ui.JacTitleScreen;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Locale;
-import java.util.stream.Stream;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -49,14 +45,13 @@ public final class ScreenBackgroundFeature extends Feature {
 	}
 
 	private final ChoiceSetting<Look> menus = choice("menus", "Menus (no world)", Look.GLASS);
-	private final TextSetting menusPicture = add(new TextSetting("menus_picture", "Menus picture", "", 64, "blank = first file in backgrounds"))
+	private final FileSetting menusPicture = add(new FileSetting("menus_picture", "Menus picture", () -> TitleScreenFeature.DIR, TitleScreenFeature.TYPES, "First file in backgrounds"))
 		.visibleWhen(() -> menus.get() == Look.PICTURE);
 	private final ChoiceSetting<Look> pause = choice("pause", "Pause and options", Look.GLASS);
-	private final TextSetting pausePicture = add(new TextSetting("pause_picture", "Pause picture", "", 64, "blank = first file in backgrounds"))
+	private final FileSetting pausePicture = add(new FileSetting("pause_picture", "Pause picture", () -> TitleScreenFeature.DIR, TitleScreenFeature.TYPES, "First file in backgrounds"))
 		.visibleWhen(() -> pause.get() == Look.PICTURE);
 	private final ChoiceSetting<Look> containers = choice("containers", "Inventories and containers", Look.VANILLA);
-	private final TextSetting containersPicture = add(new TextSetting("containers_picture", "Container picture", "", 64,
-		"blank = first file in backgrounds")).visibleWhen(() -> containers.get() == Look.PICTURE);
+	private final FileSetting containersPicture = add(new FileSetting("containers_picture", "Container picture", () -> TitleScreenFeature.DIR, TitleScreenFeature.TYPES, "First file in backgrounds")).visibleWhen(() -> containers.get() == Look.PICTURE);
 	private final ChoiceSetting<ImageBackground.Fit> fit = choice("fit", "Picture fit", ImageBackground.Fit.COVER).visibleWhen(this::anyPicture);
 	private final BoolSetting blurPicture = bool("blur_picture", "Blur the picture", false).visibleWhen(this::anyPicture);
 	private final BoolSetting parallax = bool("parallax", "Parallax with the mouse", true).visibleWhen(this::anyPicture);
@@ -91,11 +86,11 @@ public final class ScreenBackgroundFeature extends Feature {
 		};
 	}
 
-	private String picture(Group group) {
+	private FileSetting picture(Group group) {
 		return switch (group) {
-			case MENUS -> menusPicture.get();
-			case PAUSE -> pausePicture.get();
-			case CONTAINERS -> containersPicture.get();
+			case MENUS -> menusPicture;
+			case PAUSE -> pausePicture;
+			case CONTAINERS -> containersPicture;
 		};
 	}
 
@@ -142,7 +137,7 @@ public final class ScreenBackgroundFeature extends Feature {
 			}
 			case PICTURE -> {
 				ImageBackground picture = pictures[group.ordinal()];
-				picture.use(path(picture(group)), PerformanceModeFeature.imageSize(), blurPicture.on());
+				picture.use(picture(group).resolve(), PerformanceModeFeature.imageSize(), blurPicture.on());
 				if (!picture.ready()) {
 					JacTitleScreen.drawGradient(g, w, h);
 					return true;
@@ -177,27 +172,5 @@ public final class ScreenBackgroundFeature extends Feature {
 	@Override
 	protected void onDisable() {
 		unload();
-	}
-
-	private static @Nullable Path path(String name) {
-		Path dir = TitleScreenFeature.DIR;
-		try {
-			Files.createDirectories(dir);
-		} catch (IOException e) {
-			return null;
-		}
-		String trimmed = name.trim();
-		if (!trimmed.isEmpty()) {
-			Path path = dir.resolve(trimmed).normalize();
-			return path.startsWith(dir) && Files.isRegularFile(path) ? path : null;
-		}
-		try (Stream<Path> files = Files.list(dir)) {
-			return files.filter(Files::isRegularFile).filter(p -> {
-				String n = p.getFileName().toString().toLowerCase(Locale.ROOT);
-				return n.endsWith(".png") || n.endsWith(".jpg") || n.endsWith(".jpeg") || n.endsWith(".gif");
-			}).sorted().findFirst().orElse(null);
-		} catch (IOException e) {
-			return null;
-		}
 	}
 }

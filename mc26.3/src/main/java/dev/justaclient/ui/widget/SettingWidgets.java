@@ -3,7 +3,9 @@ package dev.justaclient.ui.widget;
 import dev.justaclient.feature.setting.BoolSetting;
 import dev.justaclient.feature.setting.ChoiceSetting;
 import dev.justaclient.feature.setting.ColorSetting;
+import dev.justaclient.feature.setting.FileSetting;
 import dev.justaclient.feature.setting.KeySetting;
+import dev.justaclient.feature.setting.ListSetting;
 import dev.justaclient.feature.setting.NumberSetting;
 import dev.justaclient.feature.setting.Setting;
 import dev.justaclient.feature.setting.TextSetting;
@@ -22,6 +24,8 @@ public final class SettingWidgets {
 			case ColorSetting c -> new ColorPicker(x, y, width, c);
 			case KeySetting k -> new KeyBinder(x, y, width, k);
 			case TextSetting t -> new TextField(x, y, width, t);
+			case ListSetting l -> new ListEditor(x, y, width, l);
+			case FileSetting f -> new FilePicker(x, y, width, f);
 			default -> throw new IllegalArgumentException("No widget for " + setting.getClass());
 		};
 	}

@@ -9,6 +9,7 @@ public enum Category {
 	WORLD("World", Icons.MOUNTAIN),
 	CAMERA("Camera", Icons.VIDEO),
 	SCREENS("Screens", Icons.MAXIMIZE),
+	INVENTORY("Inventory", Icons.BACKPACK),
 	UTILITY("Utility", Icons.WRENCH);
 
 	public final String label;

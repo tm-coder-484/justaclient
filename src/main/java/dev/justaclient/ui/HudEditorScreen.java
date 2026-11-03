@@ -48,6 +48,8 @@ public final class HudEditorScreen extends Screen {
 	private float[] resetBounds = new float[4];
 	private float[] doneBounds = new float[4];
 	private float[] layoutBounds = new float[4];
+	private float[] hideBounds = new float[4];
+	private float[] showBounds = new float[4];
 	private boolean layoutMenu;
 	private final List<float[]> layoutRows = new ArrayList<>();
 	private final List<Runnable> layoutActions = new ArrayList<>();
@@ -234,9 +236,45 @@ public final class HudEditorScreen extends Screen {
 		}
 	}
 
+	private static boolean barHidden() {
+		return JacConfig.get().hudEditorBarHidden;
+	}
+
+	private static void setBarHidden(boolean hidden) {
+		JacConfig.get().hudEditorBarHidden = hidden;
+		JacConfig.save();
+	}
+
+	/** The folded bar: a small tab at the top that brings it back. Its buttons get no bounds, so nothing hidden can be clicked. */
+	private void drawFoldedBar(GuiGraphics g, double mx, double my, float t) {
+		layoutBounds = new float[4];
+		resetBounds = new float[4];
+		doneBounds = new float[4];
+		hideBounds = new float[4];
+		chipBounds.clear();
+		chipFeatures.clear();
+		String label = "Show toolbar (H)";
+		float w = JacText.width(label, Theme.SMALL, JacText.Weight.SEMIBOLD) + 22;
+		float x = (width - w) / 2f;
+		showBounds = new float[] {x, 0, w, 14};
+		boolean hot = inside(showBounds, mx, my);
+		if (dragging != null) {
+			t *= 0.35f;
+		}
+		Draw.rect(g, x, -6, w, 20, 6f, Colors.fade(hot ? Colors.withAlpha(JacConfig.accent(), 0xD0) : 0xB0101218, t));
+		JacText.icon(g, Icons.CHEVRON_DOWN, x + 7, 4f, 6f, Colors.fade(hot ? 0xFFFFFFFF : Theme.TEXT_DIM, t));
+		JacText.draw(g, label, x + 16, 7 - JacText.lineHeight(Theme.SMALL) / 2f + 0.5f, Colors.fade(hot ? 0xFFFFFFFF : Theme.TEXT, t), Theme.SMALL,
+			JacText.Weight.SEMIBOLD);
+	}
+
 	private void drawToolbar(GuiGraphics g, double mx, double my, float t) {
+		if (barHidden()) {
+			drawFoldedBar(g, mx, my, t);
+			return;
+		}
+		showBounds = new float[4];
 		List<HudFeature> off = Features.hud().stream().filter(h -> !h.isEnabled()).toList();
-		String hint = "Drag to move  ·  Corner or scroll: scale  ·  Edge bar: resize  ·  A: anchor  ·  Right click: settings  ·  Shift: no snap";
+		String hint = "Drag to move  ·  Corner or scroll: scale  ·  Edge bar: resize  ·  A: anchor  ·  Right click: settings  ·  Shift: no snap  ·  H: hide bar";
 		float hintW = JacText.width(hint, Theme.SMALL, JacText.Weight.REGULAR);
 		float chipsW = 0f;
 		for (HudFeature hud : off) {
@@ -245,14 +283,21 @@ public final class HudEditorScreen extends Screen {
 		float buttons = 44 + 4 + 40;
 		String layoutLabel = "Layout: " + HudLayouts.active();
 		float layoutW = JacText.width(layoutLabel, Theme.SMALL, JacText.Weight.SEMIBOLD) + 20;
-		float w = Math.min(width - 8, Math.max(hintW, layoutW + 6 + chipsW - 4 + (off.isEmpty() ? 0 : 6) + buttons) + 16);
+		float w = Math.min(width - 8, Math.max(hintW + 24, layoutW + 6 + chipsW - 4 + (off.isEmpty() ? 0 : 6) + buttons) + 16);
 		float x = (width - w) / 2f;
 		float y = 8f;
 		if (dragging != null) {
 			t *= 0.35f;
 		}
 		Draw.panel(g, x, y, w, BAR_H * 2 - 4, t);
-		JacText.drawCentered(g, hint, width / 2f, y + 6, Colors.fade(Theme.TEXT_DIM, t), Theme.SMALL, JacText.Weight.REGULAR);
+		JacText.drawCentered(g, fitHint(hint, w - 30), width / 2f, y + 6, Colors.fade(Theme.TEXT_DIM, t), Theme.SMALL, JacText.Weight.REGULAR);
+		// Fold the bar away to see what is under it; H or the tab brings it back.
+		hideBounds = new float[] {x + w - 16, y + 3, 12, 12};
+		boolean hh = inside(hideBounds, mx, my);
+		if (hh) {
+			Draw.rect(g, hideBounds[0], hideBounds[1], 12, 12, 3f, Colors.fade(Theme.CONTROL_HOVER, t));
+		}
+		JacText.icon(g, Icons.X, x + w - 13.5f, y + 5.5f, 7f, Colors.fade(hh ? Theme.TEXT : Theme.TEXT_DIM, t));
 		float rowY = y + BAR_H - 4;
 		float cx = x + 8;
 		layoutBounds = new float[] {cx, rowY, layoutW, 14};
@@ -291,6 +336,10 @@ public final class HudEditorScreen extends Screen {
 			Colors.fade(Colors.lerp(JacConfig.accentAt(1f), 0xFFFFFFFF, hd ? 0.12f : 0f), t));
 		JacText.drawCentered(g, "Done", bx + 68, rowY + (14 - JacText.lineHeight(Theme.SMALL)) / 2f, Colors.fade(0xFFFFFFFF, t), Theme.SMALL,
 			JacText.Weight.SEMIBOLD);
+	}
+
+	private static String fitHint(String hint, float max) {
+		return JacText.width(hint, Theme.SMALL, JacText.Weight.REGULAR) <= max ? hint : JacScreen.fit(hint, Theme.SMALL, JacText.Weight.REGULAR, max);
 	}
 
 	private static boolean inside(float[] b, double mx, double my) {
@@ -334,6 +383,15 @@ public final class HudEditorScreen extends Screen {
 			if (inside(layoutBounds, mx, my)) {
 				return true;
 			}
+		}
+		if (event.button() == 0 && inside(showBounds, mx, my)) {
+			setBarHidden(false);
+			return true;
+		}
+		if (event.button() == 0 && inside(hideBounds, mx, my)) {
+			layoutMenu = false;
+			setBarHidden(true);
+			return true;
 		}
 		if (event.button() == 0 && inside(layoutBounds, mx, my)) {
 			layoutMenu = true;
@@ -566,6 +624,11 @@ public final class HudEditorScreen extends Screen {
 				return true;
 			}
 			onClose();
+			return true;
+		}
+		if (event.key() == GLFW.GLFW_KEY_H) {
+			layoutMenu = false;
+			setBarHidden(!barHidden());
 			return true;
 		}
 		if (event.key() == GLFW.GLFW_KEY_A) {

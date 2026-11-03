@@ -122,7 +122,19 @@ public enum Icons {
 	SCROLL_TEXT(0xe464),
 	MONITOR(0xe121),
 	MAP(0xe114),
-	HISTORY(0xe1f5);
+	HISTORY(0xe1f5),
+	UTENSILS(0xe2f6),
+	ANVIL(0xe585),
+	HAMMER(0xe0ef),
+	GRID(0xe0ec),
+	COOKING_POT(0xe589),
+	TAG(0xe183),
+	LANDMARK(0xe23a),
+	ROUTE(0xe543),
+	BACKPACK(0xe2c8),
+	PACKAGE_SEARCH(0xe269),
+	FLASK_ROUND(0xe0db),
+	LIST_ORDERED(0xe1d1);
 
 	public final String glyph;
 

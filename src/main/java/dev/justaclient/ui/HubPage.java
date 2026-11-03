@@ -56,6 +56,8 @@ public final class HubPage {
 			DevConsoleScreen::new, () -> true));
 		TILES.add(new Tile(Icons.ARCHIVE, "World Archive", "Waypoints, sessions and screenshots per world", WorldArchiveFeature.class,
 			WorldArchiveScreen::new, () -> true));
+		TILES.add(new Tile(Icons.FLASK_ROUND, "Potion guide", "Every potion's brewing route, with the brewing stand helper",
+			dev.justaclient.feature.impl.PotionGuideFeature.class, PotionGuideScreen::new, () -> true));
 		TILES.add(new Tile(Icons.FLASK, "Labs", "Experimental features and the self-test", LabsFeature.class, LabsScreen::new, () -> true));
 	}
 
@@ -107,7 +109,8 @@ public final class HubPage {
 			Draw.rect(g, tx + 9, iy + 9, 18, 18, 5f, Colors.fade(Colors.withAlpha(accent, 0x30), a * fade));
 			JacText.icon(g, tile.icon, tx + 13, iy + 13, 10f, Colors.fade(accent, a * fade));
 			JacText.draw(g, tile.title, tx + 33, iy + 13, Colors.fade(Theme.TEXT, a * fade), Theme.LABEL + 1f, JacText.Weight.SEMIBOLD);
-			String blurb = on ? tile.blurb : tile.available.get() ? "Off: turn it on under Screens" : "Not available here";
+			String blurb = on ? tile.blurb : tile.available.get() ? "Off: turn it on under " + Features.get(tile.feature).category.label
+				: "Not available here";
 			List<String> lines = JacScreen.wrap(blurb, Theme.SMALL, JacText.Weight.REGULAR, tileW - 18);
 			for (int l = 0; l < Math.min(2, lines.size()); l++) {
 				JacText.draw(g, lines.get(l), tx + 9, iy + 33 + l * 8.5f, Colors.fade(Theme.TEXT_DIM, a * fade), Theme.SMALL, JacText.Weight.REGULAR);

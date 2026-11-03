@@ -90,6 +90,10 @@ public final class Justaclient implements ClientModInitializer {
 		AutoReconnectFeature.init();
 		ExitConfirmFeature.init();
 		WeaponCompareFeature.init();
+		dev.justaclient.inventory.ContainerOverlays.init();
+		dev.justaclient.feature.impl.FurnaceInfoFeature.init();
+		dev.justaclient.feature.impl.FoodInfoFeature.init();
+		dev.justaclient.feature.impl.PotionGuideFeature.init();
 		JacCommands.init();
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
 			SessionHistory.onJoin(client);

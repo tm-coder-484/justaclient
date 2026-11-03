@@ -5,7 +5,7 @@ import dev.justaclient.feature.Feature;
 import dev.justaclient.feature.Features;
 import dev.justaclient.feature.setting.BoolSetting;
 import dev.justaclient.feature.setting.ColorSetting;
-import dev.justaclient.feature.setting.TextSetting;
+import dev.justaclient.feature.setting.ListSetting;
 import dev.justaclient.hud.Notifications;
 import dev.justaclient.profile.Profiles;
 import dev.justaclient.render.Icons;
@@ -20,7 +20,7 @@ import net.minecraft.world.entity.player.Player;
  * names too. Middle-click a player to add or remove them, or use {@code /jfriend}.
  */
 public final class FriendsFeature extends Feature {
-	private final TextSetting names = add(new TextSetting("names", "Friends", "", 512, "Steve, Alex"));
+	private final ListSetting names = add(new ListSetting("names", "Friends", List.of(), 200, 16, "Add a player name"));
 	private final ColorSetting color = color("color", "Name colour", "#22C55E");
 	private final BoolSetting middleClick = bool("middle_click", "Middle-click players to add", true);
 	private final BoolSetting nameTags = bool("name_tags", "Colour name tags", true);
@@ -36,26 +36,14 @@ public final class FriendsFeature extends Feature {
 	}
 
 	public List<String> list() {
-		List<String> out = new ArrayList<>();
-		for (String s : names.get().split(",")) {
-			String n = s.trim();
-			if (!n.isEmpty()) {
-				out.add(n);
-			}
-		}
-		return out;
+		return new ArrayList<>(names.get());
 	}
 
 	public boolean isFriend(String name) {
 		if (!isEnabled() || name == null) {
 			return false;
 		}
-		for (String n : list()) {
-			if (n.equalsIgnoreCase(name)) {
-				return true;
-			}
-		}
-		return false;
+		return names.contains(name);
 	}
 
 	/** Adds or removes a friend. Returns true if they are a friend afterwards. */
@@ -65,7 +53,7 @@ public final class FriendsFeature extends Feature {
 		if (!removed) {
 			list.add(name);
 		}
-		names.set(String.join(", ", list));
+		names.set(list);
 		Profiles.save();
 		return !removed;
 	}

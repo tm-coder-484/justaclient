@@ -24,6 +24,7 @@ import net.minecraft.world.entity.player.Player;
  * <li>{@code /jwp add [name]}, {@code /jwp set <name> <x> <y> <z>}, {@code /jwp remove <name>}, {@code /jwp list},
  * {@code /jwp gps <name>}, {@code /jwp gps off}, {@code /jwp hide|show <name>}</li>
  * <li>{@code /jfriend add|remove <name>}, {@code /jfriend list}</li>
+ * <li>{@code /potions} (or {@code /jpotions}): the potion guide</li>
  * <li>{@code /jmedia}: what the Spotify card sees (player, track, timeline, cover, lyrics), for working out why
  * something is missing</li>
  * </ul>
@@ -84,6 +85,13 @@ public final class JacCommands {
 				}
 				return 1;
 			}));
+			for (String name : new String[] {"potions", "jpotions"}) {
+				dispatcher.register(literal(name).executes(ctx -> {
+					Minecraft mc = Minecraft.getInstance();
+					mc.execute(() -> mc.gui.setScreen(new dev.justaclient.ui.PotionGuideScreen(null)));
+					return 1;
+				}));
+			}
 			dispatcher.register(literal("jmedia").executes(ctx -> {
 				ctx.getSource().sendFeedback(Component.literal("Justaclient media").withStyle(ChatFormatting.BOLD));
 				for (String line : NowPlaying.describe()) {

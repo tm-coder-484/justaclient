@@ -199,6 +199,9 @@ public final class Features {
 		register(new dev.justaclient.feature.impl.DevConsoleFeature());
 		register(new dev.justaclient.feature.impl.WorldArchiveFeature());
 		register(new dev.justaclient.feature.impl.LabsFeature());
+		register(new dev.justaclient.feature.impl.FurnaceInfoFeature());
+		register(new dev.justaclient.feature.impl.FoodInfoFeature());
+		register(new dev.justaclient.feature.impl.PotionGuideFeature());
 		register(new TitleScreenFeature());
 		register(new LoadingScreenFeature());
 		register(new WeatherToastFeature());

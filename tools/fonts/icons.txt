@@ -116,3 +116,15 @@ scroll-text
 monitor
 map
 history
+utensils
+anvil
+hammer
+grid-3x3
+cooking-pot
+tag
+landmark
+route
+backpack
+package-search
+flask-round
+list-ordered

@@ -64,8 +64,11 @@ public final class RingMenuScreen extends JacScreen {
 	private float cy;
 	private float r;
 	private float panelW;
-	private final float[] panelX = new float[8];
-	private final float[] panelY = new float[8];
+	private final float[] panelX = new float[16];
+	private final float[] panelY = new float[16];
+	/** The panels on screen: categories that have features, then the Command Centre; the first half go on the left. */
+	private final List<Panel> shown = new ArrayList<>();
+	private int perSide = 4;
 	private final float[] pageX = new float[5];
 	private final float[] pageY = new float[5];
 	private float stripY;
@@ -95,11 +98,21 @@ public final class RingMenuScreen extends JacScreen {
 		r = Math.max(34f, Math.min((bottom - 10) * 0.30f, width * 0.15f));
 		panelW = Math.max(96f, Math.min(160f, (width / 2f - r - 28) * 0.92f));
 		float gap = 12f;
-		float span = Math.min(bottom - 18, 4 * (PANEL_H + 10));
-		float step = span / 4f;
+		shown.clear();
+		for (Panel p : PANELS) {
+			if (p.category == null || !Features.in(p.category).isEmpty()) {
+				shown.add(p);
+			}
+		}
+		perSide = (shown.size() + 1) / 2;
+		float span = Math.min(bottom - 18, perSide * (PANEL_H + 10));
+		float step = span / perSide;
 		for (int side = 0; side < 2; side++) {
-			for (int i = 0; i < 4; i++) {
-				int idx = side * 4 + i;
+			for (int i = 0; i < perSide; i++) {
+				int idx = side * perSide + i;
+				if (idx >= shown.size()) {
+					break;
+				}
 				float y = cy - span / 2f + i * step + (step - PANEL_H) / 2f;
 				// Panels near the ring's middle sit a touch further out, so the column follows the curve.
 				float rel = (y + PANEL_H / 2f - cy) / (span / 2f);
@@ -310,11 +323,11 @@ public final class RingMenuScreen extends JacScreen {
 	}
 
 	private void drawPanels(GuiGraphics g, int mx, int my, float t, StyleTokens.Ring opt, int accent) {
-		for (int i = 0; i < PANELS.size(); i++) {
-			Panel p = PANELS.get(i);
+		for (int i = 0; i < shown.size(); i++) {
+			Panel p = shown.get(i);
 			// Panels slide in from their side, one after another.
-			float stagger = Math.max(0f, Math.min(1f, t * 1.6f - (i % 4) * 0.12f));
-			float slide = (1f - stagger) * 18f * (i < 4 ? -1 : 1);
+			float stagger = Math.max(0f, Math.min(1f, t * 1.6f - (i % perSide) * 0.12f));
+			float slide = (1f - stagger) * 18f * (i < perSide ? -1 : 1);
 			float x = panelX[i] + slide;
 			float y = panelY[i];
 			float a = t * stagger;
@@ -326,11 +339,11 @@ public final class RingMenuScreen extends JacScreen {
 				float dy = ly - cy;
 				float rr = r * (0.82f + 0.18f * t);
 				float ringX = Math.abs(dy) < rr ? (float) Math.sqrt(rr * rr - dy * dy) : 0f;
-				float from = i < 4 ? x + panelW : cx + ringX;
-				float to = i < 4 ? cx - ringX : x;
+				float from = i < perSide ? x + panelW : cx + ringX;
+				float to = i < perSide ? cx - ringX : x;
 				if (to > from) {
 					Draw.rect(g, from, ly - 0.35f, to - from, 0.7f, 0, Colors.fade(Colors.withAlpha(accent, 0x40 + Math.round(0x90 * h)), a));
-					Draw.circle(g, i < 4 ? to : from, ly, 1.6f + h, Colors.fade(Colors.withAlpha(accent, 0xA0 + Math.round(0x5F * h)), a));
+					Draw.circle(g, i < perSide ? to : from, ly, 1.6f + h, Colors.fade(Colors.withAlpha(accent, 0xA0 + Math.round(0x5F * h)), a));
 				}
 			}
 			if (h > 0.01f) {
@@ -341,8 +354,8 @@ public final class RingMenuScreen extends JacScreen {
 				a));
 			// An accent tick on the side facing the ring.
 			float tick = 10f + 8f * h;
-			Draw.rect(g, i < 4 ? x + panelW - 2.5f : x + 1f, y + (PANEL_H - tick) / 2f, 1.5f, tick, 0.75f, Colors.fade(accent, a));
-			float ix = i < 4 ? x + 8 : x + 9;
+			Draw.rect(g, i < perSide ? x + panelW - 2.5f : x + 1f, y + (PANEL_H - tick) / 2f, 1.5f, tick, 0.75f, Colors.fade(accent, a));
+			float ix = i < perSide ? x + 8 : x + 9;
 			Draw.rect(g, ix, y + 7, 16, 16, 4f, Colors.fade(Colors.withAlpha(accent, 0x30 + Math.round(0x30 * h)), a));
 			JacText.icon(g, p.icon, ix + 4.5f, y + 11.5f, 7f, Colors.fade(Colors.lerp(Theme.TEXT, accent, 0.5f), a));
 			float tx = ix + 22;
@@ -522,9 +535,9 @@ public final class RingMenuScreen extends JacScreen {
 				}
 			}
 		}
-		for (int i = 0; i < PANELS.size(); i++) {
+		for (int i = 0; i < shown.size(); i++) {
 			if (mx >= panelX[i] && mx < panelX[i] + panelW && my >= panelY[i] && my < panelY[i] + PANEL_H) {
-				Panel p = PANELS.get(i);
+				Panel p = shown.get(i);
 				open(p.category == null ? ClickGuiScreen.at(this, null, ClickGuiScreen.HUB) : ClickGuiScreen.at(this, p.category, ClickGuiScreen.THEME));
 				return true;
 			}

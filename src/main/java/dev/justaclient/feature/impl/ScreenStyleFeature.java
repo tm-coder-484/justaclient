@@ -3,7 +3,7 @@ package dev.justaclient.feature.impl;
 import dev.justaclient.feature.Category;
 import dev.justaclient.feature.Feature;
 import dev.justaclient.feature.setting.BoolSetting;
-import dev.justaclient.feature.setting.TextSetting;
+import dev.justaclient.feature.setting.ListSetting;
 import dev.justaclient.render.Icons;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -28,13 +28,13 @@ public final class ScreenStyleFeature extends Feature {
 	private final BoolSetting tabs = bool("tabs", "Tabs", true);
 	private final BoolSetting lists = bool("lists", "List panels and dividers", true);
 	private final BoolSetting rounded = bool("rounded", "Rounded corners", true);
-	private final TextSetting skip = add(new TextSetting("skip", "Leave these screens alone", "", 512, "screen names, comma separated"));
+	private final ListSetting skip = add(new ListSetting("skip", "Leave these screens alone", List.of(), 100, 96, "Screen class name"));
 
 	/** Screens opened this session, newest last, for the opt-out list in the Dev Console. */
 	private static final Set<String> SEEN = new LinkedHashSet<>();
 	private @Nullable Class<?> cachedClass;
 	private boolean cachedStyled;
-	private String cachedSkip = "";
+	private List<String> cachedSkip = List.of();
 
 	public ScreenStyleFeature() {
 		super("screen_style", "Styled screens", "Draws vanilla and modded screens' buttons, sliders and lists in the client's style",
@@ -99,7 +99,7 @@ public final class ScreenStyleFeature extends Feature {
 	private boolean skipped(Class<?> type) {
 		String simple = type.getSimpleName().toLowerCase(Locale.ROOT);
 		String full = type.getName().toLowerCase(Locale.ROOT);
-		for (String part : skip.get().split(",")) {
+		for (String part : skip.get()) {
 			String name = part.trim().toLowerCase(Locale.ROOT);
 			if (!name.isEmpty() && (simple.equals(name) || full.equals(name) || (name.contains(".") && full.startsWith(name)))) {
 				return true;
@@ -109,7 +109,7 @@ public final class ScreenStyleFeature extends Feature {
 	}
 
 	public boolean isSkipped(String screenName) {
-		for (String part : skip.get().split(",")) {
+		for (String part : skip.get()) {
 			if (part.trim().equalsIgnoreCase(screenName)) {
 				return true;
 			}
@@ -120,7 +120,7 @@ public final class ScreenStyleFeature extends Feature {
 	/** Adds or removes a screen (by simple class name) from the skip list. */
 	public void setSkipped(String screenName, boolean skipped) {
 		List<String> names = new ArrayList<>();
-		for (String part : skip.get().split(",")) {
+		for (String part : skip.get()) {
 			String name = part.trim();
 			if (!name.isEmpty() && !name.equalsIgnoreCase(screenName)) {
 				names.add(name);
@@ -129,7 +129,7 @@ public final class ScreenStyleFeature extends Feature {
 		if (skipped) {
 			names.add(screenName);
 		}
-		skip.set(String.join(", ", names));
+		skip.set(names);
 		cachedClass = null;
 	}
 
