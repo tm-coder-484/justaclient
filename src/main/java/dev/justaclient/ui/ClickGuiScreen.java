@@ -83,6 +83,7 @@ public final class ClickGuiScreen extends Screen {
 	private static final int STATS = 2;
 	private static final int NOTES = 3;
 	private static final int FEEDBACK = 4;
+	private static final int HUB = 5;
 	private int page;
 	private static int lastPage;
 
@@ -284,7 +285,7 @@ public final class ClickGuiScreen extends Screen {
 		g.disableScissor();
 		Draw.rect(g, 0, BODY_H, W, 0.75f, 0, Colors.fade(Theme.DIVIDER, t));
 		Draw.rect(g, SIDEBAR, 0, 0.75f, BODY_H, 0, Colors.fade(Theme.DIVIDER, t));
-		if (!isThemePage() && !isPerfPage() && !isStatsPage() && !isNotesPage() && !isFeedbackPage()) {
+		if (!isThemePage() && !isPerfPage() && !isStatsPage() && !isNotesPage() && !isFeedbackPage() && !isHubPage()) {
 			Draw.rect(g, SET_X, 0, 0.75f, BODY_H, 0, Colors.fade(Theme.DIVIDER, t));
 		}
 
@@ -301,6 +302,8 @@ public final class ClickGuiScreen extends Screen {
 			NotesPage.draw(g, LIST_X + 14, 14, W - LIST_X - 28, BODY_H - 14, t * pageIn.get(), lx, ly);
 		} else if (isFeedbackPage()) {
 			FeedbackPage.draw(g, LIST_X + 14, 14, W - LIST_X - 28, BODY_H - 14, t * pageIn.get(), lx, ly);
+		} else if (isHubPage()) {
+			HubPage.draw(g, LIST_X + 14, 14, W - LIST_X - 28, BODY_H - 14, t * pageIn.get(), lx, ly);
 		} else {
 			drawList(g, lx, ly, t);
 			drawSettings(g, lx, ly, t);
@@ -332,6 +335,10 @@ public final class ClickGuiScreen extends Screen {
 		return category == null && query.isBlank() && page == NOTES;
 	}
 
+	private boolean isHubPage() {
+		return category == null && query.isBlank() && page == HUB;
+	}
+
 	private boolean isFeedbackPage() {
 		return category == null && query.isBlank() && page == FEEDBACK;
 	}
@@ -339,17 +346,17 @@ public final class ClickGuiScreen extends Screen {
 	/** Pages listed under the categories: which page each opens, with its icon and label. */
 	private static int pageOf(Object item) {
 		return item == PerformancePage.class ? PERF : item == StatsPage.class ? STATS : item == NotesPage.class ? NOTES
-			: item == FeedbackPage.class ? FEEDBACK : THEME;
+			: item == FeedbackPage.class ? FEEDBACK : item == HubPage.class ? HUB : THEME;
 	}
 
 	private static Icons pageIcon(Object item) {
 		return item == ThemePage.class ? Icons.PALETTE : item == StatsPage.class ? Icons.CHART_COLUMN : item == NotesPage.class ? Icons.PENCIL
-			: item == FeedbackPage.class ? Icons.FLAG : Icons.ACTIVITY;
+			: item == FeedbackPage.class ? Icons.FLAG : item == HubPage.class ? Icons.COMMAND : Icons.ACTIVITY;
 	}
 
 	private static String pageLabel(Object item) {
 		return item == ThemePage.class ? "Theme" : item == StatsPage.class ? "Stats" : item == NotesPage.class ? "Notes"
-			: item == FeedbackPage.class ? "Feedback" : "Performance";
+			: item == FeedbackPage.class ? "Feedback" : item == HubPage.class ? "Command Centre" : "Performance";
 	}
 
 	private boolean isPageShown(Object item) {
@@ -411,7 +418,7 @@ public final class ClickGuiScreen extends Screen {
 			Draw.rect(g, 10, my0, SIDEBAR - 20, 17, r, Colors.fade(Colors.withAlpha(accent, 0x38), t));
 			Draw.rect(g, 10, my0 + 3, 1.5f, 11, 0.75f, Colors.fade(accent, t));
 		}
-		Draw.rect(g, 14, navY(items.indexOf(ThemePage.class)) - 6, SIDEBAR - 28, 0.75f, 0, Colors.fade(Theme.DIVIDER, t));
+		Draw.rect(g, 14, navY(items.indexOf(HubPage.class)) - 6, SIDEBAR - 28, 0.75f, 0, Colors.fade(Theme.DIVIDER, t));
 		for (int i = 0; i < items.size(); i++) {
 			Object item = items.get(i);
 			float y = navY(i);
@@ -437,6 +444,7 @@ public final class ClickGuiScreen extends Screen {
 				items.add(c);
 			}
 		}
+		items.add(HubPage.class);
 		items.add(ThemePage.class);
 		items.add(PerformancePage.class);
 		items.add(StatsPage.class);
@@ -447,7 +455,7 @@ public final class ClickGuiScreen extends Screen {
 
 	private float navY(int index) {
 		List<Object> items = navItems();
-		int pages = items.indexOf(ThemePage.class);
+		int pages = items.indexOf(HubPage.class);
 		// Rows tighten when there are more than fit above the footer.
 		float step = Math.min(19f, (BODY_H - 6f - 58f - 10f - 17f) / Math.max(1, items.size() - 1));
 		return 58 + index * step + (index >= pages ? 10 : 0);
@@ -808,6 +816,14 @@ public final class ClickGuiScreen extends Screen {
 		}
 		if (isFeedbackPage() && FeedbackPage.click(mx, my, button)) {
 			return true;
+		}
+		if (isHubPage() && button == 0) {
+			Screen next = HubPage.click(mx, my, this);
+			if (next != null) {
+				dev.justaclient.feature.impl.GuiSoundsFeature.menuClick();
+				minecraft.setScreen(next);
+				return true;
+			}
 		}
 		if (isThemePage()) {
 			for (Widget w : themeWidgets) {

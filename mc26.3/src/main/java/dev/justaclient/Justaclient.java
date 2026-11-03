@@ -67,6 +67,8 @@ public final class Justaclient implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
+		// Mod renames that could not happen last time (the jar was in use) are done first.
+		dev.justaclient.common.mods.DeferredRenames.load();
 		JacConfig.load();
 		JacPipelines.init();
 		Features.init();
@@ -97,18 +99,24 @@ public final class Justaclient implements ClientModInitializer {
 			LifetimeStats.onJoin();
 			JacTitleScreen.freeBackground();
 			Features.get(ScreenBackgroundFeature.class).unload();
+			dev.justaclient.feature.impl.KeybindsFeature.get().onJoin(client.getCurrentServer());
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			SessionHistory.finish();
 			LifetimeStats.onLeave();
 			NotesStore.saveAll();
+			client.execute(() -> dev.justaclient.feature.impl.KeybindsFeature.get().onLeave());
 		});
+		ClientLifecycleEvents.CLIENT_STARTED.register(client -> dev.justaclient.feature.impl.KeybindsFeature.get().startup());
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
 			SessionHistory.finish();
 			LifetimeStats.save();
 			NotesStore.saveAll();
 			// Writes still queued for the world folders finish before the game exits.
 			WorldStore.flush();
+			dev.justaclient.feature.impl.KeybindsFeature.get().onLeave();
+			// Mods switched while their jar was locked are renamed once the game has closed, and the game restarts if asked.
+			dev.justaclient.common.mods.DeferredRenames.applyAfterExit();
 		});
 		ExploredMap.init();
 		KeyMappingHelper.registerKeyMapping(OPEN_MENU);

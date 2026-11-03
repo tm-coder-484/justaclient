@@ -83,10 +83,14 @@ public final class JacTitleScreen extends Screen {
 		rows.add(new Row(Icons.USER, "Singleplayer", null, true, () -> minecraft.setScreen(new SelectWorldScreen(this))));
 		boolean multiplayer = minecraft.allowsMultiplayer();
 		rows.add(new Row(Icons.USERS, "Multiplayer", null, multiplayer, () -> minecraft.setScreen(
-			minecraft.options.skipMultiplayerWarning ? new JoinMultiplayerScreen(this) : new SafetyScreen(this))));
+			dev.justaclient.feature.impl.ServersFeature.multiplayer(this))));
 		rows.add(new Row(Icons.GLOBE, "Realms", null, multiplayer && minecraft.allowsRealms(), () -> minecraft.setScreen(new RealmsMainScreen(this))));
 		rows.add(null);
 		rows.add(new Row(Icons.SLIDERS, "Options", null, true, () -> minecraft.setScreen(new OptionsScreen(this, minecraft.options))));
+		dev.justaclient.feature.impl.ModsPanelFeature mods = dev.justaclient.feature.Features.get(dev.justaclient.feature.impl.ModsPanelFeature.class);
+		if (mods != null && mods.titleButton()) {
+			rows.add(new Row(Icons.PACKAGE, "Mods", null, true, () -> minecraft.setScreen(new ModsScreen(this))));
+		}
 		rows.add(new Row(Icons.LAYOUT_DASHBOARD, "Client settings", Justaclient.OPEN_MENU.getTranslatedKeyMessage().getString(), true,
 			() -> minecraft.setScreen(new ClickGuiScreen(this))));
 		rows.add(new Row(Icons.LOG_OUT, "Quit game", null, true, minecraft::stop));

@@ -192,6 +192,9 @@ public final class Features {
 		register(new ScreenBackgroundFeature());
 		register(new SmoothScrollFeature());
 		register(new GuiSoundsFeature());
+		register(new dev.justaclient.feature.impl.ModsPanelFeature());
+		register(new dev.justaclient.feature.impl.ServersFeature());
+		register(new dev.justaclient.feature.impl.KeybindsFeature());
 		register(new TitleScreenFeature());
 		register(new LoadingScreenFeature());
 		register(new WeatherToastFeature());

@@ -11,7 +11,8 @@ import org.jspecify.annotations.Nullable;
 
 /** A rounded button. Primary buttons use the accent; others use the neutral control colour. */
 public final class Button extends Widget {
-	private final String label;
+	private String label;
+	private boolean active = true;
 	private final boolean primary;
 	private final Runnable action;
 	private final @Nullable Icons icon;
@@ -28,9 +29,26 @@ public final class Button extends Widget {
 		this.icon = icon;
 	}
 
+	/** A greyed-out button ignores clicks. */
+	public Button active(boolean active) {
+		this.active = active;
+		return this;
+	}
+
+	public boolean isActive() {
+		return active;
+	}
+
+	public void setLabel(String label) {
+		this.label = label;
+	}
+
 	@Override
 	protected void draw(GuiGraphics g, double mouseX, double mouseY, float alpha) {
-		float h = hover.get();
+		if (!active) {
+			alpha *= 0.4f;
+		}
+		float h = active ? hover.get() : 0f;
 		float radius = Math.min(height / 2f, JacConfig.get().style.cornerRadius);
 		if (primary) {
 			int a = Colors.lerp(JacConfig.accentAt(0f), 0xFFFFFFFF, h * 0.12f);
@@ -47,6 +65,10 @@ public final class Button extends Widget {
 			return;
 		}
 		float iconSize = Theme.LABEL + 0.5f;
+		if (label.isEmpty()) {
+			JacText.icon(g, icon, x + (width - iconSize) / 2f, y + (height - iconSize) / 2f, iconSize, color);
+			return;
+		}
 		float total = iconSize + 4f + JacText.width(label, Theme.LABEL, JacText.Weight.SEMIBOLD);
 		float left = x + (width - total) / 2f;
 		JacText.icon(g, icon, left, y + (height - iconSize) / 2f, iconSize, color);
@@ -55,7 +77,7 @@ public final class Button extends Widget {
 
 	@Override
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
-		if (button == 0 && isMouseOver(mouseX, mouseY)) {
+		if (button == 0 && active && isMouseOver(mouseX, mouseY)) {
 			dev.justaclient.feature.impl.GuiSoundsFeature.menuClick();
 			action.run();
 			return true;

@@ -69,6 +69,9 @@ public final class SelfTest {
 			hudRoundTrip(profile);
 			failedBackupBlocksReset();
 			retryTarget();
+			uniqueIds();
+			modSwitching();
+			listsAndKeys();
 		} catch (RuntimeException | IOException e) {
 			fail("unexpected exception", e.toString());
 		} finally {
@@ -222,6 +225,133 @@ public final class SelfTest {
 			if (had) {
 				Files.move(aside, backups);
 			}
+		}
+	}
+
+	private static void uniqueIds() {
+		java.util.Set<String> seen = new java.util.HashSet<>();
+		List<String> dupes = new ArrayList<>();
+		for (Feature f : Features.all()) {
+			if (!seen.add(f.id)) {
+				dupes.add(f.id);
+			}
+		}
+		check("every feature id is unique", dupes.isEmpty(), "duplicates: " + dupes);
+	}
+
+	/** Mod on/off by renaming, in a scratch folder: never touches the real mods folder. */
+	private static void modSwitching() throws IOException {
+		Path dir = Files.createTempDirectory("jac-selftest-mods");
+		try {
+			Path jar = dir.resolve("helper-1.0.jar");
+			writeJar(jar, "{\"id\":\"helper\",\"name\":\"Helper\",\"version\":\"1.0\",\"icon\":{\"16\":\"a.png\",\"64\":\"b.png\"},"
+				+ "\"jars\":[{\"file\":\"META-INF/jars/inner.jar\"}]}", "{\"id\":\"inner\",\"provides\":[\"inner_api\"],\"depends\":{\"java\":\"*\"}}");
+			dev.justaclient.common.mods.JarMetadata meta = dev.justaclient.common.mods.JarMetadata.read(jar);
+			check("jar metadata reads nested mods", meta != null && meta.providedIds().containsAll(List.of("helper", "inner", "inner_api"))
+				&& meta.requiredIds().equals(java.util.Set.of("java")), String.valueOf(meta));
+			check("jar metadata picks the 64 icon", meta != null && "b.png".equals(meta.icon()), meta == null ? "null" : meta.icon());
+			Path broken = dir.resolve("broken.jar");
+			Files.writeString(broken, "not a zip");
+			check("unreadable jar gives no metadata", dev.justaclient.common.mods.JarMetadata.read(broken) == null, "read something");
+			dev.justaclient.common.mods.ManagedMod helper = mod("helper", java.util.Set.of("helper", "inner_api"), java.util.Set.of(),
+				dev.justaclient.common.mods.ModStatus.ENABLED, jar);
+			dev.justaclient.common.mods.ManagedMod addon = mod("addon", java.util.Set.of("addon"), java.util.Set.of("inner_api"),
+				dev.justaclient.common.mods.ModStatus.ENABLED, dir.resolve("addon.jar"));
+			List<dev.justaclient.common.mods.ManagedMod> all = List.of(helper, addon);
+			check("turning off a needed mod names its dependents", dev.justaclient.common.mods.ModManager.dependentsOf(helper, all).equals(List.of("addon")),
+				String.valueOf(dev.justaclient.common.mods.ModManager.dependentsOf(helper, all)));
+			dev.justaclient.common.mods.ManagedMod helperOff = helper.withStatus(dev.justaclient.common.mods.ModStatus.DISABLED, jar);
+			check("a mod whose dependency is off reports it missing",
+				dev.justaclient.common.mods.ModManager.missingDependencies(addon, List.of(helperOff, addon)).equals(List.of("inner_api")), "wrong");
+			dev.justaclient.common.mods.ToggleResult off = dev.justaclient.common.mods.ModManager.toggle(helper);
+			Path disabled = dev.justaclient.common.mods.ModFiles.disabledPath(jar);
+			check("turning a mod off renames it to .disabled", off.outcome() == dev.justaclient.common.mods.ToggleResult.Outcome.RESTART_REQUIRED
+				&& Files.exists(disabled) && !Files.exists(jar), off.toString());
+			dev.justaclient.common.mods.ToggleResult undo = dev.justaclient.common.mods.ModManager.toggle(
+				helper.withStatus(dev.justaclient.common.mods.ModStatus.DISABLE_PENDING, disabled));
+			check("switching it back before a restart undoes the rename", undo.outcome() == dev.justaclient.common.mods.ToggleResult.Outcome.UNDONE
+				&& Files.exists(jar) && !Files.exists(disabled), undo.toString());
+			Files.writeString(disabled, "taken");
+			dev.justaclient.common.mods.ToggleResult clash = dev.justaclient.common.mods.ModManager.toggle(helper);
+			check("a rename onto an existing file fails and keeps both", clash.outcome() == dev.justaclient.common.mods.ToggleResult.Outcome.FAILED
+				&& Files.exists(jar) && Files.readString(disabled).equals("taken"), clash.toString());
+			check("the client cannot switch itself off", dev.justaclient.common.mods.ModManager.toggle(mod("justaclient", java.util.Set.of(),
+				java.util.Set.of(), dev.justaclient.common.mods.ModStatus.LOCKED, null)).outcome() == dev.justaclient.common.mods.ToggleResult.Outcome.FAILED,
+				"switched");
+			var modrinth = dev.justaclient.common.mods.Relauncher.buildDirectCommand("java", "com.modrinth.theseus.MinecraftLaunch "
+				+ "net.fabricmc.loader.impl.launch.knot.KnotClient", List.of("-Xmx4G", "-javaagent:/x/theseus.jar", "-Dmodrinth.internal.a=b"),
+				"cp", List.of("--username", "x"));
+			check("restart command drops the Modrinth wrapper bits", modrinth.isPresent() && modrinth.get().equals(List.of("java", "-Xmx4G", "-cp", "cp",
+				"net.fabricmc.loader.impl.launch.knot.KnotClient", "--username", "x")), String.valueOf(modrinth));
+			check("no restart command for an unknown launcher", dev.justaclient.common.mods.Relauncher.buildDirectCommand("java", "some.Other", List.of(),
+				"cp", List.of()).isEmpty(), "built one");
+		} finally {
+			try (Stream<Path> files = Files.list(dir)) {
+				for (Path p : files.toList()) {
+					Files.deleteIfExists(p);
+				}
+			}
+			Files.deleteIfExists(dir);
+		}
+	}
+
+	private static dev.justaclient.common.mods.ManagedMod mod(String id, java.util.Set<String> provides, java.util.Set<String> needs,
+		dev.justaclient.common.mods.ModStatus status, Path file) {
+		return new dev.justaclient.common.mods.ManagedMod(id, id, "1", "", List.of(), java.util.Map.of(), null, status, file, file, null, provides,
+			needs, false, false);
+	}
+
+	private static void writeJar(Path jar, String json, String innerJson) throws IOException {
+		java.io.ByteArrayOutputStream inner = new java.io.ByteArrayOutputStream();
+		try (java.util.zip.ZipOutputStream z = new java.util.zip.ZipOutputStream(inner)) {
+			z.putNextEntry(new java.util.zip.ZipEntry("fabric.mod.json"));
+			z.write(innerJson.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		}
+		try (java.util.zip.ZipOutputStream z = new java.util.zip.ZipOutputStream(Files.newOutputStream(jar))) {
+			z.putNextEntry(new java.util.zip.ZipEntry("fabric.mod.json"));
+			z.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+			z.putNextEntry(new java.util.zip.ZipEntry("META-INF/jars/inner.jar"));
+			z.write(inner.toByteArray());
+		}
+	}
+
+	/** Server folders, key sets and kept key binds, all on scratch files. */
+	private static void listsAndKeys() throws IOException {
+		Path dir = Files.createTempDirectory("jac-selftest-lists");
+		try {
+			Path file = dir.resolve("servers.json");
+			Files.writeString(file, "{\"folders\": [\"PvP\"], \"servers\": {\"a.net\": {\"folder\": \"Gone\"}}}");
+			dev.justaclient.common.ServerFolders f = dev.justaclient.common.ServerFolders.load(file);
+			check("a server in a missing folder is unfiled", f.peek("A.NET") != null && f.peek("a.net").folder == null, "kept folder");
+			f.meta("b.net").folder = "PvP";
+			check("renaming a folder keeps its servers", f.renameFolder("PvP", "Duels") && "Duels".equals(f.peek("b.net").folder), "lost");
+			check("a folder name cannot be taken twice", !f.addFolder("duels"), "added");
+			f.removeFolder("Duels");
+			check("deleting a folder unfiles its servers", f.peek("b.net").folder == null && f.folders.isEmpty(), "still filed");
+			Files.writeString(file, "{ broken");
+			check("a broken folders file starts empty and is kept aside",
+				dev.justaclient.common.ServerFolders.load(file).folders.isEmpty() && Files.exists(dir.resolve("servers.json.broken")), "no backup");
+			Path keys = dir.resolve("keybinds.json");
+			Files.writeString(keys, "{\"profiles\": {\"PvP\": {\"key.jump\": \"key.keyboard.space\"}}, \"servers\": {\"x.net\": \"Gone\", \"y.net\": \"PvP\"}}");
+			dev.justaclient.common.KeybindProfiles k = dev.justaclient.common.KeybindProfiles.load(keys);
+			check("a server tied to a missing key set is dropped", k.profileFor("x.net") == null && "PvP".equals(k.profileFor("Y.NET")), k.servers.toString());
+			k.removeProfile("PvP");
+			check("deleting a key set unties its servers", k.servers.isEmpty(), k.servers.toString());
+			Path options = dir.resolve("options.txt");
+			Files.writeString(options, "key_key.jump:key.keyboard.space\nkey_key.othermod.dash:key.keyboard.r\nfov:70\n");
+			java.util.Map<String, String> before = dev.justaclient.common.mods.KeybindKeeper.readKeybinds(options);
+			Files.writeString(options, "key_key.jump:key.keyboard.space\nfov:70\n");
+			dev.justaclient.common.mods.KeybindKeeper.restoreMissing(options, before, java.util.Set.of("key.jump"));
+			String after = Files.readString(options);
+			check("binds of a mod that is off are kept", after.contains("key_key.othermod.dash:key.keyboard.r")
+				&& after.indexOf("key_key.jump") == after.lastIndexOf("key_key.jump"), after.replace("\n", " | "));
+		} finally {
+			try (Stream<Path> files = Files.list(dir)) {
+				for (Path p : files.toList()) {
+					Files.deleteIfExists(p);
+				}
+			}
+			Files.deleteIfExists(dir);
 		}
 	}
 
