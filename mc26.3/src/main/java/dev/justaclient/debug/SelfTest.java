@@ -131,6 +131,7 @@ public final class SelfTest {
 			autoGgOrigin();
 			spatialPanel();
 			modrinth();
+			modrinthInstaller();
 		} catch (RuntimeException | IOException e) {
 			fail("unexpected exception", e.toString());
 		} finally {
@@ -959,6 +960,63 @@ public final class SelfTest {
 	}
 
 	/** Modrinth browser: addresses, parsing, hash checks and safe file names, without the network. */
+	/** Review fixes: pinned dependency versions, and an update whose old version cannot be switched off. */
+	private static void modrinthInstaller() throws IOException {
+		var deps = dev.justaclient.common.modrinth.Modrinth.parseVersions("[{\"id\":\"main\",\"project_id\":\"m\",\"version_type\":\"release\","
+			+ "\"files\":[{\"url\":\"u\",\"filename\":\"m.jar\",\"primary\":true}],\"dependencies\":[{\"project_id\":null,"
+			+ "\"version_id\":\"pinned\",\"dependency_type\":\"required\"}]}]").getFirst().dependencies().getFirst();
+		var pinned = dev.justaclient.common.modrinth.Modrinth.parseVersion("{\"id\":\"pinned\",\"project_id\":\"lib\",\"version_number\":\"2.0\","
+			+ "\"version_type\":\"release\",\"game_versions\":[\"1.21.11\"],\"loaders\":[\"fabric\"],"
+			+ "\"files\":[{\"url\":\"u\",\"filename\":\"lib-2.0.jar\",\"primary\":true}]}");
+		var newer = dev.justaclient.common.modrinth.Modrinth.parseVersion("{\"id\":\"newer\",\"project_id\":\"lib\",\"version_number\":\"3.0\","
+			+ "\"version_type\":\"release\",\"game_versions\":[\"1.21.11\"],\"loaders\":[\"fabric\"],"
+			+ "\"files\":[{\"url\":\"u\",\"filename\":\"lib-3.0.jar\",\"primary\":true}]}");
+		var plan = dev.justaclient.common.modrinth.Modrinth.plan(deps, pinned, List.of(newer), null, "1.21.11", "fabric");
+		check("modrinth: a dependency named only by its version id is resolved, not skipped", deps.projectId() == null && "pinned".equals(deps.versionId())
+			&& plan.install() != null && plan.install().id().equals("pinned") && plan.problem() == null, plan.toString());
+		var wrongGame = dev.justaclient.common.modrinth.Modrinth.plan(deps, pinned, List.of(), null, "26.3", "fabric");
+		check("modrinth: a pinned version for another game version is reported", wrongGame.install() == null && wrongGame.problem() != null,
+			wrongGame.toString());
+		var missing = dev.justaclient.common.modrinth.Modrinth.plan(deps, null, List.of(), null, "1.21.11", "fabric");
+		check("modrinth: a pinned version that cannot be found is reported", missing.install() == null && missing.problem() != null, missing.toString());
+		var other = dev.justaclient.common.modrinth.Modrinth.plan(deps, pinned, List.of(), "older", "1.21.11", "fabric");
+		var same = dev.justaclient.common.modrinth.Modrinth.plan(deps, pinned, List.of(), "pinned", "1.21.11", "fabric");
+		check("modrinth: an installed dependency in another version is reported, the same version is left alone",
+			other.install() == null && other.problem() != null && same.install() == null && same.problem() == null, other + " / " + same);
+		var byProject = new dev.justaclient.common.modrinth.Modrinth.Dependency("lib", null, "required");
+		var picked = dev.justaclient.common.modrinth.Modrinth.plan(byProject, null, List.of(pinned, newer), null, "1.21.11", "fabric");
+		var none = dev.justaclient.common.modrinth.Modrinth.plan(byProject, null, List.of(), null, "1.21.11", "fabric");
+		check("modrinth: a dependency named by project gets its best version, or a reason", picked.install() != null
+			&& picked.install().id().equals("pinned") && none.install() == null && none.problem() != null, picked + " / " + none);
+
+		Path dir = Files.createTempDirectory("jac-selftest-update");
+		try {
+			Path old = dir.resolve("demo-1.jar");
+			Path oldOff = dir.resolve("demo-1.jar.disabled");
+			Path fresh = dir.resolve("demo-2.jar");
+			Files.writeString(old, "old");
+			Files.writeString(oldOff, "older copy");
+			Files.writeString(fresh, "new");
+			var demo = mod("demo", java.util.Set.of("demo"), java.util.Set.of(), dev.justaclient.common.mods.ModStatus.ENABLED, old);
+			var r = dev.justaclient.common.modrinth.ModUpdate.retireOld(demo, fresh);
+			check("modrinth update: when the old version cannot be turned off, the new one is set aside and it says so", !r.oldOff() && !r.newActive()
+				&& !Files.exists(fresh) && Files.exists(dir.resolve("demo-2.jar.disabled")) && r.message().contains("could not be turned off")
+				&& Files.readString(old).equals("old") && Files.readString(oldOff).equals("older copy"), r.toString());
+			Files.delete(oldOff);
+			Files.writeString(fresh, "new");
+			var ok = dev.justaclient.common.modrinth.ModUpdate.retireOld(demo, fresh);
+			check("modrinth update: normally the old version is turned off and the new one stays on", ok.oldOff() && ok.newActive()
+				&& Files.exists(fresh) && !Files.exists(old) && Files.exists(oldOff) && ok.message().contains("turned off"), ok.toString());
+		} finally {
+			try (Stream<Path> files = Files.list(dir)) {
+				for (Path f : files.toList()) {
+					Files.deleteIfExists(f);
+				}
+			}
+			Files.deleteIfExists(dir);
+		}
+	}
+
 	private static void modrinth() {
 		String url = dev.justaclient.common.modrinth.Modrinth.searchUrl("sodium extra", dev.justaclient.common.modrinth.Modrinth.Kind.MOD, "1.21.11",
 			"fabric", dev.justaclient.common.modrinth.Modrinth.Sort.DOWNLOADS, 20, 20);

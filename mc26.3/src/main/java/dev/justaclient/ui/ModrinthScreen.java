@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.justaclient.Justaclient;
 import dev.justaclient.anim.Colors;
 import dev.justaclient.common.modrinth.Modrinth;
+import dev.justaclient.common.modrinth.ModUpdate;
 import dev.justaclient.common.modrinth.ModrinthApi;
 import dev.justaclient.common.mods.ManagedMod;
 import dev.justaclient.common.mods.ModManager;
@@ -329,10 +330,16 @@ public final class ModrinthScreen extends JacScreen {
 			}
 			switch (k) {
 				case MOD -> {
-					INSTALLED_THIS_SESSION.add(name);
 					job.label = "Installed and checked. Restart to load it";
-					if (before != null && !before.file().equals(done.path())) {
-						job.label += turnOffOld(before.file());
+					ModUpdate.Result update = ModUpdate.retireOld(before == null || before.file().equals(done.path()) ? null : enabledMod(before.file()),
+						done.path());
+					job.label += update.message();
+					job.file = update.newFile();
+					if (update.newActive()) {
+						INSTALLED_THIS_SESSION.add(name);
+					}
+					if (!update.oldOff()) {
+						job.color = WARN;
 					}
 				}
 				case SHADER -> job.label = "Installed. Pick it in Video Settings > Shader Packs";
@@ -342,20 +349,19 @@ public final class ModrinthScreen extends JacScreen {
 					: "Installed. It loads next time you open " + world.getFileName();
 			}
 			if (k == Modrinth.Kind.MOD && feature().dependencies.on()) {
-				installDependencies(version);
+				installDependencies(version, job);
 			}
 		}));
 	}
 
-	/** After an update, switches the old jar off the same way the Mods panel does (it is renamed when the game closes). */
-	private static String turnOffOld(Path old) {
+	/** The mod for {@code file} if it is switched on (or about to be), so an update can switch it off. */
+	private static @Nullable ManagedMod enabledMod(Path file) {
 		for (ManagedMod m : ModManager.scan()) {
-			if (old.equals(m.file()) && (m.status() == ModStatus.ENABLED || m.status() == ModStatus.ENABLE_PENDING)) {
-				ModManager.toggle(m);
-				return "; the old version is turned off";
+			if (file.equals(m.file()) && (m.status() == ModStatus.ENABLED || m.status() == ModStatus.ENABLE_PENDING)) {
+				return m;
 			}
 		}
-		return "";
+		return null;
 	}
 
 	private void fail(Job job, String why) {
@@ -366,29 +372,65 @@ public final class ModrinthScreen extends JacScreen {
 		job.color = BAD;
 	}
 
-	/** Installs the mods {@code version} needs that are not here yet. */
-	private void installDependencies(Modrinth.Version version) {
+	/**
+	 * Installs the mods {@code version} needs that are not here yet. A dependency that names an exact version gets that
+	 * version; anything that cannot be resolved is added to {@code parent}'s line instead of being skipped quietly.
+	 */
+	private void installDependencies(Modrinth.Version version, Job parent) {
+		String game = ModrinthFeature.gameVersion();
 		for (Modrinth.Dependency d : version.dependencies()) {
-			if (!d.required() || d.projectId() == null || installed.containsKey(d.projectId()) || jobs.containsKey(d.projectId())) {
+			if (!d.required() || (d.projectId() == null && d.versionId() == null)) {
 				continue;
 			}
-			String dep = d.projectId();
-			feature().api().project(dep).thenCombine(feature().api().versions(dep, Modrinth.Kind.MOD, ModrinthFeature.gameVersion(), "fabric"),
-				(project, list) -> new Object[] {project, list}).whenComplete((pair, e) -> minecraft.execute(() -> {
-					if (e != null) {
-						return;
-					}
-					Modrinth.Project project = (Modrinth.Project) pair[0];
-					@SuppressWarnings("unchecked")
-					List<Modrinth.Version> list = (List<Modrinth.Version>) pair[1];
-					if (FabricLoader.getInstance().isModLoaded(project.slug()) || FabricLoader.getInstance().isModLoaded(project.slug().replace('-', '_'))) {
-						return;
-					}
-					Modrinth.Version v = best(list);
-					if (v != null && !jobs.containsKey(dep)) {
-						install(new Modrinth.Hit(project.id(), project.slug(), project.title(), "", "", 0, 0, List.of(), "mod"), v, Modrinth.Kind.MOD, dep);
-					}
-				}));
+			if (d.versionId() == null && (installed.containsKey(d.projectId()) || jobs.containsKey(d.projectId()))) {
+				continue;
+			}
+			CompletableFuture<Modrinth.@Nullable Version> pinned = d.versionId() == null ? CompletableFuture.completedFuture(null)
+				: feature().api().version(d.versionId()).<Modrinth.@Nullable Version>thenApply(v -> v).exceptionally(e -> null);
+			pinned.thenCompose(pin -> {
+				String project = pin != null ? pin.projectId() : d.projectId();
+				if (project == null || project.isEmpty()) {
+					return CompletableFuture.completedFuture(new Resolved(null, pin, List.of()));
+				}
+				CompletableFuture<List<Modrinth.Version>> list = d.versionId() != null ? CompletableFuture.completedFuture(List.of())
+					: feature().api().versions(project, Modrinth.Kind.MOD, game, "fabric");
+				return feature().api().project(project).thenCombine(list, (p, l) -> new Resolved(p, pin, l));
+			}).whenComplete((r, e) -> minecraft.execute(() -> {
+				if (e != null || r == null) {
+					note(parent, "A mod it needs could not be looked up (" + (e == null ? "no answer" : message(e)) + ")");
+					return;
+				}
+				Modrinth.Project project = r.project();
+				if (project == null) {
+					note(parent, "A mod it needs could not be found on Modrinth");
+					return;
+				}
+				if (FabricLoader.getInstance().isModLoaded(project.slug()) || FabricLoader.getInstance().isModLoaded(project.slug().replace('-', '_'))) {
+					return;
+				}
+				if (jobs.containsKey(project.id())) {
+					return;
+				}
+				Installed have = installed.get(project.id());
+				Modrinth.DependencyPlan plan = Modrinth.plan(d, r.pinned(), r.versions(), have == null ? null : have.versionId(), game, "fabric");
+				if (plan.problem() != null) {
+					note(parent, project.title() + " is needed, but " + plan.problem());
+				} else if (plan.install() != null) {
+					install(new Modrinth.Hit(project.id(), project.slug(), project.title(), "", "", 0, 0, List.of(), "mod"), plan.install(),
+						Modrinth.Kind.MOD, project.id());
+				}
+			}));
+		}
+	}
+
+	private record Resolved(Modrinth.@Nullable Project project, Modrinth.@Nullable Version pinned, List<Modrinth.Version> versions) {
+	}
+
+	/** Adds a warning to an install line. */
+	private static void note(Job job, String text) {
+		job.label += ". " + text;
+		if (!job.failed) {
+			job.color = WARN;
 		}
 	}
 

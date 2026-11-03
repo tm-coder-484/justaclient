@@ -42,6 +42,10 @@ public final class ModrinthApi {
 		return get(Modrinth.versionsUrl(projectId, kind, gameVersion, loader)).thenApply(Modrinth::parseVersions);
 	}
 
+	public CompletableFuture<Modrinth.Version> version(String versionId) {
+		return get(Modrinth.versionUrl(versionId)).thenApply(Modrinth::parseVersion);
+	}
+
 	public CompletableFuture<Modrinth.Project> project(String idOrSlug) {
 		return get(Modrinth.projectUrl(idOrSlug)).thenApply(Modrinth::parseProject);
 	}

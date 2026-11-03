@@ -140,6 +140,11 @@ public final class Modrinth {
 		return url.toString();
 	}
 
+	/** The address of one version by its id (a dependency can name an exact version). */
+	public static String versionUrl(String versionId) {
+		return API + "/version/" + enc(versionId);
+	}
+
 	public static String projectUrl(String idOrSlug) {
 		return API + "/project/" + enc(idOrSlug);
 	}
@@ -236,6 +241,49 @@ public final class Modrinth {
 		}
 		return new Version(str(v, "id"), str(v, "project_id"), str(v, "name"), str(v, "version_number"), str(v, "version_type"),
 			str(v, "date_published"), files, deps, strings(v, "loaders"), strings(v, "game_versions"));
+	}
+
+	public static Version parseVersion(String json) {
+		return version(JsonParser.parseString(json).getAsJsonObject());
+	}
+
+	/** True if {@code v} is made for {@code gameVersion} and {@code loader}. */
+	public static boolean compatible(Version v, String gameVersion, String loader) {
+		return v.gameVersions().contains(gameVersion) && v.loaders().contains(loader);
+	}
+
+	/** What to do about one required dependency: install {@code install}, report {@code problem}, or neither (already there). */
+	public record DependencyPlan(@Nullable Version install, @Nullable String problem) {
+	}
+
+	/**
+	 * Decides what to install for {@code dep}. A dependency that names an exact version gets that version ({@code pinned},
+	 * looked up by its id) and nothing else, and only if it is made for this game and loader; one that names only a
+	 * project gets the best of {@code candidates} (already filtered to this game and loader). {@code installedVersion} is
+	 * the version of that project already in the folder, if any.
+	 */
+	public static DependencyPlan plan(Dependency dep, @Nullable Version pinned, List<Version> candidates, @Nullable String installedVersion,
+		String gameVersion, String loader) {
+		if (dep.versionId() != null) {
+			if (pinned == null) {
+				return new DependencyPlan(null, "could not find the exact version it needs");
+			}
+			if (!compatible(pinned, gameVersion, loader)) {
+				return new DependencyPlan(null, "it needs version " + pinned.number() + ", which is not made for " + gameVersion + " " + loader);
+			}
+			if (installedVersion != null) {
+				return installedVersion.equals(pinned.id()) ? new DependencyPlan(null, null)
+					: new DependencyPlan(null, "it needs version " + pinned.number() + ", but another version is installed");
+			}
+			return pinned.primaryFile() == null ? new DependencyPlan(null, "version " + pinned.number() + " has no file to download")
+				: new DependencyPlan(pinned, null);
+		}
+		if (installedVersion != null) {
+			return new DependencyPlan(null, null);
+		}
+		List<Version> usable = candidates.stream().filter(v -> compatible(v, gameVersion, loader)).toList();
+		Version best = best(usable);
+		return best == null ? new DependencyPlan(null, "it has no version for " + gameVersion + " " + loader) : new DependencyPlan(best, null);
 	}
 
 	/** The newest version to offer: the newest release, else the newest of any kind. Modrinth lists newest first. */
