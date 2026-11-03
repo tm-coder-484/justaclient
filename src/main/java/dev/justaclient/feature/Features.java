@@ -204,6 +204,7 @@ public final class Features {
 		register(new dev.justaclient.feature.impl.PotionGuideFeature());
 		register(new dev.justaclient.feature.impl.StorageMemoryFeature());
 		register(new dev.justaclient.feature.impl.DeathRecapFeature());
+		register(new dev.justaclient.feature.impl.KitsFeature());
 		register(new TitleScreenFeature());
 		register(new LoadingScreenFeature());
 		register(new WeatherToastFeature());

@@ -114,6 +114,7 @@ public final class SelfTest {
 			storageIndex();
 			waypointData();
 			deathRecap();
+			kits();
 		} catch (RuntimeException | IOException e) {
 			fail("unexpected exception", e.toString());
 		} finally {
@@ -620,6 +621,29 @@ public final class SelfTest {
 				}
 			}
 		}
+	}
+
+	/** Kits: slot checks, names and the saved file. */
+	private static void kits() {
+		var want = new dev.justaclient.common.kits.Kit.Slot(0, "minecraft:golden_apple", 8, "Golden Apple", null);
+		check("kits: slot check", dev.justaclient.common.kits.Kit.check(want, "minecraft:golden_apple", 8) == dev.justaclient.common.kits.Kit.State.RIGHT
+			&& dev.justaclient.common.kits.Kit.check(want, "minecraft:golden_apple", 3) == dev.justaclient.common.kits.Kit.State.SHORT
+			&& dev.justaclient.common.kits.Kit.check(want, "", 0) == dev.justaclient.common.kits.Kit.State.EMPTY
+			&& dev.justaclient.common.kits.Kit.check(want, "minecraft:apple", 8) == dev.justaclient.common.kits.Kit.State.WRONG, "wrong state");
+		check("kits: names are cleaned", "PvP".equals(dev.justaclient.common.kits.Kit.cleanName("  PvP\n "))
+			&& dev.justaclient.common.kits.Kit.cleanName("   ") == null, String.valueOf(dev.justaclient.common.kits.Kit.cleanName("  PvP\n ")));
+		var kit = new dev.justaclient.common.kits.Kit("PvP", 1L, List.of(want, new dev.justaclient.common.kits.Kit.Slot(40, "minecraft:shield", 1, "Shield",
+			null)));
+		var json = dev.justaclient.common.kits.Kit.toJson(List.of(kit, new dev.justaclient.common.kits.Kit("pvp", 2L, List.of())));
+		var slots = json.getAsJsonArray("kits").get(0).getAsJsonObject().getAsJsonArray("slots");
+		var bad = new com.google.gson.JsonObject();
+		bad.addProperty("slot", 99);
+		bad.addProperty("id", "minecraft:stone");
+		bad.addProperty("count", 1);
+		slots.add(bad);
+		var back = dev.justaclient.common.kits.Kit.fromJson(json);
+		check("kits: the saved file reads back (same name twice keeps the first, a bad slot is skipped)", back.size() == 1
+			&& back.get(0).slots.size() == 2 && back.get(0).at(40) != null && back.get(0).created == 1L, back.size() + " kits");
 	}
 
 	/** Death recap wording. */
