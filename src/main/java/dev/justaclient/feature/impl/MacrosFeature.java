@@ -20,7 +20,7 @@ public final class MacrosFeature extends Feature {
 	private final boolean[] wasDown = new boolean[SLOTS];
 
 	public MacrosFeature() {
-		super("macros", "Command macros", "A key sends one command or chat line per press", Category.UTILITY, Icons.KEYBOARD, false);
+		super("macros", "Command macros", "A key (or /cmd 1 to 8) sends one command or chat line per press", Category.CHAT, Icons.KEYBOARD, false);
 		markExperimental();
 		for (int i = 0; i < SLOTS; i++) {
 			int n = i + 1;
@@ -45,6 +45,26 @@ public final class MacrosFeature extends Feature {
 			}
 			wasDown[i] = down;
 		}
+	}
+
+	public static int slots() {
+		return SLOTS;
+	}
+
+	/** Macro {@code n}'s command (1-based), or "" if that slot is empty. */
+	public static String command(int n) {
+		MacrosFeature f = dev.justaclient.feature.Features.get(MacrosFeature.class);
+		return n < 1 || n > SLOTS ? "" : f.commands[n - 1].get().trim();
+	}
+
+	/** {@code /cmd n}: sends macro {@code n} once. False if the slot is empty. */
+	public static boolean runSlot(int n) {
+		String line = command(n);
+		if (line.isEmpty()) {
+			return false;
+		}
+		run(Minecraft.getInstance(), line);
+		return true;
 	}
 
 	private static void run(Minecraft mc, String line) {

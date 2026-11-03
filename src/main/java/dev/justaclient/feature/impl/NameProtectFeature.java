@@ -24,7 +24,7 @@ public final class NameProtectFeature extends Feature {
 	private final BoolSetting hideFriends = bool("friends", "Hide friends' names too", false);
 
 	public NameProtectFeature() {
-		super("name_protect", "Name protect", "Show another name in place of yours on your screen", Category.UTILITY, Icons.USER, false);
+		super("name_protect", "Name protect", "Show another name in place of yours on your screen", Category.SOCIAL, Icons.USER, false);
 	}
 
 	/** On by itself or through stream mode. */

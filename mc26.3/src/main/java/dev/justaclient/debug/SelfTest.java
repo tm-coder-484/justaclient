@@ -11,6 +11,7 @@ import dev.justaclient.feature.impl.AutoReconnectFeature;
 import dev.justaclient.hud.HudFeature;
 import dev.justaclient.profile.Profiles;
 import dev.justaclient.render.Icons;
+import dev.justaclient.common.chat.ChatText;
 import dev.justaclient.common.inventory.AnvilMath;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -122,6 +123,7 @@ public final class SelfTest {
 			kits();
 			anvilMath();
 			storageOffers();
+			chatText();
 		} catch (RuntimeException | IOException e) {
 			fail("unexpected exception", e.toString());
 		} finally {
@@ -651,6 +653,43 @@ public final class SelfTest {
 		var back = dev.justaclient.common.kits.Kit.fromJson(json);
 		check("kits: the saved file reads back (same name twice keeps the first, a bad slot is skipped)", back.size() == 1
 			&& back.get(0).slots.size() == 2 && back.get(0).at(40) != null && back.get(0).created == 1L, back.size() + " kits");
+	}
+
+	/** Chat parsing, mentions, tabs, search filters, copy formats and the Auto GG gate. */
+	private static void chatText() {
+		check("chat: senders and kinds", "Steve".equals(ChatText.sender("<Steve> hi")) && "Steve".equals(ChatText.sender("[VIP] [MVP+] Steve: hi"))
+			&& "Alex".equals(ChatText.sender("Alex whispers to you: psst")) && ChatText.kind("Alex whispers to you: psst") == ChatText.Kind.PRIVATE
+			&& ChatText.kind("Steve joined the game") == ChatText.Kind.SYSTEM && ChatText.kind("<Steve> hi") == ChatText.Kind.PLAYER,
+			ChatText.sender("[VIP] [MVP+] Steve: hi"));
+		check("chat: mentions are whole words, not your own lines", ChatText.mentions("<Alex> hey Steve, come here", "Steve", List.of())
+			&& !ChatText.mentions("<Alex> Steven is here", "Steve", List.of()) && !ChatText.mentions("<Steve> I am Steve", "Steve", List.of())
+			&& !ChatText.mentions("Steve has made the advancement [Stone Age]", "Steve", List.of())
+			&& ChatText.mentions("<Alex> selling diamonds", "Steve", List.of("diamonds")), "mention wrong");
+		var spans = ChatText.spans("gg GG ggg gg", List.of("gg"));
+		check("chat: highlight spans", spans.size() == 3 && spans.get(0)[0] == 0 && spans.get(1)[0] == 3 && spans.get(2)[0] == 10,
+			spans.size() + " spans");
+		var tab = ChatText.Tab.parse(" Trade : buy, sell ,wts ");
+		var line = new ChatText.Entry(0L, "<Bob> wts 64 iron https://x.example", "Bob", ChatText.Kind.PLAYER, false);
+		check("chat: tabs from \"Name: words\"", tab != null && tab.name().equals("Trade") && tab.words().size() == 3 && tab.matches(line)
+			&& ChatText.Tab.parse("no colon") == null && ChatText.Tab.parse("Empty:") == null, String.valueOf(tab));
+		check("chat: search filters", ChatText.Query.parse("from:bob has:link iron").matches(line) && !ChatText.Query.parse("from:alex").matches(line)
+			&& !ChatText.Query.parse("is:system").matches(line) && !ChatText.Query.parse("is:mention").matches(line)
+			&& ChatText.Query.parse("is:player WTS").matches(line), "filter wrong");
+		check("chat: copy formats", ChatText.copy(line, ChatText.CopyFormat.PLAIN, ChatText.TimeStyle.SHORT).equals(line.text())
+			&& ChatText.copy(line, ChatText.CopyFormat.WITH_TIME, ChatText.TimeStyle.SHORT).endsWith("] " + line.text())
+			&& ChatText.copy(line, ChatText.CopyFormat.QUOTE, ChatText.TimeStyle.SHORT).startsWith("> " + line.text()), "copy wrong");
+		var gate = new dev.justaclient.common.chat.GgGate();
+		Object gameA = new Object();
+		Object gameB = new Object();
+		boolean first = gate.allow(1000, gameA, 60_000);
+		gate.sent(1000, gameA);
+		check("auto gg: one per game and a cooldown", first && !gate.allow(200_000, gameA, 60_000) && !gate.allow(30_000, gameB, 60_000)
+			&& gate.allow(70_000, gameB, 60_000), "gate wrong");
+		check("auto gg: triggers and servers", dev.justaclient.common.chat.GgGate.trigger("Steve WON THE GAME!", List.of("won the game")) != null
+			&& dev.justaclient.common.chat.GgGate.trigger("hello", List.of("won the game", " ")) == null
+			&& dev.justaclient.common.chat.GgGate.serverAllowed("mc.hypixel.net", List.of("hypixel"))
+			&& !dev.justaclient.common.chat.GgGate.serverAllowed("play.other.net", List.of("hypixel"))
+			&& dev.justaclient.common.chat.GgGate.serverAllowed(null, List.of()), "gg rules wrong");
 	}
 
 	/** A "this chest has it" offer only applies in the world and dimension it was made in (Sol #15). */

@@ -10,6 +10,9 @@ public enum Category {
 	CAMERA("Camera", Icons.VIDEO),
 	SCREENS("Screens", Icons.MAXIMIZE),
 	INVENTORY("Inventory", Icons.BACKPACK),
+	CHAT("Chat", Icons.MESSAGE_CIRCLE),
+	SOCIAL("Social", Icons.USERS),
+	TOOLS("Tools", Icons.HAMMER),
 	UTILITY("Utility", Icons.WRENCH);
 
 	public final String label;

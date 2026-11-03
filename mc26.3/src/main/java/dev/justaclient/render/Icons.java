@@ -134,7 +134,14 @@ public enum Icons {
 	BACKPACK(0xe2c8),
 	PACKAGE_SEARCH(0xe269),
 	FLASK_ROUND(0xe0db),
-	LIST_ORDERED(0xe1d1);
+	LIST_ORDERED(0xe1d1),
+	MESSAGE_CIRCLE(0xe11a),
+	MESSAGES_SQUARE(0xe412),
+	AT_SIGN(0xe052),
+	SEND(0xe156),
+	CLOUD(0xe08c),
+	LEAF(0xe2de),
+	USER_PLUS(0xe1a2);
 
 	public final String glyph;
 

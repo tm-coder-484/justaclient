@@ -84,7 +84,7 @@ public final class TiersFeature extends Feature {
 	private @Nullable HttpClient http;
 
 	public TiersFeature() {
-		super("tiers", "Tier badges", "PvP tiers from MC Tiers next to player names", Category.UTILITY, Icons.TROPHY, false);
+		super("tiers", "Tier badges", "PvP tiers from MC Tiers next to player names", Category.SOCIAL, Icons.TROPHY, false);
 	}
 
 	public static TiersFeature get() {

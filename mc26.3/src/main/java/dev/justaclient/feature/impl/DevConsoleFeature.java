@@ -41,7 +41,7 @@ public final class DevConsoleFeature extends Feature {
 	private static boolean auditing;
 
 	public DevConsoleFeature() {
-		super("dev_console", "Dev Console", "Game log, diagnostics, resource pack audit and the screen list", Category.UTILITY, Icons.TERMINAL, true);
+		super("dev_console", "Dev Console", "Game log, diagnostics, resource pack audit and the screen list", Category.TOOLS, Icons.TERMINAL, true);
 	}
 
 	public static boolean on() {

@@ -154,6 +154,35 @@ public final class JacCommands {
 					return 1;
 				}));
 			}
+			for (String name : new String[] {"chatlog", "jchat"}) {
+				dispatcher.register(literal(name).executes(ctx -> {
+					dev.justaclient.feature.impl.ChatHistoryFeature.open(null);
+					return 1;
+				}).then(argument("tab", StringArgumentType.greedyString()).suggests((c, b) -> {
+					dev.justaclient.feature.impl.ChatHistoryFeature.get().tabNames().forEach(b::suggest);
+					return b.buildFuture();
+				}).executes(ctx -> {
+					String want = StringArgumentType.getString(ctx, "tab").trim();
+					String tab = dev.justaclient.feature.impl.ChatHistoryFeature.get().tabNames().stream().filter(n -> n.equalsIgnoreCase(want))
+						.findFirst().orElse(dev.justaclient.feature.impl.ChatHistoryFeature.ALL);
+					dev.justaclient.feature.impl.ChatHistoryFeature.open(tab);
+					return 1;
+				})));
+			}
+			// /cmd 1 to 8: send command macro N once (the same as its key).
+			dispatcher.register(literal("cmd").executes(ctx -> {
+				StringBuilder list = new StringBuilder();
+				for (int i = 1; i <= dev.justaclient.feature.impl.MacrosFeature.slots(); i++) {
+					String c = dev.justaclient.feature.impl.MacrosFeature.command(i);
+					if (!c.isEmpty()) {
+						list.append(list.isEmpty() ? "" : "  ").append(i).append(": ").append(c);
+					}
+				}
+				return reply(ctx, !list.isEmpty(), list.toString(), "No macros yet: set them in Chat > Command macros");
+			}).then(argument("n", IntegerArgumentType.integer(1, dev.justaclient.feature.impl.MacrosFeature.slots())).executes(ctx -> {
+				int n = IntegerArgumentType.getInteger(ctx, "n");
+				return reply(ctx, dev.justaclient.feature.impl.MacrosFeature.runSlot(n), "Sent macro " + n, "Macro " + n + " is empty: set it in Chat > Command macros");
+			})));
 			for (String name : new String[] {"storage", "jstorage"}) {
 				dispatcher.register(literal(name).executes(ctx -> {
 					Minecraft mc = Minecraft.getInstance();

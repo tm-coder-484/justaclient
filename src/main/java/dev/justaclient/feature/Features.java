@@ -204,6 +204,12 @@ public final class Features {
 		register(new dev.justaclient.feature.impl.PotionGuideFeature());
 		register(new dev.justaclient.feature.impl.AnvilHelperFeature());
 		register(new dev.justaclient.feature.impl.CraftingHelperFeature());
+		register(new dev.justaclient.feature.impl.ChatTimestampsFeature());
+		register(new dev.justaclient.feature.impl.ChatHighlightsFeature());
+		register(new dev.justaclient.feature.impl.ChatHistoryFeature());
+		register(new dev.justaclient.feature.impl.ChatScrollMemoryFeature());
+		register(new dev.justaclient.feature.impl.SavedMessagesFeature());
+		register(new dev.justaclient.feature.impl.AutoGgFeature());
 		register(new dev.justaclient.feature.impl.StorageMemoryFeature());
 		register(new dev.justaclient.feature.impl.DeathRecapFeature());
 		register(new dev.justaclient.feature.impl.KitsFeature());

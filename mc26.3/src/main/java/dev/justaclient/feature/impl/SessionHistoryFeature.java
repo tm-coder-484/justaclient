@@ -13,7 +13,7 @@ public final class SessionHistoryFeature extends Feature {
 	private final BoolSetting carried = bool("carried", "Record what you carried", true);
 
 	public SessionHistoryFeature() {
-		super("session_history", "Session history", "Saves each session (time, kills, blocks, pickups, inventory) for the Stats page", Category.UTILITY,
+		super("session_history", "Session history", "Saves each session (time, kills, blocks, pickups, inventory) for the Stats page", Category.TOOLS,
 			Icons.CLOCK, true);
 	}
 

@@ -19,6 +19,6 @@ public final class FeedbackFeature extends Feature {
 	public final BoolSetting attachSettings = bool("attach_settings", "Attach your settings", false);
 
 	public FeedbackFeature() {
-		super("feedback", "Feedback", "Send bug reports and ideas, with logs, from the menu's Feedback page", Category.UTILITY, Icons.FLAG, false);
+		super("feedback", "Feedback", "Send bug reports and ideas, with logs, from the menu's Feedback page", Category.TOOLS, Icons.FLAG, false);
 	}
 }

@@ -19,7 +19,7 @@ public final class ProfileBackupFeature extends Feature {
 	private long lastBackup = System.currentTimeMillis();
 
 	public ProfileBackupFeature() {
-		super("profile_backup", "Auto backup", "Keeps rotating copies of your profile and theme in config/justaclient/backups", Category.UTILITY,
+		super("profile_backup", "Auto backup", "Keeps rotating copies of your profile and theme in config/justaclient/backups", Category.TOOLS,
 			Icons.DOWNLOAD, true);
 	}
 

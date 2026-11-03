@@ -29,7 +29,7 @@ public final class FriendsFeature extends Feature {
 	private boolean middleWasDown;
 
 	public FriendsFeature() {
-		super("friends", "Friends", "Highlight friends' names; middle-click a player to add them", Category.UTILITY, Icons.USERS, true);
+		super("friends", "Friends", "Highlight friends' names; middle-click a player to add them", Category.SOCIAL, Icons.USERS, true);
 	}
 
 	public static FriendsFeature get() {

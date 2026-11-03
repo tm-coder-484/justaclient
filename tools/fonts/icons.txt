@@ -128,3 +128,10 @@ backpack
 package-search
 flask-round
 list-ordered
+message-circle
+messages-square
+at-sign
+send
+cloud
+leaf
+user-plus
