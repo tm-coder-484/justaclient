@@ -112,6 +112,45 @@ public final class Profiles {
 		return name;
 	}
 
+	/** Where {@link #backup} keeps copies, next to the profiles folder. */
+	public static final Path BACKUPS = DIR.resolveSibling("backups");
+
+	/**
+	 * Writes a timestamped copy of the active profile (with the theme) to {@link #BACKUPS} and returns its file name, or
+	 * null if it could not be written. Only the newest 20 backups are kept.
+	 */
+	public static @Nullable String backup(String reason) {
+		String stamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+		String name = file(active()).getFileName().toString().replace(".json", "") + "_" + reason + "_" + stamp + ".json";
+		try {
+			Files.createDirectories(BACKUPS);
+			JsonObject root = snapshot();
+			root.add("style", GSON.toJsonTree(JacConfig.get().style));
+			try (Writer writer = Files.newBufferedWriter(BACKUPS.resolve(name))) {
+				GSON.toJson(root, writer);
+			}
+			try (Stream<Path> files = Files.list(BACKUPS)) {
+				List<Path> old = files.filter(f -> f.toString().endsWith(".json"))
+					.sorted((a, b) -> Long.compare(b.toFile().lastModified(), a.toFile().lastModified())).skip(20).toList();
+				for (Path f : old) {
+					Files.deleteIfExists(f);
+				}
+			}
+			return name;
+		} catch (IOException e) {
+			Justaclient.LOGGER.warn("Could not back up profile {}", active(), e);
+			return null;
+		}
+	}
+
+	/** Backs up the active profile, then puts every feature, setting, key and widget back to its default. */
+	public static @Nullable String resetAll() {
+		String saved = backup("before-reset");
+		Features.all().forEach(Feature::resetToDefaults);
+		save();
+		return saved;
+	}
+
 	/** Deletes the active profile and switches to another. The last profile cannot be deleted. */
 	public static void deleteActive() {
 		List<String> names = list();

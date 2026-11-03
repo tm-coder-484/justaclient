@@ -68,6 +68,9 @@ public final class AmbientParticlesFeature extends Feature {
 	}
 
 	private void render(WorldFx.Frame f) {
+		if (CleanWorldFeature.hidesClientParticles()) {
+			return;
+		}
 		Minecraft mc = Minecraft.getInstance();
 		if (mc.level == null || mc.player == null) {
 			motes.clear();

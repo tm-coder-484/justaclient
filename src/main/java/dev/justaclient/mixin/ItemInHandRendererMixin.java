@@ -1,5 +1,7 @@
 package dev.justaclient.mixin;
 
+import dev.justaclient.feature.impl.CameraFeature;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.justaclient.feature.Features;
 import dev.justaclient.feature.impl.HandFeature;
@@ -63,5 +65,16 @@ abstract class ItemInHandRendererMixin {
 			HumanoidArm arm = context == ItemDisplayContext.FIRST_PERSON_LEFT_HAND ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
 			feature.transformItem(pose, arm, arm == entity.getMainArm());
 		}
+	}
+
+	/** Keep held item still: the hand stops lagging behind the camera when you turn (vanilla eases it 10% behind). */
+	@ModifyExpressionValue(method = "renderHandsWithItems", at = @At(value = "INVOKE", target = "Lnet/minecraft/util/Mth;lerp(FFF)F", ordinal = 0))
+	private float justaclient$stillPitch(float bob, float partialTick, PoseStack pose, SubmitNodeCollector collector, LocalPlayer player, int light) {
+		return CameraFeature.keepsHandStill() ? player.getViewXRot(partialTick) : bob;
+	}
+
+	@ModifyExpressionValue(method = "renderHandsWithItems", at = @At(value = "INVOKE", target = "Lnet/minecraft/util/Mth;lerp(FFF)F", ordinal = 1))
+	private float justaclient$stillYaw(float bob, float partialTick, PoseStack pose, SubmitNodeCollector collector, LocalPlayer player, int light) {
+		return CameraFeature.keepsHandStill() ? player.getViewYRot(partialTick) : bob;
 	}
 }

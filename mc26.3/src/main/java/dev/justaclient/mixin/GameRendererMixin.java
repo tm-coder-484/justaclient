@@ -1,5 +1,8 @@
 package dev.justaclient.mixin;
 
+import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
+import com.mojang.blaze3d.vertex.PoseStack;
+import dev.justaclient.feature.impl.CameraFeature;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.renderpearl.api.commands.CommandEncoder;
@@ -53,5 +56,19 @@ abstract class GameRendererMixin {
 	@Inject(method = "renderItemInHand", at = @At("TAIL"))
 	private void justaclient$compositeHand(CameraRenderState camera, PlayerRenderState player, GpuTextureView depth, CallbackInfo ci) {
 		HandFx.end();
+	}
+
+	/** Keep held item still: the hand skips the hurt shake. */
+	@WrapWithCondition(method = "renderItemInHand", at = @At(value = "INVOKE",
+		target = "Lnet/minecraft/client/renderer/GameRenderer;bobHurt(Lnet/minecraft/client/renderer/state/level/CameraRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;)V"))
+	private boolean justaclient$handHurtShake(GameRenderer renderer, CameraRenderState camera, PoseStack pose) {
+		return !CameraFeature.keepsHandStill();
+	}
+
+	/** Keep held item still: the hand skips the walking bob. */
+	@WrapWithCondition(method = "renderItemInHand", at = @At(value = "INVOKE",
+		target = "Lnet/minecraft/client/renderer/GameRenderer;bobView(Lnet/minecraft/client/renderer/state/level/CameraRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;)V"))
+	private boolean justaclient$handBob(GameRenderer renderer, CameraRenderState camera, PoseStack pose) {
+		return !CameraFeature.keepsHandStill();
 	}
 }

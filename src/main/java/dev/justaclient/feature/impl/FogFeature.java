@@ -17,11 +17,12 @@ import net.minecraft.world.level.material.FogType;
 import org.joml.Vector4f;
 
 /**
- * Air fog colour per dimension and how close it starts. It only ever brings fog closer: it never thins water, lava,
- * powder snow, blindness or darkness fog, since seeing further through those would be an advantage.
+ * Air fog colour per dimension and how close it starts, or no air fog at all. It never thins water, lava, powder snow,
+ * blindness or darkness fog, since seeing further through those would be an advantage.
  */
 public final class FogFeature extends Feature {
-	private final NumberSetting distance = number("distance", "Fog distance", 1.0, 0.2, 1.0, 0.05, NumberSetting.percent());
+	private final BoolSetting noFog = bool("no_fog", "No fog", false);
+	private final NumberSetting distance = number("distance", "Fog distance", 1.0, 0.2, 1.0, 0.05, NumberSetting.percent()).visibleWhen(() -> !noFog.on());
 	private final BoolSetting recolor = bool("recolor", "Custom colours", true);
 	private final ColorSetting overworld = color("overworld", "Overworld", "#B8C8E8").visibleWhen(recolor::on);
 	private final ColorSetting nether = color("nether", "Nether", "#5A1E2E").visibleWhen(recolor::on);
@@ -29,7 +30,7 @@ public final class FogFeature extends Feature {
 	private final NumberSetting strength = number("strength", "Colour strength", 0.5, 0.05, 1.0, 0.05, NumberSetting.percent()).visibleWhen(recolor::on);
 
 	public FogFeature() {
-		super("fog", "Fog", "Fog colour per dimension and distance", Category.WORLD, Icons.CLOUD_FOG, false);
+		super("fog", "Fog", "No fog, or fog colour per dimension and distance", Category.WORLD, Icons.CLOUD_FOG, false);
 	}
 
 	private static boolean applies(Camera camera) {
@@ -41,6 +42,14 @@ public final class FogFeature extends Feature {
 
 	public void adjust(Camera camera, FogData fog) {
 		if (!isEnabled() || !applies(camera)) {
+			return;
+		}
+		if (noFog.on()) {
+			// Push normal distance fog past anything that can be loaded. Water, lava, snow, blindness and darkness keep theirs.
+			fog.environmentalStart = 1_000_000f;
+			fog.environmentalEnd = 2_000_000f;
+			fog.renderDistanceStart = 1_000_000f;
+			fog.renderDistanceEnd = 2_000_000f;
 			return;
 		}
 		float d = distance.f();

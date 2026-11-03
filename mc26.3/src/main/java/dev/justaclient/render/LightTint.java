@@ -1,12 +1,13 @@
 package dev.justaclient.render;
 
+import dev.justaclient.feature.impl.FullbrightFeature;
 import dev.justaclient.feature.impl.LightColorFeature;
 import net.minecraft.client.renderer.state.LightmapRenderState;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 
 /**
- * Light colour on 26.3. The lightmap here already takes a block light tint and a sky light colour from the world's
+ * Light colour and Fullbright on 26.3. The lightmap here already takes a block light tint and a sky light colour from the world's
  * environment, so the tint is mixed into those values after vanilla works them out; no extra shader is needed.
  */
 public final class LightTint {
@@ -26,6 +27,13 @@ public final class LightTint {
 		}
 		if (sky[3] > 0f) {
 			state.skyLightColor = tint(state.skyLightColor, sky);
+		}
+		float full = FullbrightFeature.amount();
+		if (full > 0f) {
+			// Fullbright rides the night vision input: white light at full strength lifts every light level to full.
+			// Darkness is applied after it in the shader, so the Darkness effect still shows.
+			state.nightVisionEffectIntensity = Math.max(state.nightVisionEffectIntensity, full);
+			state.nightVisionColor = new Vector3f(1f, 1f, 1f);
 		}
 	}
 

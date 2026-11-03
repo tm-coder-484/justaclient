@@ -1,5 +1,7 @@
 package dev.justaclient.mixin;
 
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import dev.justaclient.feature.Features;
@@ -52,5 +54,19 @@ abstract class GameRendererMixin {
 	@ModifyReturnValue(method = "getFov", at = @At("RETURN"))
 	private float justaclient$zoom(float fov, Camera camera, float partialTick, boolean useFovSetting) {
 		return useFovSetting ? fov / Features.get(ZoomFeature.class).factor() : Features.get(CameraFeature.class).handFov(fov);
+	}
+
+	/** Keep held item still: the hand skips the hurt shake. */
+	@WrapWithCondition(method = "renderItemInHand", at = @At(value = "INVOKE",
+		target = "Lnet/minecraft/client/renderer/GameRenderer;bobHurt(Lcom/mojang/blaze3d/vertex/PoseStack;F)V"))
+	private boolean justaclient$handHurtShake(GameRenderer renderer, PoseStack pose, float partialTick) {
+		return !CameraFeature.keepsHandStill();
+	}
+
+	/** Keep held item still: the hand skips the walking bob. */
+	@WrapWithCondition(method = "renderItemInHand", at = @At(value = "INVOKE",
+		target = "Lnet/minecraft/client/renderer/GameRenderer;bobView(Lcom/mojang/blaze3d/vertex/PoseStack;F)V"))
+	private boolean justaclient$handBob(GameRenderer renderer, PoseStack pose, float partialTick) {
+		return !CameraFeature.keepsHandStill();
 	}
 }

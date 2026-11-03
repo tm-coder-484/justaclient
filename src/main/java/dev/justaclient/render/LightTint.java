@@ -5,13 +5,14 @@ import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.buffers.Std140SizeCalculator;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
+import dev.justaclient.feature.impl.FullbrightFeature;
 import dev.justaclient.feature.impl.LightColorFeature;
 import net.minecraft.client.renderer.MappableRingBuffer;
 import org.jspecify.annotations.Nullable;
 
-/** Feeds the Light colour tint to the lightmap pass. */
+/** Feeds the Light colour tint and Fullbright to the lightmap pass. */
 public final class LightTint {
-	private static final int SIZE = new Std140SizeCalculator().putVec4().putVec4().get();
+	private static final int SIZE = new Std140SizeCalculator().putVec4().putVec4().putVec4().get();
 	private static @Nullable MappableRingBuffer ubo;
 	private static boolean active;
 
@@ -23,7 +24,8 @@ public final class LightTint {
 		LightColorFeature f = LightColorFeature.get();
 		float[] block = f.blockTint();
 		float[] sky = f.skyTint();
-		active = block[3] > 0f || sky[3] > 0f;
+		float full = FullbrightFeature.amount();
+		active = block[3] > 0f || sky[3] > 0f || full > 0f;
 		if (!active) {
 			return;
 		}
@@ -32,7 +34,8 @@ public final class LightTint {
 		}
 		ubo.rotate();
 		try (GpuBuffer.MappedView view = RenderSystem.getDevice().createCommandEncoder().mapBuffer(ubo.currentBuffer(), false, true)) {
-			Std140Builder.intoBuffer(view.data()).putVec4(block[0], block[1], block[2], block[3]).putVec4(sky[0], sky[1], sky[2], sky[3]);
+			Std140Builder.intoBuffer(view.data()).putVec4(block[0], block[1], block[2], block[3]).putVec4(sky[0], sky[1], sky[2], sky[3])
+				.putVec4(full, 0f, 0f, 0f);
 		}
 	}
 

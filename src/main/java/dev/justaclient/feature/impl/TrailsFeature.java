@@ -81,6 +81,9 @@ public final class TrailsFeature extends Feature {
 	}
 
 	private void render(WorldFx.Frame f) {
+		if (CleanWorldFeature.hidesClientParticles()) {
+			return;
+		}
 		Minecraft mc = Minecraft.getInstance();
 		if (mc.level == null || mc.player == null) {
 			trails.clear();

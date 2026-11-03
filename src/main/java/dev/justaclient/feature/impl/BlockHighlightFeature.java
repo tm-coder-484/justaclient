@@ -7,6 +7,7 @@ import dev.justaclient.feature.Category;
 import dev.justaclient.feature.Feature;
 import dev.justaclient.feature.Features;
 import dev.justaclient.feature.setting.BoolSetting;
+import dev.justaclient.feature.setting.ChoiceSetting;
 import dev.justaclient.feature.setting.ColorSetting;
 import dev.justaclient.feature.setting.NumberSetting;
 import dev.justaclient.hud.FrameCost;
@@ -35,12 +36,30 @@ public final class BlockHighlightFeature extends Feature {
 		.visibleWhen(fill::on);
 	private final BoolSetting smooth = bool("smooth", "Glide between blocks", true);
 	private final BoolSetting progress = bool("progress", "Show mining progress", true);
+	private final ChoiceSetting<Pulse> pulse = choice("pulse", "Pulse", Pulse.OFF);
+	private final NumberSetting pulseSpeed = number("pulse_speed", "Pulse speed", 1.0, 0.25, 3.0, 0.25, NumberSetting.decimal("x"))
+		.visibleWhen(() -> pulse.get() != Pulse.OFF);
+
+	public enum Pulse implements ChoiceSetting.Named {
+		OFF("Off"), OUTLINE("Outline"), FILL("Fill"), BOTH("Both");
+
+		private final String label;
+
+		Pulse(String label) {
+			this.label = label;
+		}
+
+		@Override
+		public String label() {
+			return label;
+		}
+	}
 	private @Nullable AABB shown;
 	private float visibility;
 	private long lastNanos = -1;
 
 	public BlockHighlightFeature() {
-		super("block_highlight", "Block highlight", "Smooth outline and fill on the block you look at", Category.WORLD, Icons.SQUARE_DASHED, true);
+		super("block_highlight", "Block highlight", "Smooth outline and fill on the block you look at, with an optional pulse", Category.WORLD, Icons.SQUARE_DASHED, true);
 	}
 
 	public static void init() {
@@ -73,12 +92,17 @@ public final class BlockHighlightFeature extends Feature {
 			}
 			return;
 		}
+		// Pulse: a slow breathe between 35% and 100%.
+		float wave = 0.5f + 0.5f * (float) Math.sin(now / 1e9 * Math.PI * 2 * 0.8 * pulseSpeed.get());
+		float beat = 0.35f + 0.65f * wave;
+		float outlineBeat = pulse.get() == Pulse.OUTLINE || pulse.get() == Pulse.BOTH ? beat : 1f;
+		float fillBeat = pulse.get() == Pulse.FILL || pulse.get() == Pulse.BOTH ? beat : 1f;
 		Vec3 cam = context.worldState().cameraRenderState.pos;
 		AABB box = shown.move(-cam.x, -cam.y, -cam.z).inflate(0.002);
 		PoseStack pose = context.matrices();
 		MultiBufferSource buffers = context.consumers();
 		if (fill.on()) {
-			int color = Colors.fade(Colors.withAlpha(fillColor.argb(), Math.round(fillOpacity.f() * 255)), visibility);
+			int color = Colors.fade(Colors.withAlpha(fillColor.argb(), Math.round(fillOpacity.f() * 255)), visibility * fillBeat);
 			filledBox(pose, buffers.getBuffer(RenderTypes.debugFilledBox()), box, color);
 		}
 		float mined = miningProgress();
@@ -87,7 +111,7 @@ public final class BlockHighlightFeature extends Feature {
 			AABB inner = box.deflate(box.getXsize() * 0.5 * (1 - mined), box.getYsize() * 0.5 * (1 - mined), box.getZsize() * 0.5 * (1 - mined));
 			filledBox(pose, buffers.getBuffer(RenderTypes.debugFilledBox()), inner, Colors.withAlpha(outlineColor.argb(), 0x60));
 		}
-		int line = Colors.fade(outlineColor.argb(), visibility);
+		int line = Colors.fade(outlineColor.argb(), visibility * outlineBeat);
 		lineBox(pose, buffers.getBuffer(RenderTypes.lines()), box, line, outlineWidth.f() * Minecraft.getInstance().getWindow().getAppropriateLineWidth() / 2.5f);
 	}
 

@@ -105,8 +105,14 @@ public final class ClickGuiScreen extends Screen {
 	private @Nullable Button resetButton;
 
 	private boolean profileMenu;
-	/** Rows after the profile names in the profile menu: new, copy, paste, delete, open folder. */
-	private static final int ACTIONS = 5;
+	/** Rows after the profile names in the profile menu: new, copy, paste, delete, open folder, reset all. */
+	private static final int ACTIONS = 6;
+	/** An "are you sure?" card drawn over the menu, e.g. before Reset all. */
+	private @Nullable ConfirmDialog dialog;
+	/** Set when a key binder takes a key, so that key's typed character does not also land in the search. */
+	private boolean swallowChar;
+	/** The search box was clicked: it shows a caret even while empty. Typing anywhere still searches. */
+	private boolean searchFocused;
 	private final Animation profileMenuAnim = new Animation(Easing.CUBIC_OUT, 160, 0f);
 
 	public ClickGuiScreen(@Nullable Screen parent) {
@@ -286,6 +292,11 @@ public final class ClickGuiScreen extends Screen {
 		drawFooter(g, lx, ly, t);
 		drawProfileMenu(g, lx, ly, t);
 		g.pose().popMatrix();
+		// Key and character events for one key press arrive before the next frame, so a frame ends the swallow window.
+		swallowChar = false;
+		if (dialog != null) {
+			dialog.render(g, width, height, mouseX, mouseY);
+		}
 	}
 
 	private boolean isThemePage() {
@@ -310,8 +321,10 @@ public final class ClickGuiScreen extends Screen {
 		float sh = 17;
 		float r = Math.min(5f, JacConfig.get().style.cornerRadius);
 		boolean searching = !query.isBlank();
-		Draw.rect(g, sx, sy, sw, sh, r, Colors.fade(searching ? Theme.CONTROL_HOVER : Theme.CONTROL, t));
-		if (searching) {
+		boolean boxActive = searching || searchFocused;
+		boolean boxHover = mx >= sx && mx < sx + sw && my >= sy && my < sy + sh;
+		Draw.rect(g, sx, sy, sw, sh, r, Colors.fade(boxActive || boxHover ? Theme.CONTROL_HOVER : Theme.CONTROL, t));
+		if (boxActive) {
 			Draw.outline(g, sx, sy, sw, sh, r, 0.75f, Colors.fade(Colors.withAlpha(JacConfig.accent(), 0x90), t));
 		}
 		JacText.icon(g, Icons.SEARCH, sx + 6, sy + (sh - 6.5f) / 2f, 6.5f, Colors.fade(Theme.TEXT_DIM, t));
@@ -323,8 +336,14 @@ public final class ClickGuiScreen extends Screen {
 				float cx = sx + 16 + JacText.width(shownQuery, Theme.LABEL, JacText.Weight.REGULAR) + 0.5f;
 				Draw.rect(g, cx, sy + 4, 0.75f, sh - 8, 0, Colors.fade(Theme.TEXT, t));
 			}
+			// Clear button.
+			boolean clearHover = mx >= sx + sw - 15 && mx < sx + sw && my >= sy && my < sy + sh;
+			JacText.icon(g, Icons.X, sx + sw - 11, sy + (sh - 6f) / 2f, 6f, Colors.fade(clearHover ? Theme.TEXT : Theme.TEXT_DIM, t));
 		} else {
-			JacText.draw(g, "Search features", sx + 16, ty, Colors.fade(Theme.TEXT_DIM, t * 0.8f), Theme.LABEL, JacText.Weight.REGULAR);
+			JacText.draw(g, "Search features", sx + (searchFocused ? 19 : 16), ty, Colors.fade(Theme.TEXT_DIM, t * 0.8f), Theme.LABEL, JacText.Weight.REGULAR);
+			if (searchFocused && System.currentTimeMillis() / 500 % 2 == 0) {
+				Draw.rect(g, sx + 16, sy + 4, 0.75f, sh - 8, 0, Colors.fade(Theme.TEXT, t));
+			}
 		}
 
 		// Categories, then Theme below a divider. A single marker slides to the active one.
@@ -548,6 +567,7 @@ public final class ClickGuiScreen extends Screen {
 		items.add("i");
 		items.add("-");
 		items.add("/");
+		items.add("r");
 		return items;
 	}
 
@@ -585,6 +605,7 @@ public final class ClickGuiScreen extends Screen {
 				case "i" -> menuRow(g, Icons.CLIPBOARD_PASTE, "Paste from clipboard", x, iy, ty, color);
 				case "-" -> menuRow(g, Icons.TRASH, "Delete this profile", x, iy, ty, color);
 				case "/" -> menuRow(g, Icons.LAYERS, "Open profiles folder", x, iy, ty, color);
+				case "r" -> menuRow(g, Icons.ROTATE_CCW, "Reset all settings", x, iy, ty, color);
 				default -> {
 					boolean active = item.equals(Profiles.active());
 					if (active) {
@@ -626,10 +647,15 @@ public final class ClickGuiScreen extends Screen {
 		if (closing) {
 			return true;
 		}
+		if (dialog != null) {
+			return dialog.mouseClicked(event.x(), event.y(), event.button() - 1);
+		}
 		double mx = toLocalX(event.x());
 		double my = toLocalY(event.y());
 		// SDL numbers buttons from 1 (left); the widgets use 0 for left and 1 for right.
 		int button = event.button() - 1;
+		boolean inSearch = mx >= 10 && mx < SIDEBAR - 10 && my >= 32 && my < 49;
+		searchFocused = inSearch && button == 0;
 
 		if (profileMenu) {
 			clickProfileMenu(mx, my);
@@ -662,9 +688,13 @@ public final class ClickGuiScreen extends Screen {
 				return true;
 			}
 		}
-		if (button == 1 && mx >= 10 && mx < SIDEBAR - 10 && my >= 32 && my < 49) {
+		// Search box: a right click or the clear button empties it, a left click focuses it.
+		if (inSearch && (button == 1 || button == 0 && !query.isEmpty() && mx >= SIDEBAR - 25)) {
 			query = "";
 			refreshList();
+			return true;
+		}
+		if (inSearch && button == 0) {
 			return true;
 		}
 		if (isStatsPage() && button == 0 && StatsPage.click(mx, my)) {
@@ -757,6 +787,21 @@ public final class ClickGuiScreen extends Screen {
 				Profiles.save();
 				Blaze3D.openPath(Profiles.DIR);
 			}
+			case "r" -> {
+				dialog = new ConfirmDialog(Icons.ROTATE_CCW, "Reset all settings?",
+					"Every feature, setting, key and HUD position in " + Profiles.active() + " goes back to its default. A backup is saved first.",
+					"Reset all", () -> {
+						dialog = null;
+						String backup = Profiles.resetAll();
+						Notifications.push(Icons.ROTATE_CCW, "Reset all", backup == null ? "done (backup failed)" : "done, backup saved");
+						knobs.clear();
+						settingWidgets.clear();
+						rowY.clear();
+						refreshList();
+						select(selected);
+					}, () -> dialog = null);
+				return;
+			}
 			default -> Profiles.switchTo(item);
 		}
 		knobs.clear();
@@ -806,10 +851,15 @@ public final class ClickGuiScreen extends Screen {
 
 	@Override
 	public boolean keyPressed(KeyEvent event) {
+		if (dialog != null) {
+			return dialog.keyPressed(event.key());
+		}
 		for (Widget w : visibleSettings) {
 			if (w.capturesKeys()) {
 				w.keyPressed(event.key());
 				Profiles.save();
+				// A key binder stops listening once it has its key; that key's character must not reach the search.
+				swallowChar = !w.capturesKeys();
 				return true;
 			}
 		}
@@ -817,6 +867,8 @@ public final class ClickGuiScreen extends Screen {
 		if (key == InputConstants.KEY_ESCAPE) {
 			if (profileMenu) {
 				profileMenu = false;
+			} else if (searchFocused && query.isEmpty()) {
+				searchFocused = false;
 			} else if (!query.isEmpty()) {
 				query = "";
 				refreshList();
@@ -839,6 +891,13 @@ public final class ClickGuiScreen extends Screen {
 
 	@Override
 	public boolean charTyped(CharacterEvent event) {
+		if (dialog != null) {
+			return true;
+		}
+		if (swallowChar) {
+			swallowChar = false;
+			return true;
+		}
 		for (Widget w : visibleSettings) {
 			if (w.capturesKeys()) {
 				if (event.isAllowedChatCharacter() && w.charTyped(event.codepoint())) {

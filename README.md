@@ -32,10 +32,10 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 | Where | What to do |
 | --- | --- |
 | **Right Shift** | Opens the menu: categories on the left, features in the middle, settings on the right. |
-| Typing in the menu | Searches every feature and setting. Esc clears the search, Esc again closes. |
+| Typing in the menu | Searches every feature and setting (or click the search box). The x or a right click clears it, Esc clears it too, Esc again closes. |
 | Feature cards | Click to see settings, click the switch (or right click the card) to turn it on or off. |
 | **Toggle key** row | Click it and press any key to toggle that feature in game. Esc or Backspace unbinds. |
-| **Profile** (bottom left) | Switch profiles, copy the current one, copy it to the clipboard to share, paste one a friend sent, delete it, or open the profiles folder. |
+| **Profile** (bottom left) | Switch profiles, copy the current one, copy it to the clipboard to share, paste one a friend sent, delete it, open the profiles folder, or reset everything (a backup is saved first). |
 | **Edit HUD layout** | Drag widgets; they snap to edges, the centre and each other (hold Shift to place freely). Scroll to resize, right click for settings. |
 | **Theme** | Accent, panel opacity, corners, blur, outline, font and motion. Everything follows these. |
 | **Performance** (menu, or click the frame cost in the footer) | What each feature costs per frame, against the 5% budget. |
@@ -52,6 +52,38 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 ![HUD editor with a snap guide](docs/screenshots/hud-editor.png)
 
 ## What is in this build
+
+### M7: foundations and quick wins (v0.8.0)
+
+Every new feature has its own switch. All of it is in both the 1.21.11 and 26.3 jars.
+
+- **Notifications v2**: the toast feed now shows pickups ("+12 Cobblestone", stacking while more arrive, with the item
+  icon) and an **Inventory full** popup when you stand on items you have no room for. Switches for toggles, pickups,
+  inventory full and other messages, plus how long toasts stay, how many show at once and their opacity.
+- **Fullbright** (World): full brightness everywhere through the lightmap, so it also works with shaders. The Darkness
+  effect still shows.
+- **Clean world**: *Hide explosion particles*, and *No particles* (hides every vanilla particle, with a separate switch
+  for the client's own effect particles).
+- **Fog**: *No fog* removes distance fog (water, lava, blindness and darkness fog stay).
+- **Camera**: *Keep held item still*: the hand stops bobbing, swaying behind the camera and shaking when hurt.
+- **Block highlight**: *Pulse* the outline, the fill or both, with a speed slider.
+- **Custom crosshair**: *Show hit distance*: the reach of your last melee hit, beside the crosshair, fading out.
+- **Weapon comparison** (Combat feel): weapon tooltips compare damage and attack speed with the weapon you hold.
+- **New HUD widgets**: Combat info (combo, best combo, hit counter, last hit distance, shield durability and whether
+  an axe disabled it), Speed (blocks/s or km/h, vertical speed, facing with degrees), Performance overlay (FPS, 1% low,
+  stability meter, frame-time graph, client frame cost, entity, chunk and particle counts), Timer (start/pause and reset
+  keys, optional auto start), Biome card, Day cycle (sun track, day number, time until night or morning), Held item
+  (total carried, durability, enchantments) and Durability overview (your most worn items).
+- **Widget upgrades**: Coordinates can show chunk coordinates; Potion effects has a compact one-row summary; Armor can
+  show empty armour slots.
+- **Exit confirmation** (Utility, on by default): Save and Quit and Disconnect ask first, in the client's style.
+- **Auto reconnect**: *Retry already-online*: when a server says your last session is still online, it retries up to
+  5 times on a short countdown (from Tom's server-switcher mod). *Rejoin after any disconnect* keeps the old behaviour.
+- **Menu**: the search box can be clicked (caret, and an x to clear it); **Reset all settings** in the profile menu asks
+  first and saves a backup to `config/justaclient/backups/` before resetting.
+- **Fix**: binding a key in the menu no longer also types that letter into the search.
+- Under the hood: a shared `common/` source folder compiled by both builds, a per-world store
+  (`config/justaclient/worlds/<world>/`) for upcoming features, and a reusable confirm dialog.
 
 ### Fixes (v0.7.1 to v0.7.6)
 
@@ -257,6 +289,8 @@ The world effects (sky, fog, trails, jump circles, hit sounds) start off; turn t
 
 | Path | What it holds |
 | --- | --- |
+| `common/src/main/java/` | Plain Java shared by both builds (frame stats, stopwatch, durations, world keys) |
+| `src/main/java/dev/justaclient/world/` | Per-world store (`config/justaclient/worlds/<world>/`) |
 | `src/main/java/dev/justaclient/render/` | Shape kit (`Draw`), blur (`BlurEngine`), pipelines, world effects (`WorldFx`) |
 | `src/main/java/dev/justaclient/render/text/` | MSDF font loader and text renderer (`JacText`) |
 | `src/main/java/dev/justaclient/anim/` | `Easing`, `Animation`, `Spring`, `Colors` |

@@ -10,6 +10,8 @@ import dev.justaclient.feature.impl.BlockHighlightFeature;
 import dev.justaclient.feature.impl.CombatTracker;
 import dev.justaclient.feature.impl.CosmeticsFeature;
 import dev.justaclient.feature.impl.EndCrystalFeature;
+import dev.justaclient.feature.impl.ExitConfirmFeature;
+import dev.justaclient.feature.impl.WeaponCompareFeature;
 import dev.justaclient.feature.impl.HatsFeature;
 import dev.justaclient.feature.impl.SlashTrailFeature;
 import dev.justaclient.feature.impl.HotbarFeature;
@@ -17,9 +19,11 @@ import dev.justaclient.feature.impl.TargetMarkerFeature;
 import dev.justaclient.feature.impl.TrailsFeature;
 import dev.justaclient.feature.impl.WaypointsFeature;
 import dev.justaclient.hud.HudRenderer;
+import dev.justaclient.hud.PickupFeed;
 import dev.justaclient.hud.LifetimeStats;
 import dev.justaclient.hud.SessionStats;
 import dev.justaclient.hud.widgets.NowPlayingHud;
+import dev.justaclient.hud.widgets.TimerHud;
 import dev.justaclient.profile.Profiles;
 import dev.justaclient.render.ExploredMap;
 import dev.justaclient.render.JacPipelines;
@@ -74,9 +78,13 @@ public final class Justaclient implements ClientModInitializer {
 		CosmeticsFeature.init();
 		WaypointsFeature.init();
 		AutoReconnectFeature.init();
+		ExitConfirmFeature.init();
+		WeaponCompareFeature.init();
 		JacCommands.init();
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
 			SessionStats.reset();
+			CombatTracker.resetSession();
+			Features.get(TimerHud.class).onJoin();
 			LifetimeStats.onJoin();
 			JacTitleScreen.freeBackground();
 		});
@@ -89,6 +97,7 @@ public final class Justaclient implements ClientModInitializer {
 			CombatTracker.tick();
 			ExploredMap.tick(client);
 			SessionStats.tick();
+			PickupFeed.tick(client);
 			LifetimeStats.tick();
 			Features.tick(client);
 			while (OPEN_MENU.consumeClick()) {
