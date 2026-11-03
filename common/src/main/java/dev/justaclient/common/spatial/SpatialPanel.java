@@ -39,6 +39,12 @@ public final class SpatialPanel {
 	 * you), turned by {@code turnDeg} (right edge away from you) and bent by {@code bend} (0 flat, 1 {@link #MAX_BEND}).
 	 */
 	public static SpatialPanel place(double distance, double lift, double halfWidth, double halfHeight, double leanDeg, double turnDeg, double bend) {
+		return place(0, distance, lift, halfWidth, halfHeight, leanDeg, turnDeg, bend);
+	}
+
+	/** Like {@link #place(double, double, double, double, double, double, double)}, moved {@code x} to the right. */
+	public static SpatialPanel place(double x, double distance, double lift, double halfWidth, double halfHeight, double leanDeg, double turnDeg,
+		double bend) {
 		double[] right = {1, 0, 0};
 		double[] up = {0, 1, 0};
 		double[] normal = {0, 0, 1};
@@ -50,7 +56,23 @@ public final class SpatialPanel {
 		normal = rotate(normal, right, -lean);
 		double angle = Math.max(0, Math.min(1, bend)) * MAX_BEND;
 		double radius = angle < 1e-4 ? 0 : halfWidth / (angle / 2);
-		return new SpatialPanel(new double[] {0, lift, -distance}, right, up, normal, halfWidth, halfHeight, radius);
+		return new SpatialPanel(new double[] {x, lift, -distance}, right, up, normal, halfWidth, halfHeight, radius);
+	}
+
+	/**
+	 * Third person: where the middle of the panel goes across the screen (-1 left edge, 1 right edge) so it floats beside
+	 * your character instead of over it. {@code playerX} is the character on the same scale, {@code size} the panel's
+	 * width as a share of the screen's half width, {@code side} 1 for the right of the character and -1 for the left.
+	 * The panel keeps a small gap to the character and to the edge of the screen; when there is not room for both, the
+	 * edge wins and the panel overlaps the character a little.
+	 */
+	public static double besideCenter(double playerX, double size, int side) {
+		double gap = 0.1;
+		double margin = 0.03;
+		if (side >= 0) {
+			return Math.min(1 - margin - size, playerX + gap + size);
+		}
+		return Math.max(-1 + margin + size, playerX - gap - size);
 	}
 
 	/**

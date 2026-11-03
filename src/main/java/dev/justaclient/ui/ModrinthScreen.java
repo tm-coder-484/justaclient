@@ -69,6 +69,9 @@ public final class ModrinthScreen extends JacScreen {
 	private int requestId;
 	private long searchAt;
 	private Modrinth.@Nullable Hit selected;
+	/** The details panel on the right; closed, the results fill the width as a grid of tiles. Kept while the game runs. */
+	private static boolean detailOpen = true;
+	private static final float TILE_W = 150f;
 	private final Map<String, List<Modrinth.Version>> versions = new HashMap<>();
 	private final Map<String, String> versionErrors = new HashMap<>();
 	/** What is installed, by Modrinth project id, for the current kind's folder: the file and its version id. */
@@ -490,7 +493,7 @@ public final class ModrinthScreen extends JacScreen {
 		px = (width - pw) / 2f;
 		py = (height - ph) / 2f;
 		listX = px + PAD;
-		listW = Math.max(160f, pw * 0.45f);
+		listW = detailOpen ? Math.max(160f, pw * 0.45f) : pw - PAD * 2;
 		tabsY = py + 40;
 		listY = tabsY + 20;
 		listH = py + ph - 34 - listY;
@@ -537,8 +540,15 @@ public final class ModrinthScreen extends JacScreen {
 			sort = Modrinth.Sort.values()[(sort.ordinal() + 1) % Modrinth.Sort.values().length];
 			runSearch(false);
 		});
+		String detailLabel = detailOpen ? "Hide details" : "Show details";
+		float dw = JacText.width(detailLabel, Theme.SMALL, JacText.Weight.SEMIBOLD) + 12;
+		if (px + pw - PAD - sw - 4 - dw > cx) {
+			chip(g, mx, my, a, px + pw - PAD - sw - 4 - dw, tabsY, detailLabel, false, () -> detailOpen = !detailOpen);
+		}
 		drawList(g, mx, my, a, accent);
-		drawDetail(g, mx, my, a, accent);
+		if (detailOpen) {
+			drawDetail(g, mx, my, a, accent);
+		}
 		drawFooter(g, mx, my, a);
 		if (!search.get().isEmpty() && searchAt > 0 && System.currentTimeMillis() - searchAt > 350) {
 			searchAt = 0;
@@ -580,39 +590,43 @@ public final class ModrinthScreen extends JacScreen {
 	}
 
 	private void drawList(GuiGraphics g, int mx, int my, float a, int accent) {
-		scroll.setMax(hits.size() * ROW_H + (hits.size() < total ? ROW_H : 0) - listH);
+		int cols = columns();
+		float tileW = listW / cols;
+		int rows = (hits.size() + cols - 1) / cols;
+		scroll.setMax(rows * ROW_H + (hits.size() < total ? ROW_H : 0) - listH);
 		float s = scroll.get();
 		Draw.rect(g, listX, listY, listW, listH, 6f, Colors.fade(0x18000000, a));
 		g.enableScissor((int) listX, (int) listY, (int) (listX + listW), (int) (listY + listH));
-		int first = Math.max(0, (int) (s / ROW_H));
+		int first = Math.max(0, (int) (s / ROW_H)) * cols;
 		for (int i = first; i < hits.size(); i++) {
-			float y = listY + i * ROW_H - s;
+			float y = listY + (i / cols) * ROW_H - s;
 			if (y > listY + listH) {
 				break;
 			}
+			float tx = listX + (i % cols) * tileW;
 			Modrinth.Hit h = hits.get(i);
 			boolean sel = selected != null && selected.id().equals(h.id());
-			boolean hot = mx >= listX && mx < listX + listW && my >= y && my < y + ROW_H && my >= listY && my < listY + listH;
+			boolean hot = mx >= tx && mx < tx + tileW && my >= y && my < y + ROW_H && my >= listY && my < listY + listH;
 			if (sel || hot) {
-				Draw.rect(g, listX + 2, y + 1, listW - 4, ROW_H - 2, 5f, Colors.fade(sel ? Colors.withAlpha(accent, 0x30) : 0x10FFFFFF, a));
+				Draw.rect(g, tx + 2, y + 1, tileW - 4, ROW_H - 2, 5f, Colors.fade(sel ? Colors.withAlpha(accent, 0x30) : 0x10FFFFFF, a));
 			}
-			avatar(g, h, listX + 6, y + 5, 20, a);
-			float textW = listW - 36 - 8;
+			avatar(g, h, tx + 6, y + 5, 20, a);
+			float textW = tileW - 36 - 8;
 			String badge = badge(h);
 			float bw = badge == null ? 0 : JacText.width(badge, Theme.SMALL, JacText.Weight.SEMIBOLD) + 10;
-			JacText.draw(g, fit(h.title(), Theme.LABEL, JacText.Weight.SEMIBOLD, textW - bw), listX + 32, y + 5, Colors.fade(Theme.TEXT, a), Theme.LABEL,
+			JacText.draw(g, fit(h.title(), Theme.LABEL, JacText.Weight.SEMIBOLD, textW - bw), tx + 32, y + 5, Colors.fade(Theme.TEXT, a), Theme.LABEL,
 				JacText.Weight.SEMIBOLD);
 			JacText.draw(g, fit("by " + h.author() + "  ·  " + Modrinth.shortCount(h.downloads()) + " downloads", Theme.SMALL, JacText.Weight.REGULAR,
-				textW), listX + 32, y + 16, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL, JacText.Weight.REGULAR);
+				textW), tx + 32, y + 16, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL, JacText.Weight.REGULAR);
 			if (badge != null) {
 				int c = badge.equals("Installed") || badge.equals("Loaded") ? OK : WARN;
-				float bx = listX + listW - 8 - bw;
+				float bx = tx + tileW - 8 - bw;
 				Draw.rect(g, bx, y + 5, bw, 11, 5.5f, Colors.fade(Colors.withAlpha(c, 0x30), a));
 				JacText.draw(g, badge, bx + 5, y + 7, Colors.fade(c, a), Theme.SMALL, JacText.Weight.SEMIBOLD);
 			}
 		}
 		if (hits.size() < total && !hits.isEmpty()) {
-			float y = listY + hits.size() * ROW_H - s;
+			float y = listY + rows * ROW_H - s;
 			JacText.drawCentered(g, loading ? "Loading more..." : "Scroll for more", listX + listW / 2f, y + 10, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL,
 				JacText.Weight.REGULAR);
 			if (!loading && y < listY + listH) {
@@ -637,6 +651,22 @@ public final class ModrinthScreen extends JacScreen {
 			float barY = listY + (listH - barH) * (s / scroll.max());
 			Draw.rect(g, listX + listW - 3, barY, 2, barH, 1f, Colors.fade(0x50FFFFFF, a));
 		}
+	}
+
+	/** Results per row: one beside the details panel, as many tiles as fit when it is closed. */
+	private int columns() {
+		return detailOpen ? 1 : Math.max(1, (int) (listW / TILE_W));
+	}
+
+	/** The result under (mx, my) in the list, or -1. */
+	private int hitAt(double mx, double my) {
+		if (mx < listX || mx >= listX + listW || my < listY || my >= listY + listH) {
+			return -1;
+		}
+		int cols = columns();
+		int col = Math.min(cols - 1, (int) ((mx - listX) / (listW / cols)));
+		int i = (int) ((my - listY + scroll.get()) / ROW_H) * cols + col;
+		return i < hits.size() ? i : -1;
 	}
 
 	private @Nullable String badge(Modrinth.Hit h) {
@@ -674,10 +704,15 @@ public final class ModrinthScreen extends JacScreen {
 				JacText.Weight.REGULAR);
 			return;
 		}
+		// Close: the results take the whole width as tiles; picking one opens the details again.
+		float closeX = x + w - 14;
+		boolean closeHot = mx >= closeX - 2 && mx < closeX + 14 && my >= top && my < top + 14;
+		chipBoxes.add(new float[] {closeX - 2, top, 16, 14});
+		chipActions.add(() -> detailOpen = false);
 		g.enableScissor((int) x, (int) top, (int) (x + w), (int) (top + hgt));
 		float y = top - detailScroll.get();
 		avatar(g, h, x, y, 30, a);
-		JacText.draw(g, fit(h.title(), Theme.TITLE, JacText.Weight.SEMIBOLD, w - 38), x + 38, y + 3, Colors.fade(Theme.TEXT, a), Theme.TITLE,
+		JacText.draw(g, fit(h.title(), Theme.TITLE, JacText.Weight.SEMIBOLD, w - 56), x + 38, y + 3, Colors.fade(Theme.TEXT, a), Theme.TITLE,
 			JacText.Weight.SEMIBOLD);
 		JacText.draw(g, fit("by " + h.author() + "  ·  " + Modrinth.shortCount(h.downloads()) + " downloads  ·  " + Modrinth.shortCount(h.follows())
 			+ " followers", Theme.SMALL, JacText.Weight.REGULAR, w - 38), x + 38, y + 17, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL, JacText.Weight.REGULAR);
@@ -818,6 +853,8 @@ public final class ModrinthScreen extends JacScreen {
 			}
 		}
 		g.disableScissor();
+		Draw.rect(g, closeX - 2, top, 16, 14, 4f, Colors.fade(closeHot ? Theme.CONTROL_HOVER : 0x30000000, a));
+		JacText.icon(g, Icons.X, closeX + 2, top + 3.5f, 7f, Colors.fade(closeHot ? Theme.TEXT : Theme.TEXT_DIM, a));
 		float contentH = y + detailScroll.get() - top;
 		detailScroll.setMax(contentH - hgt);
 	}
@@ -910,9 +947,10 @@ public final class ModrinthScreen extends JacScreen {
 			}
 		}
 		if (mx >= listX && mx < listX + listW && my >= listY && my < listY + listH) {
-			int i = (int) ((my - listY + scroll.get()) / ROW_H);
-			if (i >= 0 && i < hits.size()) {
+			int i = hitAt(mx, my);
+			if (i >= 0) {
 				select(hits.get(i));
+				detailOpen = true;
 			}
 			return true;
 		}
@@ -921,7 +959,7 @@ public final class ModrinthScreen extends JacScreen {
 
 	@Override
 	protected boolean scroll(double mx, double my, double amount) {
-		if (mx >= detailX) {
+		if (detailOpen && mx >= detailX) {
 			detailScroll.scroll(amount, 20f);
 		} else {
 			scroll.scroll(amount, ROW_H * 1.5f);
@@ -962,10 +1000,12 @@ public final class ModrinthScreen extends JacScreen {
 		}
 		if (key == InputConstants.KEY_DOWN || key == InputConstants.KEY_UP) {
 			int i = selected == null ? -1 : hits.indexOf(selected);
-			int next = Math.max(0, Math.min(hits.size() - 1, i + (key == InputConstants.KEY_DOWN ? 1 : -1)));
+			int step = columns();
+			int next = Math.max(0, Math.min(hits.size() - 1, i < 0 ? 0 : i + (key == InputConstants.KEY_DOWN ? step : -step)));
 			if (next >= 0 && next < hits.size()) {
 				select(hits.get(next));
-				scroll.reveal(next * ROW_H, (next + 1) * ROW_H, listH);
+				int row = next / step;
+				scroll.reveal(row * ROW_H, (row + 1) * ROW_H, listH);
 			}
 			return true;
 		}

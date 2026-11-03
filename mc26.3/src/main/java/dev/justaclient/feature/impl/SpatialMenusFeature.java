@@ -4,9 +4,11 @@ import dev.justaclient.feature.Category;
 import dev.justaclient.feature.Feature;
 import dev.justaclient.feature.Features;
 import dev.justaclient.feature.setting.BoolSetting;
+import dev.justaclient.feature.setting.ChoiceSetting;
 import dev.justaclient.feature.setting.ListSetting;
 import dev.justaclient.feature.setting.NumberSetting;
 import dev.justaclient.render.Icons;
+import dev.justaclient.render.SpatialMenus;
 import dev.justaclient.ui.ClickGuiScreen;
 import dev.justaclient.ui.HudEditorScreen;
 import dev.justaclient.ui.JacScreen;
@@ -45,6 +47,13 @@ public final class SpatialMenusFeature extends Feature {
 	public final BoolSetting flyIn = bool("fly_in", "Fly in when opening", true);
 	public final NumberSetting dim = number("dim", "Dim the world behind", 0.35, 0, 0.8, 0.05, NumberSetting.percent());
 	public final BoolSetting blur = bool("blur", "Blur the world behind", false);
+	public final BoolSetting thirdPerson = bool("third_person", "Switch to third person while a menu floats", false);
+	public final BoolSetting beside = bool("beside", "Third person: float beside your character", true);
+	public final ChoiceSetting<Side> side = choice("side", "Third person: side", Side.RIGHT);
+	public final NumberSetting besideSize = number("beside_size", "Third person: size", 0.5, 0.3, 0.8, 0.05, NumberSetting.percent());
+	public final NumberSetting besideTurn = number("beside_turn", "Third person: turn", 18, -35, 35, 1, NumberSetting.unit("°"));
+	public final NumberSetting shoulder = number("shoulder", "Third person: camera over the shoulder", 1.2, 0, 2, 0.1,
+		NumberSetting.decimal(" blocks"));
 	private final BoolSetting clientMenus = bool("client_menus", "Spatial: settings, panels and hubs", true);
 	private final BoolSetting ring = bool("ring", "Spatial: ring menu", true);
 	private final BoolSetting containers = bool("containers", "Spatial: inventory and containers", true);
@@ -55,6 +64,26 @@ public final class SpatialMenusFeature extends Feature {
 	private final BoolSetting others = bool("others", "Spatial: other mods' screens", false);
 	private final ListSetting flat = add(new ListSetting("flat", "Keep these screens flat", List.of(), 100, 96, "Screen class name"));
 
+	/** Which side of your character the menu floats on in third person. */
+	public enum Side implements ChoiceSetting.Named {
+		RIGHT("Right"), LEFT("Left");
+
+		private final String label;
+
+		Side(String label) {
+			this.label = label;
+		}
+
+		@Override
+		public String label() {
+			return label;
+		}
+
+		public int sign() {
+			return this == RIGHT ? 1 : -1;
+		}
+	}
+
 	public SpatialMenusFeature() {
 		super("spatial_menus", "Spatial menus", "Menus float in the world in front of you, leaned back and curved, instead of lying flat",
 			Category.SCREENS, Icons.BOX, false);
@@ -62,6 +91,11 @@ public final class SpatialMenusFeature extends Feature {
 
 	public static SpatialMenusFeature get() {
 		return Features.get(SpatialMenusFeature.class);
+	}
+
+	@Override
+	protected void onDisable() {
+		SpatialMenus.restoreCamera();
 	}
 
 	/** True if {@code screen} should float right now: the feature is on, a world is showing and the screen is not kept flat. */

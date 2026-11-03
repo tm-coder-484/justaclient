@@ -12,14 +12,21 @@ import com.mojang.blaze3d.textures.FilterMode;
 import dev.justaclient.common.spatial.SpatialPanel;
 import dev.justaclient.feature.impl.SpatialMenusFeature;
 import java.util.OptionalInt;
+import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.render.state.GuiRenderState;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.MappableRingBuffer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
 
@@ -60,7 +67,99 @@ public final class SpatialMenus {
 	private static @Nullable Vector3f anchorUp;
 	private static @Nullable Vector3f anchorNormal;
 
+	// Third person: the camera slides over the shoulder while a menu floats, and the panel goes beside the character.
+	private static float shoulderNow;
+	private static long shoulderAt;
+	/** The camera was detached (third person) the last time it was placed. */
+	private static boolean detached;
+	/** The character's eye in camera space, the last time the camera was placed in third person. */
+	private static double eyeX;
+	private static double eyeY;
+	private static double eyeDepth = 4;
+	/** The camera type this feature switched to when a menu opened, or null when it did not switch. */
+	private static @Nullable CameraType switchedTo;
+
 	private SpatialMenus() {
+	}
+
+	/** A menu floated this frame or the last one, and it is still the open screen. */
+	private static boolean floating() {
+		Minecraft mc = Minecraft.getInstance();
+		return panelScreen != null && mc.screen == panelScreen && frame - activeFrame <= 2;
+	}
+
+	/**
+	 * Called right after the camera is placed for a frame. Returns how far to slide it to the right (negative: left) for
+	 * the over-the-shoulder view while a menu floats beside the character. Eased, so the camera glides there and back.
+	 */
+	public static float shoulder(boolean cameraDetached) {
+		long now = System.nanoTime();
+		float dt = shoulderAt == 0 ? 0 : Math.min(0.1f, (now - shoulderAt) / 1e9f);
+		shoulderAt = now;
+		detached = cameraDetached;
+		restoreCameraIfClosed();
+		SpatialMenusFeature f = SpatialMenusFeature.get();
+		if (!cameraDetached || f == null || !f.isEnabled()) {
+			shoulderNow = 0;
+			return 0;
+		}
+		float target = floating() && f.beside.on() ? (float) (f.shoulder.get() * f.side.get().sign()) : 0;
+		shoulderNow += (target - shoulderNow) * (1 - (float) Math.exp(-dt * 9));
+		if (target == 0 && Math.abs(shoulderNow) < 0.003f) {
+			shoulderNow = 0;
+		}
+		return shoulderNow;
+	}
+
+	/**
+	 * How much of {@code amount} the camera can slide along {@code right} from {@code from} before it would go into a
+	 * block; keeps the same small gap vanilla keeps when it pulls the camera back.
+	 */
+	public static float clipSideways(Level level, Entity entity, Vec3 from, Vector3fc right, float amount) {
+		if (amount == 0) {
+			return 0;
+		}
+		float sign = Math.signum(amount);
+		double reach = Math.abs(amount) + 0.2;
+		Vec3 to = from.add(right.x() * sign * reach, right.y() * sign * reach, right.z() * sign * reach);
+		BlockHitResult hit = level.clip(new ClipContext(from, to, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, entity));
+		if (hit.getType() == HitResult.Type.MISS) {
+			return amount;
+		}
+		double room = hit.getLocation().distanceTo(from) - 0.2;
+		return sign * (float) Math.max(0, Math.min(Math.abs(amount), room));
+	}
+
+	/** Called after the third person camera is placed: remembers where the character's eye is in front of it. */
+	public static void cameraPlaced(Vec3 eye, Vec3 camera, Vector3fc forward, Vector3fc up, Vector3fc left) {
+		double dx = eye.x - camera.x;
+		double dy = eye.y - camera.y;
+		double dz = eye.z - camera.z;
+		eyeDepth = Math.max(0.6, dx * forward.x() + dy * forward.y() + dz * forward.z());
+		eyeX = -(dx * left.x() + dy * left.y() + dz * left.z());
+		eyeY = dx * up.x() + dy * up.y() + dz * up.z();
+	}
+
+	/** Puts the camera back the way it was if this feature switched it to third person and no menu floats now. */
+	private static void restoreCameraIfClosed() {
+		if (switchedTo == null) {
+			return;
+		}
+		Minecraft mc = Minecraft.getInstance();
+		SpatialMenusFeature f = SpatialMenusFeature.get();
+		if (f != null && f.isEnabled() && f.thirdPerson.on() && f.wants(mc.screen)) {
+			return;
+		}
+		restoreCamera();
+	}
+
+	/** Back to first person, unless the camera was changed by hand since this feature switched it. */
+	public static void restoreCamera() {
+		Minecraft mc = Minecraft.getInstance();
+		if (switchedTo != null && mc.options.getCameraType() == switchedTo) {
+			mc.options.setCameraType(CameraType.FIRST_PERSON);
+		}
+		switchedTo = null;
 	}
 
 	/** True while a spatial screen is being extracted, so screen backgrounds (dark fill, blur) are skipped. */
@@ -96,6 +195,11 @@ public final class SpatialMenus {
 			openedAt = now;
 			tiltX = 0;
 			tiltY = 0;
+			if (f.thirdPerson.on() && switchedTo == null && Minecraft.getInstance().options.getCameraType() == CameraType.FIRST_PERSON) {
+				// Seen from behind for as long as a menu floats; the next frame shows the character.
+				Minecraft.getInstance().options.setCameraType(CameraType.THIRD_PERSON_BACK);
+				switchedTo = CameraType.THIRD_PERSON_BACK;
+			}
 		}
 		place(f, now, fresh);
 		panelScreen = screen;
@@ -140,6 +244,22 @@ public final class SpatialMenus {
 			tiltY += (float) ((Math.max(-1, Math.min(1, my)) * 2.5 - tiltY) * 0.12);
 			turn += tiltX;
 			lean += tiltY;
+		}
+		if (detached && f.beside.on()) {
+			// Third person: beside the character, at its depth, so it reads as floating next to you. Sized and placed as a
+			// share of the screen so it looks the same however close the camera had to come.
+			int side = f.side.get().sign();
+			double depth = eyeDepth;
+			double halfAcross = depth * tanHalf * aspect;
+			double s = f.besideSize.get();
+			double across = SpatialPanel.besideCenter(eyeX / halfAcross, s, side);
+			// The fly-in comes in along the line of sight, so the panel only grows into place.
+			double k = 1 + (1 - fly) * 0.35;
+			double bh = depth * tanHalf * s;
+			panel = SpatialPanel.place(across * halfAcross * k, depth * k, (eyeY + lift) * k, bh * aspect, bh, lean,
+				turn - f.turn.get() + f.besideTurn.get() * side, f.bend.get());
+			anchorCenter = null;
+			return;
 		}
 		double distance = f.distance.get() + (1 - fly) * 0.8;
 		SpatialPanel local = SpatialPanel.place(distance, lift, halfW, halfH, lean, turn, f.bend.get());

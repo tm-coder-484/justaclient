@@ -8,6 +8,7 @@
 		"AbstractContainerScreenAccessor",
 		"AbstractFurnaceMenuAccessor",
 		"AbstractRecipeBookScreenAccessor",
+		"CameraMixin",
 		"ChatComponentAccessor",
 		"ChatComponentMixin",
 		"ChatScreenAccessor",

@@ -57,7 +57,7 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 
 ## What is in this build
 
-### M12: spatial menus and the Modrinth browser (v0.12.0)
+### M12: spatial menus and the Modrinth browser (v0.12.0, third person and the tile grid in v0.12.1)
 
 Both are off by default and have their own switches, in both the 1.21.11 and 26.3 jars.
 
@@ -68,12 +68,17 @@ Both are off by default and have their own switches, in both the 1.21.11 and 26.
   menu, inventory and containers, game screens, chat, world map, death screen, other mods' screens) each have their
   own switch, and single screens can be kept flat by name. The HUD editor, loading and connecting screens always stay
   flat. Buttons, sliders and slots work as usual: the mouse is traced onto the panel.
+  In third person the menu floats beside your character (right or left, with its own size and turn) while the camera
+  glides over your shoulder to make room, stopping short of walls. **Switch to third person while a menu floats**
+  (off by default) goes to third person when a menu opens and back to first person when it closes, unless you changed
+  the view yourself in between.
 - **Modrinth browser** (Tools, `/jmodrinth`, or **Browse Modrinth** in the Mods panel): search Modrinth for mods,
   shaders, resource packs and data packs, filtered to this Minecraft version and Fabric. Install puts each file in the
   right folder (`mods`, `shaderpacks`, `resourcepacks`, or a world's `datapacks`: it asks which world) after checking
   its hash, adds required dependencies, offers Iris when a shader pack needs it, can turn a new resource pack on
   straight away, and shows what is installed, loaded or has an update. Mods take effect after a restart, using the same
-  restart button as the Mods panel. It only goes online once you turn it on.
+  restart button as the Mods panel. The details panel on the right can be hidden (its X, or **Hide details**) to show
+  the results as a grid of tiles; clicking a tile brings it back. It only goes online once you turn it on.
 
 ### M11: chat, world and social (v0.11.0)
 

@@ -957,6 +957,18 @@ public final class SelfTest {
 		double[] uv = dev.justaclient.common.spatial.SpatialPanel.guiToPanel(100, 150, 400, 200);
 		check("spatial: panel and GUI coordinates convert both ways", gui[0] == 400 && gui[1] == 0 && uv[0] == -0.5 && uv[1] == -0.5,
 			java.util.Arrays.toString(gui) + " " + java.util.Arrays.toString(uv));
+		// Third person: the panel goes beside the character, never off the screen.
+		double right = dev.justaclient.common.spatial.SpatialPanel.besideCenter(-0.2, 0.5, 1);
+		double left = dev.justaclient.common.spatial.SpatialPanel.besideCenter(0.2, 0.5, -1);
+		double tight = dev.justaclient.common.spatial.SpatialPanel.besideCenter(0.6, 0.5, 1);
+		check("spatial: in third person the menu floats clear of the character and on the screen",
+			right - 0.5 > -0.2 && right + 0.5 <= 1 && left + 0.5 < 0.2 && left - 0.5 >= -1 && tight + 0.5 <= 1,
+			right + " " + left + " " + tight);
+		dev.justaclient.common.spatial.SpatialPanel aside = dev.justaclient.common.spatial.SpatialPanel.place(1.5, 4, 0.2, 1.4, 0.8, 6, 18, 0.25);
+		double[] edge = aside.point(-0.9, 0.3);
+		double[] back = aside.hit(edge[0], edge[1], edge[2], false);
+		check("spatial: a panel moved to the side still maps clicks back to itself",
+			back != null && Math.abs(back[0] + 0.9) < 1e-6 && Math.abs(back[1] - 0.3) < 1e-6 && aside.center[0] == 1.5, java.util.Arrays.toString(back));
 	}
 
 	/** Modrinth browser: addresses, parsing, hash checks and safe file names, without the network. */
