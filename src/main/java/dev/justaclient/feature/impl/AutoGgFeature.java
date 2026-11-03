@@ -2,6 +2,7 @@ package dev.justaclient.feature.impl;
 
 import dev.justaclient.common.chat.ChatText;
 import dev.justaclient.common.chat.GgGate;
+import dev.justaclient.common.chat.GgSend;
 import dev.justaclient.feature.Category;
 import dev.justaclient.feature.Feature;
 import dev.justaclient.feature.Features;
@@ -27,8 +28,7 @@ public final class AutoGgFeature extends Feature {
 	private final NumberSetting delay = number("delay", "Delay", 1.5, 0, 5, 0.5, NumberSetting.decimal(" s"));
 	private final NumberSetting cooldown = number("cooldown", "Cooldown", 60, 10, 600, 5, NumberSetting.unit(" s"));
 	private final GgGate gate = new GgGate();
-	private int sendIn = -1;
-	private String pending = "";
+	private final GgSend pending = new GgSend();
 
 	public AutoGgFeature() {
 		super("auto_gg", "Auto GG", "Says gg once when a game ends", Category.CHAT, Icons.TROPHY, false);
@@ -41,11 +41,11 @@ public final class AutoGgFeature extends Feature {
 	public void onLine(ChatText.Entry e) {
 		Minecraft mc = Minecraft.getInstance();
 		// Server lines only: player chat (and whispers) never trigger it, even if someone types "won the game".
-		if (!isEnabled() || e.signed() || e.kind() == ChatText.Kind.PRIVATE || mc.level == null || mc.isLocalServer() || sendIn >= 0) {
+		if (!isEnabled() || e.signed() || e.kind() == ChatText.Kind.PRIVATE || mc.level == null || mc.getConnection() == null || mc.isLocalServer()
+			|| pending.pending()) {
 			return;
 		}
-		ServerData server = mc.getCurrentServer();
-		if (!GgGate.serverAllowed(server == null ? null : server.ip, servers.get())) {
+		if (!allowedHere(mc)) {
 			return;
 		}
 		if (GgGate.trigger(e.text(), triggers.get()) == null) {
@@ -60,25 +60,36 @@ public final class AutoGgFeature extends Feature {
 			return;
 		}
 		gate.sent(now, mc.level);
-		pending = pool.get(ThreadLocalRandom.current().nextInt(pool.size())).trim();
-		sendIn = (int) Math.round(delay.get() * 20);
+		String text = pool.get(ThreadLocalRandom.current().nextInt(pool.size())).trim();
+		pending.schedule(mc.getConnection(), mc.level, text, (int) Math.round(delay.get() * 20));
+	}
+
+	/** Never in singleplayer, and only on a server in the list (any server if it is empty). */
+	private boolean allowedHere(Minecraft mc) {
+		if (mc.isLocalServer()) {
+			return false;
+		}
+		ServerData server = mc.getCurrentServer();
+		return GgGate.serverAllowed(server == null ? null : server.ip, servers.get());
+	}
+
+	@Override
+	protected void onDisable() {
+		pending.cancel();
 	}
 
 	@Override
 	public void tick() {
-		if (sendIn < 0) {
+		if (!pending.pending()) {
 			return;
 		}
-		if (sendIn-- > 0) {
-			return;
-		}
-		sendIn = -1;
 		Minecraft mc = Minecraft.getInstance();
-		if (mc.getConnection() != null && !pending.isEmpty()) {
+		// Bound to the connection and world it was triggered in, and the server is checked again before it goes out.
+		String text = pending.tick(mc.getConnection(), mc.level, isEnabled() && allowedHere(mc));
+		if (text != null && mc.getConnection() != null) {
 			// A chat line, never a command: Auto GG only says what you wrote.
-			mc.getConnection().sendChat(pending.startsWith("/") ? pending.substring(1) : pending);
-			Notifications.push(Icons.TROPHY, "Auto GG", pending);
+			mc.getConnection().sendChat(text.startsWith("/") ? text.substring(1) : text);
+			Notifications.push(Icons.TROPHY, "Auto GG", text);
 		}
-		pending = "";
 	}
 }

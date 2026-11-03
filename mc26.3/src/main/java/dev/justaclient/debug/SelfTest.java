@@ -127,6 +127,8 @@ public final class SelfTest {
 			biomeLooks();
 			capeLayout();
 			relayProtocol();
+			relaySync();
+			autoGgOrigin();
 			spatialPanel();
 			modrinth();
 		} catch (RuntimeException | IOException e) {
@@ -999,6 +1001,134 @@ public final class SelfTest {
 		check("modrinth: counts read short", dev.justaclient.common.modrinth.Modrinth.shortCount(258929242).equals("258.9M")
 			&& dev.justaclient.common.modrinth.Modrinth.shortCount(1000).equals("1k") && dev.justaclient.common.modrinth.Modrinth.shortCount(812).equals("812"),
 			dev.justaclient.common.modrinth.Modrinth.shortCount(258929242));
+	}
+
+	/** Review fixes: the friends list is synced on every connection (even empty) and writes never wait on the network. */
+	private static void relaySync() {
+		var m = new dev.justaclient.feature.impl.MessagingFeature();
+		String none = dev.justaclient.common.relay.RelayProtocol.friends(List.of());
+		List<String> sent = new ArrayList<>();
+		m.resetSync();
+		m.syncState(sent::add, List.of(), "", "", "");
+		check("messages: a new connection with no friends still sends an empty friends list", sent.contains(none), sent.toString());
+		sent.clear();
+		m.syncState(sent::add, List.of(), "", "", "");
+		check("messages: nothing is sent again while nothing changed", sent.isEmpty(), sent.toString());
+		m.resetSync();
+		m.syncState(sent::add, List.of(), "", "", "");
+		check("messages: a reconnect sends the empty friends list again", sent.contains(none), sent.toString());
+		sent.clear();
+		m.syncState(sent::add, List.of("Bob"), "", "", "");
+		m.syncState(sent::add, List.of(), "", "", "");
+		check("messages: removing every friend tells the relay", !sent.isEmpty() && sent.getLast().equals(none), sent.toString());
+		m.resetSync();
+		m.syncState(frame -> false, List.of(), "", "", "");
+		sent.clear();
+		m.syncState(sent::add, List.of(), "", "", "");
+		check("messages: a frame that could not be sent is tried again", sent.contains(none), sent.toString());
+
+		List<String> texts = new ArrayList<>();
+		List<java.util.concurrent.CompletableFuture<java.net.http.WebSocket>> writes = new ArrayList<>();
+		boolean[] aborted = {false};
+		java.net.http.WebSocket fake = new java.net.http.WebSocket() {
+			@Override
+			public java.util.concurrent.CompletableFuture<java.net.http.WebSocket> sendText(CharSequence data, boolean last) {
+				texts.add(data.toString());
+				var f = new java.util.concurrent.CompletableFuture<java.net.http.WebSocket>();
+				writes.add(f);
+				return f;
+			}
+
+			@Override
+			public java.util.concurrent.CompletableFuture<java.net.http.WebSocket> sendBinary(java.nio.ByteBuffer data, boolean last) {
+				return java.util.concurrent.CompletableFuture.completedFuture(this);
+			}
+
+			@Override
+			public java.util.concurrent.CompletableFuture<java.net.http.WebSocket> sendPing(java.nio.ByteBuffer message) {
+				return java.util.concurrent.CompletableFuture.completedFuture(this);
+			}
+
+			@Override
+			public java.util.concurrent.CompletableFuture<java.net.http.WebSocket> sendPong(java.nio.ByteBuffer message) {
+				return java.util.concurrent.CompletableFuture.completedFuture(this);
+			}
+
+			@Override
+			public java.util.concurrent.CompletableFuture<java.net.http.WebSocket> sendClose(int statusCode, String reason) {
+				return java.util.concurrent.CompletableFuture.completedFuture(this);
+			}
+
+			@Override
+			public void request(long n) {
+			}
+
+			@Override
+			public String getSubprotocol() {
+				return "";
+			}
+
+			@Override
+			public boolean isOutputClosed() {
+				return false;
+			}
+
+			@Override
+			public boolean isInputClosed() {
+				return false;
+			}
+
+			@Override
+			public void abort() {
+				aborted[0] = true;
+			}
+		};
+		var relay = new dev.justaclient.feedback.RelayClient();
+		relay.testAttach(fake);
+		long start = System.nanoTime();
+		boolean one = relay.send("one");
+		boolean two = relay.send("two");
+		long ms = (System.nanoTime() - start) / 1_000_000;
+		check("relay: sending returns at once while a write is still going out", one && two && ms < 100, ms + " ms");
+		check("relay: frames go out one at a time, in order", texts.equals(List.of("one")) && relay.pendingWrites() == 2,
+			texts + ", " + relay.pendingWrites() + " waiting");
+		writes.getFirst().complete(fake);
+		check("relay: the next frame goes out once the previous one is written", texts.equals(List.of("one", "two")), texts.toString());
+		writes.get(1).completeExceptionally(new IOException("broken pipe"));
+		check("relay: a failed write drops the connection to reconnect", aborted[0]
+			&& relay.state() == dev.justaclient.feedback.RelayClient.State.WAITING && relay.error() != null, relay.state() + ", " + relay.error());
+		check("relay: nothing is sent after a failed write", !relay.send("three") && texts.size() == 2, texts.toString());
+	}
+
+	/** Review fix: a delayed Auto GG belongs to the connection and world it was triggered in. */
+	private static void autoGgOrigin() {
+		Object a = new Object();
+		Object b = new Object();
+		Object worldA = new Object();
+		Object worldB = new Object();
+		var gg = new dev.justaclient.common.chat.GgSend();
+		gg.schedule(a, worldA, "gg", 2);
+		String out = gg.tick(b, worldB, true);
+		boolean later = false;
+		for (int i = 0; i < 5; i++) {
+			later |= gg.tick(a, worldA, true) != null;
+		}
+		check("auto gg: triggered on server A, moved to B during the delay: nothing is said", out == null && !later && !gg.pending(), "sent");
+		gg.schedule(a, worldA, "gg", 2);
+		check("auto gg: a new world on the same connection drops it", gg.tick(a, worldB, true) == null && !gg.pending(), "kept");
+		gg.schedule(a, worldA, "gg", 2);
+		check("auto gg: a disconnect drops it", gg.tick(null, null, true) == null && !gg.pending(), "kept");
+		gg.schedule(a, worldA, "gg", 2);
+		check("auto gg: a server that is no longer allowed drops it", gg.tick(a, worldA, false) == null && !gg.pending(), "kept");
+		gg.schedule(a, worldA, "gg", 2);
+		List<String> said = new ArrayList<>();
+		for (int i = 0; i < 6; i++) {
+			String s = gg.tick(a, worldA, true);
+			if (s != null) {
+				said.add(i + ":" + s);
+			}
+		}
+		check("auto gg: same server and world: said once, after the delay", said.equals(List.of("2:gg")), said.toString());
 	}
 
 	private static void relayProtocol() throws IOException {

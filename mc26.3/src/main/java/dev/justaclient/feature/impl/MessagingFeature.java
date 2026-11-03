@@ -43,8 +43,9 @@ public final class MessagingFeature extends Feature {
 	private final RelayClient relay = new RelayClient();
 	private final Conversations conversations = new Conversations();
 	private final Map<String, RelayProtocol.Presence> presence = new LinkedHashMap<>();
-	private String sentFriends = "";
-	private String sentProfile = "";
+	/** What the relay was last told on this connection; null means nothing yet, so even an empty list goes out. */
+	private @Nullable String sentFriends;
+	private @Nullable String sentProfile;
 	private boolean loaded;
 	private boolean dirty;
 	private long savedAt;
@@ -76,8 +77,7 @@ public final class MessagingFeature extends Feature {
 
 	@Override
 	protected void onEnable() {
-		sentFriends = "";
-		sentProfile = "";
+		resetSync();
 	}
 
 	@Override
@@ -106,22 +106,39 @@ public final class MessagingFeature extends Feature {
 			handle(o);
 		}
 		if (relay.state() == RelayClient.State.ONLINE) {
-			List<String> friends = FriendsFeature.get().list();
-			String f = String.join(",", friends);
-			if (!f.equals(sentFriends) && relay.send(RelayProtocol.friends(friends))) {
-				sentFriends = f;
-			}
-			String p = status.get() + "\n" + bio.get() + "\n" + sharedServer();
-			if (!p.equals(sentProfile) && relay.send(RelayProtocol.profile(status.get(), bio.get(), sharedServer()))) {
-				sentProfile = p;
-			}
+			syncState(relay::send, FriendsFeature.get().list(), status.get(), bio.get(), sharedServer());
 		} else {
-			sentFriends = "";
-			sentProfile = "";
+			resetSync();
 		}
 		if (dirty && System.currentTimeMillis() - savedAt > 5000) {
 			save();
 		}
+	}
+
+	/**
+	 * Tells the relay the friends list and profile when they differ from what this connection was last told. The friends
+	 * list always goes out once per connection, even when it is empty: that is how the relay learns every friend was
+	 * removed. Returns how many frames were sent.
+	 */
+	public int syncState(java.util.function.Predicate<String> send, List<String> friends, String status, String bio, String server) {
+		int sent = 0;
+		String f = String.join(",", friends);
+		if (!f.equals(sentFriends) && send.test(RelayProtocol.friends(friends))) {
+			sentFriends = f;
+			sent++;
+		}
+		String p = status + "\n" + bio + "\n" + server;
+		if (!p.equals(sentProfile) && send.test(RelayProtocol.profile(status, bio, server))) {
+			sentProfile = p;
+			sent++;
+		}
+		return sent;
+	}
+
+	/** Forgets what the relay was told, so everything is sent again (a new connection starts empty on the relay side). */
+	public void resetSync() {
+		sentFriends = null;
+		sentProfile = null;
 	}
 
 	private String sharedServer() {
@@ -138,7 +155,11 @@ public final class MessagingFeature extends Feature {
 
 	private void handle(JsonObject o) {
 		switch (RelayProtocol.type(o)) {
-			case "welcome" -> presence.clear();
+			case "welcome" -> {
+				// A new session: the relay must hear the friends list again, even if it is empty now.
+				presence.clear();
+				resetSync();
+			}
 			case "presence" -> {
 				RelayProtocol.Presence p = RelayProtocol.presence(o);
 				RelayProtocol.@Nullable Presence before = presence.put(key(p.name()), p);

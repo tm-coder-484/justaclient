@@ -11,6 +11,7 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import net.minecraft.client.Minecraft;
 import org.jspecify.annotations.Nullable;
 
@@ -40,6 +41,10 @@ public final class RelayClient {
 	private long retryAt;
 	private long lastPing;
 	private volatile boolean verified;
+	private static final int MAX_PENDING = 64;
+	/** The write queue of the current socket; a new socket starts a new one, so a stuck write cannot hold it up. */
+	private volatile AtomicInteger pending = new AtomicInteger();
+	private CompletableFuture<?> writes = CompletableFuture.completedFuture(null);
 
 	public State state() {
 		return state;
@@ -114,7 +119,11 @@ public final class RelayClient {
 		inbox.clear();
 	}
 
-	/** Sends a frame once signed in; returns false otherwise. */
+	/**
+	 * Queues a frame once signed in and returns at once; false if not signed in or too much is already waiting. Frames go
+	 * out in order, one at a time (the JDK refuses a send while the previous one is still going out). If one fails, the
+	 * connection is dropped and reconnects, so nothing after it is sent on a broken socket.
+	 */
 	public boolean send(String frame) {
 		return state == State.ONLINE && write(frame);
 	}
@@ -125,10 +134,46 @@ public final class RelayClient {
 			return false;
 		}
 		synchronized (this) {
-			// One frame at a time: the JDK refuses a send while the previous one is still going out.
-			ws.sendText(frame, true).toCompletableFuture().exceptionally(e -> null).join();
+			AtomicInteger count = pending;
+			if (count.get() >= MAX_PENDING) {
+				return false;
+			}
+			count.incrementAndGet();
+			writes = writes.thenCompose(v -> socket == ws ? ws.sendText(frame, true)
+					: CompletableFuture.<WebSocket>failedFuture(new IllegalStateException("closed")))
+				.handle((v, e) -> {
+					count.decrementAndGet();
+					if (e != null) {
+						writeFailed(ws);
+					}
+					return null;
+				});
 		}
 		return true;
+	}
+
+	/** Frames queued but not yet written. */
+	public int pendingWrites() {
+		return pending.get();
+	}
+
+	private void writeFailed(WebSocket ws) {
+		if (socket == ws) {
+			ws.abort();
+			failed("could not send to the relay");
+		}
+	}
+
+	private synchronized void newQueue() {
+		pending = new AtomicInteger();
+		writes = CompletableFuture.completedFuture(null);
+	}
+
+	/** Self-test only: use {@code ws} as if it had just signed in. */
+	public void testAttach(WebSocket ws) {
+		newQueue();
+		socket = ws;
+		state = State.ONLINE;
 	}
 
 	/** The next frame from the relay that the game should handle, or null. */
@@ -158,6 +203,7 @@ public final class RelayClient {
 		@Override
 		public void onOpen(WebSocket ws) {
 			// The challenge can arrive before buildAsync completes, so the socket is known from here.
+			newQueue();
 			socket = ws;
 			state = State.SIGNING_IN;
 			ws.request(1);
