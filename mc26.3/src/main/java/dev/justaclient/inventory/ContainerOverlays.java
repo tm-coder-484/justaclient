@@ -76,6 +76,9 @@ public final class ContainerOverlays {
 	private ContainerOverlays() {
 	}
 
+	/** The recipe book's width plus the gap the game leaves between it and the container. */
+	private static final float BOOK_WIDTH = 149;
+
 	public static void register(Overlay overlay) {
 		OVERLAYS.add(overlay);
 	}
@@ -103,6 +106,9 @@ public final class ContainerOverlays {
 		float rightX = box.left + box.width + GAP;
 		float rightY = box.top;
 		float leftY = box.top;
+		// The recipe book sits left of the container when open; panels go beside it, never on it.
+		float bookWidth = screen instanceof net.minecraft.client.gui.screens.inventory.AbstractRecipeBookScreen<?>
+			&& ((dev.justaclient.mixin.AbstractRecipeBookScreenAccessor) screen).jac$recipeBook().isVisible() ? BOOK_WIDTH : 0;
 		for (Overlay overlay : OVERLAYS) {
 			if (!overlay.applies(box.screen)) {
 				continue;
@@ -113,17 +119,21 @@ public final class ContainerOverlays {
 				continue;
 			}
 			float roomRight = screen.width - 2 - rightX;
-			float roomLeft = box.left - GAP - 2;
+			float roomLeft = box.left - GAP - 2 - bookWidth;
 			boolean fitsRight = w <= roomRight && (rightY + h <= screen.height - 2 || rightY == box.top);
 			boolean fitsLeft = w <= roomLeft && (leftY + h <= screen.height - 2 || leftY == box.top);
 			// On a narrow window neither side may have room: use the wider side and narrow the panel to fit.
 			boolean right = fitsRight || !fitsLeft && roomRight >= roomLeft;
+			if (bookWidth > 0 && !fitsRight && !fitsLeft && Math.max(roomRight, roomLeft) < 80) {
+				// The open recipe book takes the room: leave the panel out rather than cover the book.
+				continue;
+			}
 			float pw = Math.max(80, Math.min(w, right ? roomRight : roomLeft));
 			if (right) {
 				placed.add(new Placed(overlay, rightX, rightY, pw, h));
 				rightY += h + GAP;
 			} else {
-				placed.add(new Placed(overlay, Math.max(2, box.left - GAP - pw), leftY, pw, h));
+				placed.add(new Placed(overlay, Math.max(2, box.left - GAP - bookWidth - pw), leftY, pw, h));
 				leftY += h + GAP;
 			}
 		}

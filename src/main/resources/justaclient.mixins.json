@@ -6,6 +6,7 @@
 		"AbstractClientPlayerMixin",
 		"AbstractContainerScreenAccessor",
 		"AbstractFurnaceMenuAccessor",
+		"AbstractRecipeBookScreenAccessor",
 		"FoodDataAccessor",
 		"AbstractScrollAreaMixin",
 		"AbstractWidgetMixin",
