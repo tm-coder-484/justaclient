@@ -233,16 +233,32 @@ public final class ModsScreen extends JacScreen {
 	}
 
 	private void restart() {
-		ModsPanelFeature feature = Features.get(ModsPanelFeature.class);
-		boolean relaunch = feature == null || feature.relaunch();
-		if (relaunch && !Relauncher.requestRestart()) {
+		if (!restartGame()) {
 			status = "Could not work out how to start the game again; it will just close";
 			statusColor = WARN;
 		}
-		if (minecraft.level != null) {
-			minecraft.disconnectFromWorld(net.minecraft.client.multiplayer.ClientLevel.DEFAULT_QUIT_MESSAGE);
+	}
+
+	/**
+	 * Closes the game and, if the Mods panel is set to, starts it again (the restart path shared with the Modrinth
+	 * browser). Returns false when a relaunch was wanted but could not be arranged, so the game only closes.
+	 */
+	public static boolean restartGame() {
+		net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+		ModsPanelFeature feature = Features.get(ModsPanelFeature.class);
+		boolean relaunch = feature == null || feature.relaunch();
+		boolean ok = !relaunch || Relauncher.requestRestart();
+		if (mc.level != null) {
+			mc.disconnectFromWorld(net.minecraft.client.multiplayer.ClientLevel.DEFAULT_QUIT_MESSAGE);
 		}
-		minecraft.stop();
+		mc.stop();
+		return ok;
+	}
+
+	/** "Restart now" or "Close the game", as the Mods panel is set. */
+	public static String restartLabel() {
+		ModsPanelFeature feature = Features.get(ModsPanelFeature.class);
+		return feature == null || feature.relaunch() ? "Restart now" : "Close the game";
 	}
 
 	@Override
@@ -496,12 +512,12 @@ public final class ModsScreen extends JacScreen {
 		buttons.clear();
 		Button folder = new Button(px + PAD, fy, 100, 16, Icons.FOLDER_OPEN, "Mods folder", false, () -> openPath(ModManager.modsFolder()));
 		buttons.add(folder);
+		buttons.add(new Button(px + PAD + 106, fy, 120, 16, Icons.DOWNLOAD, "Browse Modrinth", false,
+			() -> open(new ModrinthScreen(this))));
 		int changes = changes();
 		boolean deferred = DeferredRenames.anyPending();
 		if (changes > 0 || deferred) {
-			ModsPanelFeature feature = Features.get(ModsPanelFeature.class);
-			boolean relaunch = feature == null || feature.relaunch();
-			String label = relaunch ? "Restart now" : "Close the game";
+			String label = restartLabel();
 			float bw = JacText.width(label, Theme.LABEL, JacText.Weight.SEMIBOLD) + 30;
 			restartButton = new Button(px + pw - PAD - bw, fy, bw, 16, Icons.REFRESH_CW, label, true, this::restart);
 			buttons.add(restartButton);
@@ -515,8 +531,8 @@ public final class ModsScreen extends JacScreen {
 			String text = "Both " + conflicts.getFirst() + " exist. Remove one in the Mods folder"
 				+ (conflicts.size() > 1 ? " (+" + (conflicts.size() - 1) + " more)" : "");
 			float right = restartButton != null && buttons.contains(restartButton) ? px + pw / 2f : px + pw - PAD;
-			JacText.icon(g, Icons.TRIANGLE_ALERT, px + PAD + 108, fy + 4.5f, 7f, Colors.fade(WARN, a));
-			JacText.draw(g, fit(text, Theme.SMALL, JacText.Weight.REGULAR, right - (px + PAD + 120)), px + PAD + 120, fy + 5, Colors.fade(WARN, a),
+			JacText.icon(g, Icons.TRIANGLE_ALERT, px + PAD + 234, fy + 4.5f, 7f, Colors.fade(WARN, a));
+			JacText.draw(g, fit(text, Theme.SMALL, JacText.Weight.REGULAR, right - (px + PAD + 246)), px + PAD + 246, fy + 5, Colors.fade(WARN, a),
 				Theme.SMALL, JacText.Weight.REGULAR);
 		}
 		for (Button b : buttons) {

@@ -2,6 +2,7 @@ package dev.justaclient.mixin;
 
 import dev.justaclient.feature.Features;
 import dev.justaclient.feature.impl.ScreenBackgroundFeature;
+import dev.justaclient.render.SpatialMenus;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -27,6 +28,12 @@ abstract class ScreenMixin {
 
 	@Inject(method = "extractBackground", at = @At("HEAD"), cancellable = true)
 	private void justaclient$background(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+		if (SpatialMenus.drawing()) {
+			// The menu floats: the world shows around it (dimmed flat behind it by Spatial menus), so no background.
+			minecraft.gui.hud.extractDeferredSubtitles();
+			ci.cancel();
+			return;
+		}
 		ScreenBackgroundFeature feature = Features.get(ScreenBackgroundFeature.class);
 		if (feature == null) {
 			return;

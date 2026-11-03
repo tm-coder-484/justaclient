@@ -16,7 +16,13 @@ import java.util.List;
 import java.util.Locale;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.DeathScreen;
+import net.minecraft.client.gui.screens.DisconnectedScreen;
+import net.minecraft.client.gui.screens.GenericMessageScreen;
+import net.minecraft.client.gui.screens.GenericWaitingScreen;
+import net.minecraft.client.gui.screens.LevelLoadingScreen;
+import net.minecraft.client.gui.screens.ProgressScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import org.jspecify.annotations.Nullable;
@@ -69,6 +75,11 @@ public final class SpatialMenusFeature extends Feature {
 		}
 		// The HUD editor places things on the real window, so it always stays flat.
 		if (screen instanceof HudEditorScreen || keptFlat(screen.getClass())) {
+			return false;
+		}
+		// Loading, connecting and message screens cover the world on purpose; they always stay flat.
+		if (screen instanceof LevelLoadingScreen || screen instanceof ProgressScreen || screen instanceof GenericMessageScreen
+			|| screen instanceof GenericWaitingScreen || screen instanceof ConnectScreen || screen instanceof DisconnectedScreen) {
 			return false;
 		}
 		if (screen instanceof RingMenuScreen) {

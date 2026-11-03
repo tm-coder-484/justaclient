@@ -57,6 +57,24 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 
 ## What is in this build
 
+### M12: spatial menus and the Modrinth browser (v0.12.0)
+
+Both are off by default and have their own switches, in both the 1.21.11 and 26.3 jars.
+
+- **Spatial menus** (Screens): menus float in the world in front of you on a panel, in first and third person, instead
+  of lying flat on the window. Distance, size, lean, turn, curve and height are sliders; the panel tilts gently away
+  from the mouse, floats, flies in when it opens and can stay where it opened instead of following the camera. The
+  world behind can be dimmed or blurred. One switch turns every menu spatial; kinds of screens (client menus, ring
+  menu, inventory and containers, game screens, chat, world map, death screen, other mods' screens) each have their
+  own switch, and single screens can be kept flat by name. The HUD editor, loading and connecting screens always stay
+  flat. Buttons, sliders and slots work as usual: the mouse is traced onto the panel.
+- **Modrinth browser** (Tools, `/jmodrinth`, or **Browse Modrinth** in the Mods panel): search Modrinth for mods,
+  shaders, resource packs and data packs, filtered to this Minecraft version and Fabric. Install puts each file in the
+  right folder (`mods`, `shaderpacks`, `resourcepacks`, or a world's `datapacks`: it asks which world) after checking
+  its hash, adds required dependencies, offers Iris when a shader pack needs it, can turn a new resource pack on
+  straight away, and shows what is installed, loaded or has an update. Mods take effect after a restart, using the same
+  restart button as the Mods panel. It only goes online once you turn it on.
+
 ### M11: chat, world and social (v0.11.0)
 
 Every new feature has its own switch, in both the 1.21.11 and 26.3 jars. Messages and Auto GG are off by default;

@@ -173,6 +173,8 @@ public final class Features {
 		register(new GlintFeature());
 		register(new AmbientParticlesFeature());
 		register(new dev.justaclient.feature.impl.BiomeEffectsFeature());
+		register(new dev.justaclient.feature.impl.SpatialMenusFeature());
+		register(new dev.justaclient.feature.impl.ModrinthFeature());
 		register(new CosmeticsFeature());
 		register(new HatsFeature());
 		register(new SkinFeature());

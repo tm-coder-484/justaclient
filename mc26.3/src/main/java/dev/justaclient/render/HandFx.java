@@ -50,7 +50,7 @@ public final class HandFx {
 			target = new TextureTarget("Justaclient hand", main.width, main.height, GpuFormat.RGBA8_UNORM, GpuFormat.D32_FLOAT);
 		}
 		RenderSystem.getDevice().createCommandEncoder()
-			.clearColorAndDepthTextures(target.getColorTexture(), new Vector4f(), target.getDepthTexture(), RenderSystem.DEFAULT_DEPTH_CLEAR_VALUE);
+			.clearColorAndDepthTextures(target.getColorTexture(), new Vector4f(0, 0, 0, 0), target.getDepthTexture(), RenderSystem.DEFAULT_DEPTH_CLEAR_VALUE);
 		capturing = true;
 		glow.cost.end();
 		return true;
