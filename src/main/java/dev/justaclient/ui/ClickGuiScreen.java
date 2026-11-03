@@ -78,12 +78,12 @@ public final class ClickGuiScreen extends Screen {
 	/** The search also matches the Theme page, which is listed after the features. */
 	private boolean themeHit;
 	/** Which page shows when no category is picked: the Theme, Performance or Stats page. */
-	private static final int THEME = 0;
-	private static final int PERF = 1;
-	private static final int STATS = 2;
-	private static final int NOTES = 3;
-	private static final int FEEDBACK = 4;
-	private static final int HUB = 5;
+	static final int THEME = 0;
+	static final int PERF = 1;
+	static final int STATS = 2;
+	static final int NOTES = 3;
+	static final int FEEDBACK = 4;
+	static final int HUB = 5;
 	private int page;
 	private static int lastPage;
 
@@ -123,6 +123,20 @@ public final class ClickGuiScreen extends Screen {
 		this.parent = parent;
 		this.category = lastCategory;
 		this.page = lastCategory == null ? lastPage : THEME;
+	}
+
+	/** The menu the menu key opens: the classic panel, or the ring when the Theme page's layout says so. */
+	public static Screen open(@Nullable Screen parent) {
+		return JacConfig.get().style.layout == dev.justaclient.config.StyleTokens.Layout.RING ? new RingMenuScreen(parent) : new ClickGuiScreen(parent);
+	}
+
+	/** Opens the classic panel on a category, or on a page ({@link #THEME}, {@link #HUB} and so on) when {@code category} is null. */
+	static ClickGuiScreen at(@Nullable Screen parent, @Nullable Category category, int page) {
+		lastCategory = category;
+		lastPage = page;
+		ClickGuiScreen screen = new ClickGuiScreen(parent);
+		screen.page = page;
+		return screen;
 	}
 
 	/** Opens straight onto one feature's settings, e.g. from the HUD editor. */
@@ -590,7 +604,7 @@ public final class ClickGuiScreen extends Screen {
 		for (Widget w : themeWidgets) {
 			w.render(g, mx, my, a);
 		}
-		ThemePage.drawPreview(g, SET_X + 10, 196, a);
+		ThemePage.drawPreview(g, SET_X + 10, 216, a);
 	}
 
 	private void drawFooter(GuiGraphics g, double mx, double my, float t) {

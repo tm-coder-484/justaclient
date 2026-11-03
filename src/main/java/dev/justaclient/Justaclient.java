@@ -131,7 +131,7 @@ public final class Justaclient implements ClientModInitializer {
 			Features.tick(client);
 			while (OPEN_MENU.consumeClick()) {
 				if (client.screen == null) {
-					client.setScreen(new ClickGuiScreen(null));
+					client.setScreen(ClickGuiScreen.open(null));
 				}
 			}
 			while (OPEN_MAP.consumeClick()) {
@@ -166,7 +166,7 @@ public final class Justaclient implements ClientModInitializer {
 			if (screen instanceof TitleScreen) {
 				ScreenKeyboardEvents.afterKeyPress(screen).register((current, event) -> {
 					if (OPEN_MENU.matches(event) && client.screen == current) {
-						client.setScreen(new ClickGuiScreen(current));
+						client.setScreen(ClickGuiScreen.open(current));
 					}
 				});
 			}

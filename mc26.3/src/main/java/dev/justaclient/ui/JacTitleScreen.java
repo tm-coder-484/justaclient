@@ -92,7 +92,7 @@ public final class JacTitleScreen extends Screen {
 			rows.add(new Row(Icons.PACKAGE, "Mods", null, true, () -> minecraft.gui.setScreen(new ModsScreen(this))));
 		}
 		rows.add(new Row(Icons.LAYOUT_DASHBOARD, "Client settings", Justaclient.OPEN_MENU.getTranslatedKeyMessage().getString(), true,
-			() -> minecraft.gui.setScreen(new ClickGuiScreen(this))));
+			() -> minecraft.gui.setScreen(ClickGuiScreen.open(this))));
 		rows.add(new Row(Icons.LOG_OUT, "Quit game", null, true, minecraft::stop));
 		while (hover.size() < rows.size()) {
 			hover.add(new Animation(Easing.CUBIC_OUT, 120, 0f));
@@ -398,7 +398,7 @@ public final class JacTitleScreen extends Screen {
 	@Override
 	public boolean keyPressed(KeyEvent event) {
 		if (Justaclient.OPEN_MENU.matches(event)) {
-			minecraft.gui.setScreen(new ClickGuiScreen(this));
+			minecraft.gui.setScreen(ClickGuiScreen.open(this));
 			return true;
 		}
 		int key = event.key();

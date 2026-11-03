@@ -20,7 +20,7 @@ final class ThemePage {
 	private static final List<String> ACCENTS = List.of("#4C8DFF", "#8B5CF6", "#14B8A6", "#22C55E", "#F59E0B", "#F43F5E", "#E5E7EB");
 
 	private static final List<String> KEYWORDS = List.of("theme", "accent", "colour", "color", "rainbow", "panel", "opacity", "corner", "radius",
-		"blur", "glass", "outline", "glow", "font", "motion", "animation", "style");
+		"blur", "glass", "outline", "glow", "font", "motion", "animation", "style", "layout", "ring", "sci-fi", "scifi");
 
 	private ThemePage() {
 	}
@@ -53,7 +53,9 @@ final class ThemePage {
 			() -> s.font, v -> s.font = v));
 		widgets.add(new Segmented<>(right, rightY + 68, col, "Motion", List.of(StyleTokens.Motion.values()), List.of("Off", "Normal", "Fast"),
 			() -> s.motion, v -> s.motion = v));
-		widgets.add(new Button(right, rightY + 108, col, 18, "Reset to dark glass", false, reset));
+		widgets.add(new Segmented<>(right, rightY + 102, col, "Menu layout", List.of(StyleTokens.Layout.values()), List.of("Classic", "Ring"),
+			() -> s.layout, v -> s.layout = v));
+		widgets.add(new Button(right, rightY + 142, col, 18, "Reset to dark glass", false, reset));
 		return widgets;
 	}
 

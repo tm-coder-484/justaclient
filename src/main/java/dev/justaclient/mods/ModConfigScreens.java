@@ -111,7 +111,7 @@ public final class ModConfigScreens {
 	/** The mod's settings screen, or null if it has none or it failed to open. */
 	public static @Nullable Screen open(String modId, Screen parent) {
 		if (modId.equals(ModManager.SELF)) {
-			return new ClickGuiScreen(parent);
+			return ClickGuiScreen.open(parent);
 		}
 		Object factory = factories().get(modId);
 		if (factory == null) {

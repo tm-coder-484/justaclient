@@ -33,6 +33,56 @@ public final class StyleTokens {
 
 	public Motion motion = Motion.NORMAL;
 
+	/** Which menu the menu key opens: the classic panel or the ring. */
+	public Layout layout = Layout.CLASSIC;
+
+	/** How the ring layout looks; edited live from the ring itself. */
+	public Ring ring = new Ring();
+
+	public enum Layout {
+		CLASSIC, RING
+	}
+
+	/** Options for the ring layout. */
+	public static final class Ring {
+		public RingLook look = RingLook.PARTICLES;
+		/** 0 still, 1 normal, 2 fast. */
+		public int speed = 1;
+		/** 0 few, 1 normal, 2 many. */
+		public int density = 1;
+		/** 0 off, 1 soft, 2 strong. */
+		public int glow = 1;
+		public Gauge leftGauge = Gauge.FPS;
+		public Gauge rightGauge = Gauge.MEMORY;
+		public boolean pageIcons = true;
+		public boolean strip = true;
+		public boolean connectors = true;
+
+		void sanitize() {
+			speed = Math.max(0, Math.min(2, speed));
+			density = Math.max(0, Math.min(2, density));
+			glow = Math.max(0, Math.min(2, glow));
+			if (look == null) {
+				look = RingLook.PARTICLES;
+			}
+			if (leftGauge == null) {
+				leftGauge = Gauge.FPS;
+			}
+			if (rightGauge == null) {
+				rightGauge = Gauge.MEMORY;
+			}
+		}
+	}
+
+	public enum RingLook {
+		PARTICLES, DASHES, SOLID
+	}
+
+	/** What a ring gauge shows. */
+	public enum Gauge {
+		FPS, MEMORY, PING, FEATURES, OFF
+	}
+
 	public enum Outline {
 		OFF, THIN, GLOW
 	}
@@ -66,6 +116,13 @@ public final class StyleTokens {
 		if (motion == null) {
 			motion = Motion.NORMAL;
 		}
+		if (layout == null) {
+			layout = Layout.CLASSIC;
+		}
+		if (ring == null) {
+			ring = new Ring();
+		}
+		ring.sanitize();
 		if (accent == null) {
 			accent = "#4C8DFF";
 		}
