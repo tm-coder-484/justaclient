@@ -11,6 +11,7 @@ import dev.justaclient.feature.impl.AutoReconnectFeature;
 import dev.justaclient.hud.HudFeature;
 import dev.justaclient.profile.Profiles;
 import dev.justaclient.render.Icons;
+import dev.justaclient.common.inventory.AnvilMath;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -115,6 +116,7 @@ public final class SelfTest {
 			waypointData();
 			deathRecap();
 			kits();
+			anvilMath();
 		} catch (RuntimeException | IOException e) {
 			fail("unexpected exception", e.toString());
 		} finally {
@@ -644,6 +646,17 @@ public final class SelfTest {
 		var back = dev.justaclient.common.kits.Kit.fromJson(json);
 		check("kits: the saved file reads back (same name twice keeps the first, a bad slot is skipped)", back.size() == 1
 			&& back.get(0).slots.size() == 2 && back.get(0).at(40) != null && back.get(0).created == 1L, back.size() + " kits");
+	}
+
+	/** The anvil's level rules the helper uses to decide a pair is worth listing. */
+	private static void anvilMath() {
+		check("anvil: equal levels go up by one, capped at the maximum",
+			AnvilMath.merged(3, 3, 5) == 4 && AnvilMath.merged(5, 5, 5) == 5 && AnvilMath.merged(2, 4, 5) == 4 && AnvilMath.merged(0, 10, 5) == 5,
+			AnvilMath.merged(3, 3, 5) + " " + AnvilMath.merged(5, 5, 5));
+		check("anvil: a lower or maxed book is not listed", !AnvilMath.improves(4, 2, 5) && !AnvilMath.improves(5, 5, 5) && AnvilMath.improves(0, 1, 1)
+			&& AnvilMath.improves(4, 4, 5), "improves wrong");
+		check("anvil: past work adds up and 40 is too costly", AnvilMath.priorWork(31, 7) == 38 && !AnvilMath.tooExpensive(38)
+			&& AnvilMath.tooExpensive(AnvilMath.priorWork(31, 15)), String.valueOf(AnvilMath.priorWork(31, 7)));
 	}
 
 	/** Death recap wording. */

@@ -34,6 +34,14 @@ public final class InvCompat {
 		return button == 0;
 	}
 
+	/** One shift-click on a menu slot, sent the way the game sends yours. */
+	public static void quickMove(net.minecraft.world.inventory.AbstractContainerMenu menu, int slot) {
+		net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+		if (mc.gameMode != null && mc.player != null) {
+			mc.gameMode.handleInventoryMouseClick(menu.containerId, slot, 0, net.minecraft.world.inventory.ClickType.QUICK_MOVE, mc.player);
+		}
+	}
+
 	/** Runs {@code painter} after the screen has drawn everything, every frame it is open. */
 	public static void afterDraw(Screen screen, Painter painter) {
 		ScreenEvents.afterRender(screen).register(painter::paint);

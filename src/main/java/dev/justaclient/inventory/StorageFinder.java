@@ -24,6 +24,7 @@ public final class StorageFinder {
 	private static final long OFFER_MILLIS = 20_000L;
 	private static Locate.@Nullable Target offer;
 	private static long offerUntil;
+	private static String offerLine = "";
 
 	private StorageFinder() {
 	}
@@ -105,6 +106,7 @@ public final class StorageFinder {
 		String where = InvItems.itemName(found.block) + " · " + Math.round(Math.sqrt(bestDist)) + " m";
 		offer = StorageMemoryFeature.target(found, what + " · " + InvItems.itemName(found.block));
 		offerUntil = System.currentTimeMillis() + OFFER_MILLIS;
+		offerLine = why + ": " + what + " · " + where;
 		Notifications.push(Icons.PACKAGE_SEARCH, why + ": " + what, "in " + where + " · " + storage.gpsKeyName() + " for GPS");
 	}
 
@@ -120,6 +122,14 @@ public final class StorageFinder {
 		Locate.highlight(t, 45f);
 		Notifications.push(Icons.NAVIGATION, "GPS set", t.label());
 		return true;
+	}
+
+	/**
+	 * The open offer in one line ("To repair Iron Pickaxe: Iron Ingot · Chest · 5 m"), or null. Container screens show
+	 * it under the container, since panels there can cover the notification.
+	 */
+	public static @Nullable String offerLine() {
+		return hasOffer() ? offerLine : null;
 	}
 
 	public static boolean hasOffer() {

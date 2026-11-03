@@ -202,6 +202,7 @@ public final class Features {
 		register(new dev.justaclient.feature.impl.FurnaceInfoFeature());
 		register(new dev.justaclient.feature.impl.FoodInfoFeature());
 		register(new dev.justaclient.feature.impl.PotionGuideFeature());
+		register(new dev.justaclient.feature.impl.AnvilHelperFeature());
 		register(new dev.justaclient.feature.impl.StorageMemoryFeature());
 		register(new dev.justaclient.feature.impl.DeathRecapFeature());
 		register(new dev.justaclient.feature.impl.KitsFeature());

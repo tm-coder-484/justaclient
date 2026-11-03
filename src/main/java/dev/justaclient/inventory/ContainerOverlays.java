@@ -138,10 +138,49 @@ public final class ContainerOverlays {
 			Draw.hudPanel(g, p.x, p.y, p.w, p.h);
 			p.overlay.draw(box, g, p.x, p.y, p.w, p.h, mx, my);
 		}
+		drawOffer(box, g, mx, my);
+	}
+
+	/** Where the storage offer chip sits this frame, or null when there is none. */
+	private static float @Nullable [] offerChip;
+
+	/** The latest "this chest has it" offer, as a chip under the container: click it or press the GPS key. */
+	private static void drawOffer(Box box, GuiGraphics g, int mx, int my) {
+		String line = StorageFinder.offerLine();
+		if (line == null) {
+			offerChip = null;
+			return;
+		}
+		String key = dev.justaclient.feature.impl.StorageMemoryFeature.get().gpsKeyName() + " for GPS";
+		float size = Theme.SMALL + 0.5f;
+		float keyW = JacText.width(key, size, JacText.Weight.SEMIBOLD);
+		float maxText = Math.max(60, box.screen.width - 40 - keyW);
+		String text = dev.justaclient.ui.JacScreen.fit(line, size, JacText.Weight.REGULAR, maxText);
+		float w = 6 + 9 + JacText.width(text, size, JacText.Weight.REGULAR) + 8 + keyW + 6;
+		float h = 14;
+		float x = box.left + box.width / 2f - w / 2f;
+		x = Math.max(2, Math.min(x, box.screen.width - 2 - w));
+		float y = Math.min(box.top + box.height + 4, box.screen.height - h - 2);
+		boolean hot = mx >= x && mx < x + w && my >= y && my < y + h;
+		Draw.hudPanel(g, x, y, w, h);
+		if (hot) {
+			Draw.rect(g, x, y, w, h, 4f, Theme.CONTROL_HOVER);
+		}
+		JacText.icon(g, Icons.PACKAGE_SEARCH, x + 6, y + 3.5f, 6.5f, JacConfig.accent());
+		JacText.draw(g, text, x + 15, y + 4, Theme.TEXT, size, JacText.Weight.REGULAR);
+		JacText.draw(g, key, x + w - 6 - keyW, y + 4, JacConfig.accent(), size, JacText.Weight.SEMIBOLD);
+		offerChip = new float[] {x, y, w, h};
 	}
 
 	private static boolean click(double mx, double my, int button, AbstractContainerScreen<?> screen) {
 		Box box = box(screen);
+		float[] chip = offerChip;
+		if (chip != null && mx >= chip[0] && mx < chip[0] + chip[2] && my >= chip[1] && my < chip[1] + chip[3]) {
+			if (InvCompat.isLeft(button)) {
+				StorageFinder.accept();
+			}
+			return true;
+		}
 		for (Placed p : placed) {
 			if (p.contains(mx, my)) {
 				p.overlay.click(box, p.x, p.y, p.w, p.h, mx, my, button);

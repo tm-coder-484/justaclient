@@ -94,6 +94,7 @@ public final class Justaclient implements ClientModInitializer {
 		dev.justaclient.feature.impl.FurnaceInfoFeature.init();
 		dev.justaclient.feature.impl.FoodInfoFeature.init();
 		dev.justaclient.feature.impl.PotionGuideFeature.init();
+		dev.justaclient.feature.impl.AnvilHelperFeature.init();
 		dev.justaclient.feature.impl.StorageMemoryFeature.init();
 		dev.justaclient.feature.impl.DeathRecapFeature.init();
 		dev.justaclient.feature.impl.KitsFeature.init();
