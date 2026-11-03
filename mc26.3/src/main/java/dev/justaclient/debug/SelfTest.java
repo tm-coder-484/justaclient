@@ -989,6 +989,24 @@ public final class SelfTest {
 		check("modrinth: a dependency named by project gets its best version, or a reason", picked.install() != null
 			&& picked.install().id().equals("pinned") && none.install() == null && none.problem() != null, picked + " / " + none);
 
+		var loadedOld = dev.justaclient.common.modrinth.Modrinth.plan(deps, pinned, List.of(), null, "1.9", "1.21.11", "fabric");
+		var loadedSame = dev.justaclient.common.modrinth.Modrinth.plan(deps, pinned, List.of(), null, "2.0", "1.21.11", "fabric");
+		var loadedAny = dev.justaclient.common.modrinth.Modrinth.plan(byProject, null, List.of(newer), null, "1.9", "1.21.11", "fabric");
+		check("modrinth: a loaded dependency in another version than the pin is reported, not taken as enough",
+			loadedOld.install() == null && loadedOld.problem() != null && loadedOld.problem().contains("1.9"), loadedOld.toString());
+		check("modrinth: a loaded dependency matching the pin, or with no pin, is enough", loadedSame.install() == null
+			&& loadedSame.problem() == null && loadedAny.install() == null && loadedAny.problem() == null, loadedSame + " / " + loadedAny);
+		var queuedOther = dev.justaclient.common.modrinth.Modrinth.plan(deps, pinned, List.of(), "newer", null, "1.21.11", "fabric");
+		check("modrinth: a dependency already queued in another version is reported", queuedOther.install() == null && queuedOther.problem() != null,
+			queuedOther.toString());
+		java.util.Map<String, String> index = new java.util.HashMap<>(java.util.Map.of("demo", "demo-1.jar"));
+		dev.justaclient.common.modrinth.ModUpdate.index(index, "demo", "demo-1.jar", "demo-2.jar", false);
+		java.util.Map<String, String> empty = new java.util.HashMap<>();
+		dev.justaclient.common.modrinth.ModUpdate.index(empty, "demo", null, "demo-2.jar", false);
+		java.util.Map<String, String> normal = new java.util.HashMap<>(java.util.Map.of("demo", "demo-1.jar"));
+		dev.justaclient.common.modrinth.ModUpdate.index(normal, "demo", "demo-1.jar", "demo-2.jar", true);
+		check("modrinth update: a set-aside new version is not indexed as installed", "demo-1.jar".equals(index.get("demo"))
+			&& !empty.containsKey("demo") && "demo-2.jar".equals(normal.get("demo")), index + " / " + empty + " / " + normal);
 		Path dir = Files.createTempDirectory("jac-selftest-update");
 		try {
 			Path old = dir.resolve("demo-1.jar");

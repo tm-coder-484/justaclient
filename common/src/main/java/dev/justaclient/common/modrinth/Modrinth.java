@@ -264,6 +264,27 @@ public final class Modrinth {
 	 */
 	public static DependencyPlan plan(Dependency dep, @Nullable Version pinned, List<Version> candidates, @Nullable String installedVersion,
 		String gameVersion, String loader) {
+		return plan(dep, pinned, candidates, installedVersion, null, gameVersion, loader);
+	}
+
+	/**
+	 * As above, also knowing {@code loadedVersion}: the version string of that mod if the game has it loaded (from
+	 * outside the mods folder, say). A pinned dependency is only satisfied by a loaded mod whose version matches the pin;
+	 * a different loaded version is reported, never installed beside it. {@code installedVersion} covers files already in
+	 * the folder and installs still queued.
+	 */
+	public static DependencyPlan plan(Dependency dep, @Nullable Version pinned, List<Version> candidates, @Nullable String installedVersion,
+		@Nullable String loadedVersion, String gameVersion, String loader) {
+		if (dep.versionId() != null && installedVersion == null && loadedVersion != null) {
+			if (pinned == null) {
+				return new DependencyPlan(null, "could not find the exact version it needs to compare with " + loadedVersion + ", which is loaded");
+			}
+			return sameVersion(loadedVersion, pinned) ? new DependencyPlan(null, null)
+				: new DependencyPlan(null, "it needs version " + pinned.number() + ", but " + loadedVersion + " is loaded");
+		}
+		if (dep.versionId() == null && installedVersion == null && loadedVersion != null) {
+			return new DependencyPlan(null, null);
+		}
 		if (dep.versionId() != null) {
 			if (pinned == null) {
 				return new DependencyPlan(null, "could not find the exact version it needs");
@@ -284,6 +305,19 @@ public final class Modrinth {
 		List<Version> usable = candidates.stream().filter(v -> compatible(v, gameVersion, loader)).toList();
 		Version best = best(usable);
 		return best == null ? new DependencyPlan(null, "it has no version for " + gameVersion + " " + loader) : new DependencyPlan(best, null);
+	}
+
+	/** True if a loaded mod's version string is the Modrinth version {@code v} (its number, ignoring a leading "v"). */
+	static boolean sameVersion(String loaded, Version v) {
+		String a = loaded.trim().toLowerCase(Locale.ROOT);
+		String b = v.number().trim().toLowerCase(Locale.ROOT);
+		if (a.startsWith("v")) {
+			a = a.substring(1);
+		}
+		if (b.startsWith("v")) {
+			b = b.substring(1);
+		}
+		return !a.isEmpty() && a.equals(b);
 	}
 
 	/** The newest version to offer: the newest release, else the newest of any kind. Modrinth lists newest first. */

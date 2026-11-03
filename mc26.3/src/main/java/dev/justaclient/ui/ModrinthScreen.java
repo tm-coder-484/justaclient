@@ -80,6 +80,9 @@ public final class ModrinthScreen extends JacScreen {
 	private final List<Runnable> chipActions = new ArrayList<>();
 	private final List<float[]> chipBoxes = new ArrayList<>();
 
+	/** Mod installs started this session and not finished yet: project id to version id. */
+	private final Map<String, String> queued = new HashMap<>();
+
 	private record Installed(Path file, String versionId) {
 	}
 
@@ -315,9 +318,13 @@ public final class ModrinthScreen extends JacScreen {
 			job.file = dir.resolve(name);
 			return;
 		}
-		Installed before = installed.get(hit.id());
+		Installed before = k == kind ? installed.get(hit.id()) : null;
+		if (k == Modrinth.Kind.MOD) {
+			queued.put(hit.id(), version.id());
+		}
 		feature().api().download(file, dir, name, p -> job.progress = p).whenComplete((done, e) -> minecraft.execute(() -> {
 			if (e != null) {
+				queued.remove(hit.id());
 				fail(job, message(e));
 				return;
 			}
@@ -325,9 +332,7 @@ public final class ModrinthScreen extends JacScreen {
 			job.progress = -1;
 			job.done = true;
 			job.color = OK;
-			if (k == kind) {
-				installed.put(hit.id(), new Installed(done.path(), version.id()));
-			}
+			boolean active = true;
 			switch (k) {
 				case MOD -> {
 					job.label = "Installed and checked. Restart to load it";
@@ -335,7 +340,8 @@ public final class ModrinthScreen extends JacScreen {
 						done.path());
 					job.label += update.message();
 					job.file = update.newFile();
-					if (update.newActive()) {
+					active = update.newActive();
+					if (active) {
 						INSTALLED_THIS_SESSION.add(name);
 					}
 					if (!update.oldOff()) {
@@ -348,7 +354,14 @@ public final class ModrinthScreen extends JacScreen {
 					? "Installed in this world. Run /reload (or rejoin) to load it"
 					: "Installed. It loads next time you open " + world.getFileName();
 			}
-			if (k == Modrinth.Kind.MOD && feature().dependencies.on()) {
+			if (k == kind) {
+				// A new jar that was set aside does not count as installed; the old entry stays.
+				ModUpdate.index(installed, hit.id(), before, new Installed(done.path(), version.id()), active);
+			}
+			if (k == Modrinth.Kind.MOD) {
+				queued.remove(hit.id());
+			}
+			if (k == Modrinth.Kind.MOD && active && feature().dependencies.on()) {
 				installDependencies(version, job);
 			}
 		}));
@@ -405,22 +418,29 @@ public final class ModrinthScreen extends JacScreen {
 					note(parent, "A mod it needs could not be found on Modrinth");
 					return;
 				}
-				if (FabricLoader.getInstance().isModLoaded(project.slug()) || FabricLoader.getInstance().isModLoaded(project.slug().replace('-', '_'))) {
-					return;
-				}
-				if (jobs.containsKey(project.id())) {
-					return;
-				}
-				Installed have = installed.get(project.id());
-				Modrinth.DependencyPlan plan = Modrinth.plan(d, r.pinned(), r.versions(), have == null ? null : have.versionId(), game, "fabric");
+				// Everything already here (loaded, in the folder, or queued) goes through the planner, so a pin is always checked.
+				Installed have = kind == Modrinth.Kind.MOD ? installed.get(project.id()) : null;
+				String here = queued.containsKey(project.id()) ? queued.get(project.id()) : have == null ? null : have.versionId();
+				Modrinth.DependencyPlan plan = Modrinth.plan(d, r.pinned(), r.versions(), here, loadedVersion(project.slug()), game, "fabric");
 				if (plan.problem() != null) {
 					note(parent, project.title() + " is needed, but " + plan.problem());
-				} else if (plan.install() != null) {
+				} else if (plan.install() != null && !jobs.containsKey(project.id())) {
 					install(new Modrinth.Hit(project.id(), project.slug(), project.title(), "", "", 0, 0, List.of(), "mod"), plan.install(),
 						Modrinth.Kind.MOD, project.id());
 				}
 			}));
 		}
+	}
+
+	/** The version string of the loaded mod for a Modrinth slug, or null if it is not loaded. */
+	private static @Nullable String loadedVersion(String slug) {
+		for (String id : List.of(slug, slug.replace('-', '_'))) {
+			var mod = FabricLoader.getInstance().getModContainer(id);
+			if (mod.isPresent()) {
+				return mod.get().getMetadata().getVersion().getFriendlyString();
+			}
+		}
+		return null;
 	}
 
 	private record Resolved(Modrinth.@Nullable Project project, Modrinth.@Nullable Version pinned, List<Modrinth.Version> versions) {

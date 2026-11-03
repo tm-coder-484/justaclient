@@ -25,6 +25,20 @@ public final class ModUpdate {
 	private ModUpdate() {
 	}
 
+	/**
+	 * Keeps an index of what is installed honest after an install: the new entry only if the new file will actually
+	 * load, otherwise whatever was there before (or nothing).
+	 */
+	public static <K, V> void index(java.util.Map<K, V> installed, K key, @Nullable V before, V now, boolean nowActive) {
+		if (nowActive) {
+			installed.put(key, now);
+		} else if (before != null) {
+			installed.put(key, before);
+		} else {
+			installed.remove(key);
+		}
+	}
+
 	/** Switches {@code old} off now that {@code newJar} is installed; {@code old} null means there was nothing to switch off. */
 	public static Result retireOld(@Nullable ManagedMod old, Path newJar) {
 		if (old == null) {
