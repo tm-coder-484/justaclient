@@ -26,6 +26,11 @@ import net.minecraft.client.multiplayer.ServerData;
  * {@code config/justaclient/selftest.txt}. Every check puts the player's setup back the way it was.
  */
 public final class SelfTest {
+	/**
+	 * A name prefix unique to this run, so the checks never touch a profile the player made, even one named like a test
+	 * file. Every file the checks write starts with it.
+	 */
+	private static String NS = "SelfTest";
 	private static final Path REPORT = FabricLoader.getInstance().getConfigDir().resolve("justaclient").resolve("selftest.txt");
 	private static final List<String> lines = new ArrayList<>();
 	private static int failed;
@@ -59,6 +64,8 @@ public final class SelfTest {
 	public static List<String> run() {
 		lines.clear();
 		failed = 0;
+		NS = "SelfTest-" + Long.toHexString(System.nanoTime() & 0xFFFFFFL);
+		AutoReconnectFeature.Target target = AutoReconnectFeature.saveTarget();
 		String profile = Profiles.active();
 		Profiles.save();
 		int before = Profiles.fingerprint();
@@ -78,6 +85,7 @@ public final class SelfTest {
 			if (!Profiles.active().equals(profile)) {
 				Profiles.switchTo(profile);
 			}
+			AutoReconnectFeature.restoreTarget(target);
 		}
 		check("setup unchanged after all checks", Profiles.fingerprint() == before, "fingerprint differs");
 		lines.add(failed == 0 ? "ALL PASSED" : failed + " FAILED");
@@ -110,13 +118,13 @@ public final class SelfTest {
 	}
 
 	private static void filenameCollision(String profile) throws IOException {
-		Path existing = Profiles.DIR.resolve("SelfTest A_B.json");
+		Path existing = Profiles.DIR.resolve(NS + " A_B.json");
 		Files.writeString(existing, "{\"features\":{}}");
 		String imported = null;
 		try {
-			JsonObject root = JsonParser.parseString("{\"name\":\"SelfTest A/B\",\"features\":{}}").getAsJsonObject();
+			JsonObject root = JsonParser.parseString("{\"name\":\"" + NS + " A/B\",\"features\":{}}").getAsJsonObject();
 			imported = Profiles.importJson(root, "Imported", false);
-			check("import named A/B does not reuse A_B.json", imported != null && !imported.equals("SelfTest A_B"), "got " + imported);
+			check("import named A/B does not reuse A_B.json", imported != null && !imported.equals(NS + " A_B"), "got " + imported);
 			check("existing A_B.json untouched", Files.readString(existing).equals("{\"features\":{}}"), "file changed");
 		} finally {
 			Profiles.switchTo(profile);
@@ -139,7 +147,7 @@ public final class SelfTest {
 		for (String text : bad) {
 			check("parse rejects " + text, Profiles.parseProfile(text) == null, "accepted");
 			JsonObject root = JsonParser.parseString(text).getAsJsonObject();
-			String name = Profiles.importJson(root, "SelfTest Bad", false);
+			String name = Profiles.importJson(root, NS + " Bad", false);
 			check("import rejects " + text + " without changes", name == null && Profiles.fingerprint() == print && Profiles.active().equals(profile),
 				"imported as " + name);
 		}
@@ -153,20 +161,40 @@ public final class SelfTest {
 			Files.deleteIfExists(file);
 		}
 		// A malformed active profile on load is kept aside and the client starts from defaults.
-		Path broken = Profiles.DIR.resolve("SelfTest Broken.json");
+		Path broken = Profiles.DIR.resolve(NS + " Broken.json");
 		Files.writeString(broken, bad[0]);
+		// Backups already taken this second and the next must survive: the new one gets another name.
+		java.time.format.DateTimeFormatter stampFormat = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+		java.time.LocalDateTime now = java.time.LocalDateTime.now();
+		List<Path> earlier = List.of(Profiles.DIR.resolve(NS + " Broken.json." + now.format(stampFormat) + ".broken"),
+			Profiles.DIR.resolve(NS + " Broken.json." + now.plusSeconds(1).format(stampFormat) + ".broken"));
+		for (Path e : earlier) {
+			Files.writeString(e, "earlier backup");
+		}
 		try {
-			Profiles.switchTo("SelfTest Broken");
+			Profiles.switchTo(NS + " Broken");
 			boolean kept;
 			try (Stream<Path> files = Files.list(Profiles.DIR)) {
-				kept = files.anyMatch(p -> p.getFileName().toString().startsWith("SelfTest Broken.json.") && p.toString().endsWith(".broken"));
+				kept = files.filter(p -> p.getFileName().toString().startsWith(NS + " Broken.json.") && p.toString().endsWith(".broken"))
+					.anyMatch(p -> {
+						try {
+							return Files.readString(p).equals(bad[0]);
+						} catch (IOException e) {
+							return false;
+						}
+					});
 			}
 			check("unreadable profile kept as .broken on load", kept, "no .broken copy");
+			boolean intact = true;
+			for (Path e : earlier) {
+				intact &= Files.readString(e).equals("earlier backup");
+			}
+			check("an earlier .broken backup with the same time is not overwritten", intact, "overwritten");
 		} finally {
 			Profiles.switchTo(profile);
 			Files.deleteIfExists(broken);
 			try (Stream<Path> files = Files.list(Profiles.DIR)) {
-				for (Path p : files.filter(p -> p.getFileName().toString().startsWith("SelfTest Broken")).toList()) {
+				for (Path p : files.filter(p -> p.getFileName().toString().startsWith(NS + " Broken")).toList()) {
 					Files.deleteIfExists(p);
 				}
 			}
@@ -193,7 +221,7 @@ public final class SelfTest {
 		try {
 			hud.scale.set(1.0);
 			JsonObject root = Profiles.parseProfile(Files.readString(file));
-			imported = root == null ? null : Profiles.importJson(root, "SelfTest HUD", false);
+			imported = root == null ? null : Profiles.importJson(root, NS + " HUD", false);
 			check("HUD-only export keeps widget scale", Math.abs(hud.scale.get() - 1.35) < 1e-6, "scale " + hud.scale.get());
 		} finally {
 			Profiles.switchTo(profile);
@@ -205,11 +233,43 @@ public final class SelfTest {
 				Files.deleteIfExists(Profiles.DIR.resolve(imported.replaceAll("[^A-Za-z0-9 _.-]", "_") + ".json"));
 			}
 		}
+		// A widget resized by its edges keeps that size through a HUD-only layout.
+		HudFeature sized = null;
+		for (Feature f : Features.all()) {
+			if (f instanceof HudFeature h && h.freeWidth() != null) {
+				sized = h;
+				break;
+			}
+		}
+		if (sized == null) {
+			fail("HUD-only export keeps edge size", "no resizable widget");
+			return;
+		}
+		double oldWidth = sized.freeWidth().get();
+		double wanted = Math.min(sized.freeWidth().max, Math.max(sized.freeWidth().min, oldWidth + 40));
+		sized.freeWidth().set(wanted);
+		file = Profiles.exportToFile(new Profiles.Parts(false, false, false, true, false));
+		imported = null;
+		try {
+			sized.freeWidth().set(sized.freeWidth().min);
+			JsonObject root = Profiles.parseProfile(Files.readString(file));
+			imported = root == null ? null : Profiles.importJson(root, NS + " Size", false);
+			check("HUD-only export keeps edge-resized size", Math.abs(sized.freeWidth().get() - wanted) < 1e-6,
+				sized.id + " width " + sized.freeWidth().get() + ", wanted " + wanted);
+		} finally {
+			Profiles.switchTo(profile);
+			sized.freeWidth().set(oldWidth);
+			Profiles.save();
+			Files.deleteIfExists(file);
+			if (imported != null) {
+				Files.deleteIfExists(Profiles.DIR.resolve(imported.replaceAll("[^A-Za-z0-9 _.-]", "_") + ".json"));
+			}
+		}
 	}
 
 	private static void failedBackupBlocksReset() throws IOException {
 		Path backups = Profiles.BACKUPS;
-		Path aside = backups.resolveSibling("backups-selftest-aside");
+		Path aside = backups.resolveSibling("backups-" + NS + "-aside");
 		boolean had = Files.isDirectory(backups);
 		if (had) {
 			Files.move(backups, aside);
@@ -360,7 +420,6 @@ public final class SelfTest {
 		AutoReconnectFeature.connecting(new ServerData("B", "b.selftest.invalid", ServerData.Type.OTHER));
 		check("retry goes to the server being joined", "b.selftest.invalid".equals(AutoReconnectFeature.retryTarget()),
 			"target " + AutoReconnectFeature.retryTarget());
-		AutoReconnectFeature.clearTarget();
 	}
 
 	private static void check(String name, boolean ok, String detail) {

@@ -65,6 +65,7 @@ public final class Profiles {
 	public static void load() {
 		Path file = file(active());
 		JsonObject root = null;
+		boolean preserved = true;
 		if (Files.exists(file)) {
 			try (Reader reader = Files.newBufferedReader(file)) {
 				JsonElement parsed = JsonParser.parseReader(reader);
@@ -75,29 +76,59 @@ public final class Profiles {
 				}
 			} catch (IOException | RuntimeException e) {
 				Justaclient.LOGGER.warn("Could not read profile {}, using defaults", file, e);
-				keepBroken(file);
+				preserved = keepBroken(file);
 			}
 		}
 		JsonObject loaded = root;
 		if (!applySafely(loaded == null ? new JsonObject() : loaded, true)) {
-			keepBroken(file);
+			preserved = keepBroken(file);
 			applySafely(new JsonObject(), true);
+		}
+		if (!preserved) {
+			// The unreadable file could not be moved aside: never write over it. The defaults go to a new profile instead.
+			String recovered = uniqueName(active() + " (recovered)");
+			Justaclient.LOGGER.warn("Leaving {} untouched; using the new profile {}", file.getFileName(), recovered);
+			JacConfig.get().profile = recovered;
+			JacConfig.save();
 		}
 		save();
 	}
 
-	/** Moves a profile that could not be read aside as {@code name.json.broken}, so saving defaults does not destroy it. */
-	private static void keepBroken(Path file) {
-		try {
-			if (Files.exists(file)) {
-				String stamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-				Path aside = file.resolveSibling(file.getFileName() + "." + stamp + ".broken");
+	private static String uniqueName(String base) {
+		String name = base;
+		int n = 2;
+		while (Files.exists(file(name))) {
+			name = base + " " + n++;
+		}
+		return name;
+	}
+
+	/**
+	 * Moves a profile that could not be read aside as {@code name.json.<time>.broken} (with a number added if that name is
+	 * taken), so saving defaults does not destroy it. Returns false if the file is still there.
+	 */
+	static boolean keepBroken(Path file) {
+		if (!Files.exists(file)) {
+			return true;
+		}
+		String stamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+		for (int n = 0; n < 100; n++) {
+			Path aside = file.resolveSibling(file.getFileName() + "." + stamp + (n == 0 ? "" : "-" + n) + ".broken");
+			if (Files.exists(aside)) {
+				continue;
+			}
+			try {
 				Files.move(file, aside);
 				Justaclient.LOGGER.warn("Kept the unreadable profile as {}", aside.getFileName());
+				return true;
+			} catch (java.nio.file.FileAlreadyExistsException e) {
+				// Taken in between; try the next name.
+			} catch (IOException e) {
+				Justaclient.LOGGER.warn("Could not move the unreadable profile {} aside", file, e);
+				return false;
 			}
-		} catch (IOException e) {
-			Justaclient.LOGGER.warn("Could not move the unreadable profile {} aside", file, e);
 		}
+		return false;
 	}
 
 	public static void save() {
@@ -549,6 +580,13 @@ public final class Profiles {
 				pos.addProperty("x", hud.relX);
 				pos.addProperty("y", hud.relY);
 				pos.addProperty("scale", hud.scale.get());
+				// Widgets resized by their edges keep that size in a HUD-only layout too.
+				if (hud.freeWidth() != null) {
+					pos.addProperty("w", hud.freeWidth().get());
+				}
+				if (hud.freeHeight() != null && hud.freeHeight() != hud.freeWidth()) {
+					pos.addProperty("h", hud.freeHeight().get());
+				}
 				if (!Float.isNaN(hud.anchorX)) {
 					pos.addProperty("ax", hud.anchorX);
 					pos.addProperty("ay", hud.anchorY);
@@ -605,6 +643,12 @@ public final class Profiles {
 					hud.anchorY = pos.has("ay") ? clamp01(pos.get("ay")) : Float.NaN;
 					if (pos.has("scale")) {
 						hud.scale.load(pos.get("scale"));
+					}
+					if (pos.has("w") && hud.freeWidth() != null) {
+						hud.freeWidth().load(pos.get("w"));
+					}
+					if (pos.has("h") && hud.freeHeight() != null) {
+						hud.freeHeight().load(pos.get("h"));
 					}
 				}
 			});

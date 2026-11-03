@@ -62,6 +62,19 @@ public final class AutoReconnectFeature extends Feature {
 	}
 
 	/** The address a retry would go to, or null. */
+	/** The retry state, so a check can put it back exactly as it was. */
+	public record Target(@Nullable ServerData server, int attempt) {
+	}
+
+	public static Target saveTarget() {
+		return new Target(lastServer, attempt);
+	}
+
+	public static void restoreTarget(Target target) {
+		lastServer = target.server();
+		attempt = target.attempt();
+	}
+
 	public static @Nullable String retryTarget() {
 		return lastServer == null ? null : lastServer.ip;
 	}
