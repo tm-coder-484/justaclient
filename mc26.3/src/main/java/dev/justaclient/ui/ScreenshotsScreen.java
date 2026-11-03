@@ -273,12 +273,27 @@ public final class ScreenshotsScreen extends JacScreen {
 				d.pic.fullW = d.w;
 				d.pic.fullH = d.h;
 				d.pic.fullLoading = false;
+				releaseOtherFulls();
 			} else {
 				d.pic.thumb = id;
 				d.pic.thumbW = d.w;
 				d.pic.thumbH = d.h;
 				d.pic.thumbLoading = false;
 				thumbs++;
+			}
+		}
+	}
+
+	/**
+	 * Frees the full-size pictures that are not on screen. Each is up to 1920 px wide, so stepping through a few hundred
+	 * screenshots would otherwise keep gigabytes of them until the gallery closes.
+	 */
+	private void releaseOtherFulls() {
+		for (Pic p : all) {
+			if (p.full != null && p != current && p != compareA && p != compareB) {
+				minecraft.getTextureManager().release(p.full);
+				textures.remove(p.full);
+				p.full = null;
 			}
 		}
 	}
@@ -302,6 +317,13 @@ public final class ScreenshotsScreen extends JacScreen {
 	public void onClose() {
 		release();
 		super.onClose();
+	}
+
+	/** Also frees everything when another screen replaces this one (death, disconnect), not only when it is closed. */
+	@Override
+	public void removed() {
+		release();
+		super.removed();
 	}
 
 	// Drawing helpers
