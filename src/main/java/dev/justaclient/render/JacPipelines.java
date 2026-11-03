@@ -189,6 +189,21 @@ public final class JacPipelines {
 			.build()
 	);
 
+	/** Lays the menu texture over the frame on a panel in the world (see {@link SpatialMenus}). */
+	public static final RenderPipeline SPATIAL = RenderPipelines.register(
+		RenderPipeline.builder()
+			.withLocation(Justaclient.id("pipeline/spatial"))
+			.withVertexShader("core/screenquad")
+			.withFragmentShader(Justaclient.id("post/spatial"))
+			.withSampler("GuiSampler")
+			.withUniform("JacSpatial", UniformType.UNIFORM_BUFFER)
+			.withBlend(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA)
+			.withDepthWrite(false)
+			.withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+			.withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
+			.build()
+	);
+
 	private JacPipelines() {
 	}
 

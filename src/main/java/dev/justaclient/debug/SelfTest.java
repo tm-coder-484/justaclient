@@ -127,6 +127,8 @@ public final class SelfTest {
 			biomeLooks();
 			capeLayout();
 			relayProtocol();
+			spatialPanel();
+			modrinth();
 		} catch (RuntimeException | IOException e) {
 			fail("unexpected exception", e.toString());
 		} finally {
@@ -924,6 +926,79 @@ public final class SelfTest {
 			Integer.toHexString(t.at(22 * s - 1, 1 * s)));
 		check("cape: the elytra wing is painted too", t.at(24 * s, 2 * s) == 0xFFFF0000, Integer.toHexString(t.at(24 * s, 2 * s)));
 		check("cape: the edge carries the picture's border", t.at(0, 1 * s) == 0xFFFF0000 && t.at(11 * s, 1 * s) == 0xFF0000FF, "edge differs");
+	}
+
+	/** Spatial menus: the panel maths that both the shader and the mouse use. */
+	private static void spatialPanel() {
+		dev.justaclient.common.spatial.SpatialPanel flat = dev.justaclient.common.spatial.SpatialPanel.place(2, 0, 1.6, 0.9, 0, 0, 0);
+		double[] mid = flat.hit(0, 0, -1, false);
+		check("spatial: a ray straight ahead hits the middle of a flat panel", mid != null && Math.abs(mid[0]) < 1e-9 && Math.abs(mid[1]) < 1e-9,
+			java.util.Arrays.toString(mid));
+		double[] corner = flat.hit(1.6, 0.9, -2, false);
+		check("spatial: the top right corner maps to (1, 1)", corner != null && Math.abs(corner[0] - 1) < 1e-9 && Math.abs(corner[1] - 1) < 1e-9,
+			java.util.Arrays.toString(corner));
+		check("spatial: a ray past the edge misses unless extended", flat.hit(3, 0, -2, false) == null && flat.hit(3, 0, -2, true) != null, "");
+		boolean roundTrip = true;
+		for (dev.justaclient.common.spatial.SpatialPanel p : List.of(dev.justaclient.common.spatial.SpatialPanel.place(2.4, 0.1, 1.6, 0.9, 12, -20, 0),
+			dev.justaclient.common.spatial.SpatialPanel.place(2.4, -0.2, 1.6, 0.9, 6, 15, 0.6))) {
+			for (double u = -0.9; u <= 0.9; u += 0.3) {
+				for (double v = -0.9; v <= 0.9; v += 0.45) {
+					double[] at = p.point(u, v);
+					double[] back = p.hit(at[0], at[1], at[2], false);
+					roundTrip &= back != null && Math.abs(back[0] - u) < 1e-6 && Math.abs(back[1] - v) < 1e-6;
+				}
+			}
+		}
+		check("spatial: points on leaned, turned and curved panels map back to themselves", roundTrip, "a point came back elsewhere");
+		double[] gui = dev.justaclient.common.spatial.SpatialPanel.panelToGui(1, 1, 400, 200);
+		double[] uv = dev.justaclient.common.spatial.SpatialPanel.guiToPanel(100, 150, 400, 200);
+		check("spatial: panel and GUI coordinates convert both ways", gui[0] == 400 && gui[1] == 0 && uv[0] == -0.5 && uv[1] == -0.5,
+			java.util.Arrays.toString(gui) + " " + java.util.Arrays.toString(uv));
+	}
+
+	/** Modrinth browser: addresses, parsing, hash checks and safe file names, without the network. */
+	private static void modrinth() {
+		String url = dev.justaclient.common.modrinth.Modrinth.searchUrl("sodium extra", dev.justaclient.common.modrinth.Modrinth.Kind.MOD, "1.21.11",
+			"fabric", dev.justaclient.common.modrinth.Modrinth.Sort.DOWNLOADS, 20, 20);
+		String facets = java.net.URLDecoder.decode(url.substring(url.indexOf("facets=") + 7).split("&")[0], java.nio.charset.StandardCharsets.UTF_8);
+		check("modrinth: mod search is limited to this version, Fabric and client-side mods",
+			facets.contains("project_type:mod") && facets.contains("versions:1.21.11") && facets.contains("categories:fabric")
+				&& facets.contains("client_side:required") && url.contains("query=sodium+extra") && url.contains("offset=20"), url);
+		String shader = dev.justaclient.common.modrinth.Modrinth.versionsUrl("abc", dev.justaclient.common.modrinth.Modrinth.Kind.SHADER, "1.21.11", "fabric");
+		check("modrinth: shader versions are asked for Iris", java.net.URLDecoder.decode(shader, java.nio.charset.StandardCharsets.UTF_8)
+			.contains("loaders=[\"iris\"]"), shader);
+		var page = dev.justaclient.common.modrinth.Modrinth.parseSearch("{\"hits\":[{\"project_id\":\"AANobbMI\",\"slug\":\"sodium\",\"title\":\"Sodium\","
+			+ "\"author\":\"jelly\",\"downloads\":258929242,\"categories\":[\"fabric\",\"optimization\"],\"project_type\":\"mod\"}],"
+			+ "\"offset\":0,\"total_hits\":44}");
+		check("modrinth: search results parse", page.total() == 44 && page.hits().size() == 1 && page.hits().getFirst().slug().equals("sodium")
+			&& page.hits().getFirst().url().equals("https://modrinth.com/mod/sodium"), page.toString());
+		var versions = dev.justaclient.common.modrinth.Modrinth.parseVersions("[{\"id\":\"b\",\"project_id\":\"p\",\"version_type\":\"beta\","
+			+ "\"date_published\":\"2026-09-20T21:25:58Z\",\"files\":[{\"url\":\"https://cdn.modrinth.com/b.jar\",\"filename\":\"b.jar\","
+			+ "\"primary\":true,\"hashes\":{\"sha1\":\"AB\",\"sha512\":\"CD\"}}],\"dependencies\":[{\"project_id\":\"P1\","
+			+ "\"dependency_type\":\"required\"},{\"project_id\":\"P2\",\"dependency_type\":\"optional\"}]},"
+			+ "{\"id\":\"r\",\"project_id\":\"p\",\"version_type\":\"release\",\"files\":[{\"url\":\"u\",\"filename\":\"r.jar\"}]}]");
+		var best = dev.justaclient.common.modrinth.Modrinth.best(versions);
+		check("modrinth: the newest release is offered over a newer beta", best != null && best.id().equals("r"), String.valueOf(best));
+		var beta = versions.getFirst();
+		check("modrinth: files, hashes (lower case) and required dependencies parse", beta.primaryFile() != null
+			&& beta.primaryFile().sha512().equals("cd") && beta.date().equals("2026-09-20")
+			&& beta.dependencies().stream().filter(dev.justaclient.common.modrinth.Modrinth.Dependency::required).count() == 1, beta.toString());
+		byte[] data = "hello".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+		String sha512 = "9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca72323c3d99ba5c11d7c7acc6e14b8c5da0c4663475c2e5c3adef46f73bcdec043";
+		var good = new dev.justaclient.common.modrinth.Modrinth.FileRef("u", "f.jar", "", sha512, 5, true);
+		var bad = new dev.justaclient.common.modrinth.Modrinth.FileRef("u", "f.jar", "", sha512.replace('9', '8'), 5, true);
+		check("modrinth: a download is kept only if its SHA-512 matches", dev.justaclient.common.modrinth.Modrinth.matches(data, good)
+			&& !dev.justaclient.common.modrinth.Modrinth.matches(data, bad), "");
+		var kind = dev.justaclient.common.modrinth.Modrinth.Kind.MOD;
+		check("modrinth: file names cannot leave the folder or change type", "evil.jar".equals(dev.justaclient.common.modrinth.Modrinth.safeFileName(
+			"../../evil.jar", kind)) && dev.justaclient.common.modrinth.Modrinth.safeFileName("pack.zip", kind) == null
+			&& "a_b.zip".equals(dev.justaclient.common.modrinth.Modrinth.safeFileName("a?b.zip", dev.justaclient.common.modrinth.Modrinth.Kind.RESOURCE_PACK))
+			&& dev.justaclient.common.modrinth.Modrinth.safeFileName("..", kind) == null, "");
+		var found = dev.justaclient.common.modrinth.Modrinth.parseVersionFiles("{\"ABC\":{\"id\":\"v\",\"project_id\":\"p\"}}");
+		check("modrinth: installed files are matched back to projects", found.containsKey("abc") && found.get("abc").projectId().equals("p"), found.toString());
+		check("modrinth: counts read short", dev.justaclient.common.modrinth.Modrinth.shortCount(258929242).equals("258.9M")
+			&& dev.justaclient.common.modrinth.Modrinth.shortCount(1000).equals("1k") && dev.justaclient.common.modrinth.Modrinth.shortCount(812).equals("812"),
+			dev.justaclient.common.modrinth.Modrinth.shortCount(258929242));
 	}
 
 	private static void relayProtocol() throws IOException {

@@ -171,6 +171,8 @@ public final class JacCommands {
 					return reply(ctx, sent, "To " + to + ": " + StringArgumentType.getString(ctx, "text"), "Not connected to the relay: " + m.connectionLine());
 				}))));
 			}
+			dispatcher.register(literal("jmods").executes(ctx -> open(new dev.justaclient.ui.ModsScreen(null))));
+			dispatcher.register(literal("jmodrinth").executes(ctx -> open(new dev.justaclient.ui.ModrinthScreen(null))));
 			for (String name : new String[] {"biomes", "jbiomes"}) {
 				dispatcher.register(literal(name).executes(ctx -> open(new dev.justaclient.ui.BiomeEffectsScreen(null))));
 			}
