@@ -39,7 +39,9 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 | **Edit HUD layout** | Drag widgets; they snap to edges, the centre and each other with a small gap (hold Shift to place freely). Drag a corner or scroll to resize, press **A** over a widget to change its anchor, right click for settings. **Layout** switches between Default, Combat, Explore, Minimal and your own saved layouts. |
 | **Notes** (menu sidebar) | A notepad and a todo list. Pin a todo to show it on the Pinned todos widget. |
 | **Feedback** (menu sidebar) | Send a bug report or idea, with your log, crash report, mod list or settings attached. Off until you turn it on and set your server (see `cloudflare/README.md`). |
-| **Theme** | Accent, panel opacity, corners, blur, outline, font and motion. Everything follows these. |
+| **Theme** | Accent, panel opacity, corners, blur, outline, font, motion and the menu layout (Classic or Ring). Everything follows these. |
+| **Ring layout** | With Theme > Menu layout on Ring, Right Shift opens the ring: click a panel for its category, a button on the ring for a page. **Customise** (bottom right) changes the ring's look, spin, density, glow, gauges and what is shown, live. **Classic view** switches back. |
+| **Command Centre** (menu sidebar) | Tiles for the client's full screens: Mods, Servers, Key binds, Screenshots, HUD editor, Dev Console, World Archive and Labs. |
 | **Performance** (menu, or click the frame cost in the footer) | What each feature costs per frame, against the 5% budget. |
 | **C** (hold) | Zoom. Scroll while zooming to go further. The key is in Camera > Zoom. |
 | **I** | Inspect the held item (First person > Hand). |
@@ -54,6 +56,37 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 ![HUD editor with a snap guide](docs/screenshots/hud-editor.png)
 
 ## What is in this build
+
+### M9: screens, hubs and the ring (v0.9.0)
+
+Every new feature has its own switch, in both the 1.21.11 and 26.3 jars.
+
+- **Styled screens** (Screens): vanilla and modded screens (including Sodium's and Distant Horizons') draw their
+  buttons, sliders, text boxes, check boxes, scroll bars, tabs and lists in the client style; any screen can be left
+  vanilla. **Screen backgrounds** by group (menus, pause, containers): glass, gradient, dim, or your own picture or GIF.
+  **Smooth scrolling** for vanilla and modded lists, and **GUI sounds**.
+- **Mods panel**: every mod with its icon, details, links and settings button; turn mods off or on (applied on restart,
+  with a warning for mods others depend on, and their key binds kept). **Restart now** relaunches the game.
+- **Server list**: folders (drag a server onto one), favourites, recent, search, live pings, and a **Servers** button in
+  the pause menu to hop straight to another server.
+- **Key bind manager**: search, clashes highlighted, bind mouse buttons, reset one or all, and **key sets** you can
+  save, apply and link to a server so they switch when you join it.
+- **Command Centre**: a menu page with tiles for all the full screens below.
+- **Screenshot manager**: each new screenshot remembers the world, dimension, biome, weather, time of day and position
+  (coordinates can be left out, and Stream mode hides them). A gallery with search, favourites, three sizes and a
+  This world filter; a viewer with tags you add; and a **compare slider** for two shots (Shift-click two, or Compare
+  in the viewer).
+- **Dev Console**: the live `latest.log` with Warnings and Errors filters and a search (click a line to copy it); a
+  **diagnostics** sheet (versions, GPU, CPU, memory, window, media) you can copy into a bug report; a **resource pack
+  audit** (files per pack by kind, how many replace vanilla, how many a higher pack hides) with a **reload history**;
+  and the **screens** seen this session, each with a switch for the restyle.
+- **World Archive**: every world the client remembers, with play time, sessions, waypoints and screenshots, and the
+  map for the world you are in.
+- **Labs**: the features still marked experimental (they carry a Labs badge in the menu), and a button that runs the
+  client's self-test (45 checks) and shows the results.
+- **Ring layout** (Theme > Menu layout): a ring of light around the client's mark with the categories on either side,
+  pages on the ring, two gauges (frame rate, memory, ping or features on) and a strip with your profile, world and
+  clock. Classic stays the default.
 
 ### M8: HUD, profiles and tools (v0.8.1)
 

@@ -365,7 +365,7 @@ public final class ScreenshotsScreen extends JacScreen {
 
 	private void drawGrid(GuiGraphics g, int mx, int my, float a) {
 		long favs = index().shots.values().stream().filter(s -> s.favourite).count();
-		header(g, mx, my, a, "Screenshots", all.size() + " screenshots" + (favs > 0 ? " · " + favs + (favs == 1 ? " favourite" : " favourites") : "")
+		header(g, mx, my, a, "Screenshots", all.size() + (all.size() == 1 ? " screenshot" : " screenshots") + (favs > 0 ? " · " + favs + (favs == 1 ? " favourite" : " favourites") : "")
 			+ (compareA != null ? " · pick a second one to compare" : ""));
 		search.draw(g, mx, my, a);
 		int accent = JacConfig.accent();

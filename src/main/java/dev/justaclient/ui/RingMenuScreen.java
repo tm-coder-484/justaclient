@@ -534,7 +534,7 @@ public final class RingMenuScreen extends JacScreen {
 
 	@Override
 	protected boolean key(int key, boolean ctrl, boolean shift) {
-		if (customising && key == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE) {
+		if (customising && key == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) {
 			customising = false;
 			return true;
 		}

@@ -470,21 +470,29 @@ public final class DevConsoleScreen extends JacScreen {
 				Draw.rect(g, bx, y, bw, rowH, 5f, Colors.fade(Theme.CONTROL, a * 0.6f));
 				JacText.draw(g, fit(p.id(), Theme.LABEL, JacText.Weight.SEMIBOLD, bw * 0.45f), bx + 8, y + 5, Colors.fade(Theme.TEXT, a), Theme.LABEL,
 					JacText.Weight.SEMIBOLD);
-				String sum = p.total() + " files" + (p.vanilla() > 0 ? " · " + p.vanilla() + " replace vanilla" : "") + (p.hidden() > 0 ? " · "
+				String sum = p.total() + (p.total() == 1 ? " file" : " files") + (p.vanilla() > 0 ? " · " + p.vanilla() + " replace vanilla" : "") + (p.hidden() > 0 ? " · "
 					+ p.hidden() + " hidden" : "");
 				JacText.draw(g, sum, bx + 8, y + 17, Colors.fade(p.hidden() > 0 ? WARN : Theme.TEXT_DIM, a), Theme.SMALL, JacText.Weight.REGULAR);
-				// Kind chips, right aligned.
-				float cx = bx + bw - 6;
-				List<String> kinds = new ArrayList<>(p.kinds().keySet());
-				for (int i = kinds.size() - 1; i >= 0; i--) {
-					String label = kinds.get(i) + " " + p.kinds().get(kinds.get(i));
-					float w = JacText.width(label, Theme.SMALL, JacText.Weight.REGULAR) + 10;
-					if (cx - w < bx + bw * 0.5f) {
+				// Kind chips, biggest first, as many as fit, right aligned.
+				List<java.util.Map.Entry<String, Integer>> kinds = new ArrayList<>(p.kinds().entrySet());
+				kinds.sort(java.util.Map.Entry.<String, Integer>comparingByValue().reversed());
+				List<String> labels = new ArrayList<>();
+				float room = bw * 0.5f - 6;
+				for (java.util.Map.Entry<String, Integer> k : kinds) {
+					String label = k.getKey() + " " + k.getValue();
+					float w = JacText.width(label, Theme.SMALL, JacText.Weight.REGULAR) + 14;
+					if (w > room) {
 						break;
 					}
+					room -= w;
+					labels.add(label);
+				}
+				float cx = bx + bw - 6;
+				for (int i = labels.size() - 1; i >= 0; i--) {
+					float w = JacText.width(labels.get(i), Theme.SMALL, JacText.Weight.REGULAR) + 10;
 					cx -= w;
 					Draw.rect(g, cx, y + 9, w, 12, 6f, Colors.fade(Theme.CONTROL, a));
-					JacText.draw(g, label, cx + 5, y + 12, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL, JacText.Weight.REGULAR);
+					JacText.draw(g, labels.get(i), cx + 5, y + 12, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL, JacText.Weight.REGULAR);
 					cx -= 4;
 				}
 				y += rowH + 4;
