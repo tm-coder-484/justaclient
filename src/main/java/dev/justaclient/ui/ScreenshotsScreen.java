@@ -131,14 +131,18 @@ public final class ScreenshotsScreen extends JacScreen {
 	private int columns = 1;
 
 	public ScreenshotsScreen(@Nullable Screen parent) {
-		super("Screenshots", parent);
-		this.worldKey = Waypoints.worldKey();
+		this(parent, Waypoints.worldKey());
 	}
 
-	/** Opens straight into a world's screenshots, for the World Archive. */
+	private ScreenshotsScreen(@Nullable Screen parent, @Nullable String worldKey) {
+		super("Screenshots", parent);
+		this.worldKey = worldKey;
+	}
+
+	/** Opens straight into one world's screenshots, for the World Archive. */
 	public static ScreenshotsScreen forWorld(@Nullable Screen parent, String worldKey) {
-		ScreenshotsScreen s = new ScreenshotsScreen(parent);
-		s.search.set(worldKey.startsWith("mp:") ? worldKey.substring(3) : "");
+		ScreenshotsScreen s = new ScreenshotsScreen(parent, worldKey);
+		s.filter = Filter.WORLD;
 		return s;
 	}
 

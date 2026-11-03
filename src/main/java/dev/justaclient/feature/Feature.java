@@ -38,6 +38,7 @@ public abstract class Feature {
 	private boolean enabled;
 	/** Whether {@link #onEnable} has run without a matching {@link #onDisable}. Starts in step with the default state. */
 	private boolean hooked;
+	private boolean experimental;
 
 	protected Feature(String id, String name, String description, Category category, Icons icon, boolean enabledByDefault) {
 		this.id = id;
@@ -49,6 +50,15 @@ public abstract class Feature {
 		this.enabledByDefault = enabledByDefault;
 		this.enabled = enabledByDefault;
 		this.hooked = enabledByDefault;
+	}
+
+	/** Marks the feature as experimental: it is listed on the Labs screen and shows a Labs badge. */
+	protected final void markExperimental() {
+		experimental = true;
+	}
+
+	public boolean isExperimental() {
+		return experimental;
 	}
 
 	public boolean isEnabled() {

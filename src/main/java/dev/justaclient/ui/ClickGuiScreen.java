@@ -498,6 +498,12 @@ public final class ClickGuiScreen extends Screen {
 				Draw.outline(g, cx, y, cw, CARD_H, radius, 0.85f, Colors.fade(Colors.withAlpha(JacConfig.accent(), 0xB0), a));
 			}
 			JacText.draw(g, f.name, cx + 9, y + 5.5f, Colors.fade(Theme.TEXT, a), Theme.LABEL, JacText.Weight.SEMIBOLD);
+			if (f.isExperimental()) {
+				float bxl = cx + 9 + JacText.width(f.name, Theme.LABEL, JacText.Weight.SEMIBOLD) + 4;
+				float bwl = JacText.width("Labs", Theme.SMALL - 0.5f, JacText.Weight.SEMIBOLD) + 8;
+				Draw.rect(g, bxl, y + 5f, bwl, 9, 4.5f, Colors.fade(0x40A78BFA, a));
+				JacText.draw(g, "Labs", bxl + 4, y + 7f, Colors.fade(0xFFC4B5FD, a), Theme.SMALL - 0.5f, JacText.Weight.SEMIBOLD);
+			}
 			String sub = query.isBlank() ? f.description : f.category.label + " · " + f.description;
 			JacText.draw(g, fitEnd(sub, cw - 50), cx + 9, y + 15f, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL, JacText.Weight.REGULAR);
 			drawSwitch(g, f, cx + cw - 9 - 20, y + (CARD_H - 11) / 2f, a);

@@ -21,6 +21,7 @@ public final class MacrosFeature extends Feature {
 
 	public MacrosFeature() {
 		super("macros", "Command macros", "A key sends one command or chat line per press", Category.UTILITY, Icons.KEYBOARD, false);
+		markExperimental();
 		for (int i = 0; i < SLOTS; i++) {
 			int n = i + 1;
 			TextSetting command = add(new TextSetting("command_" + n, "Macro " + n, "", 120, n == 1 ? "/home" : "/command or chat"));

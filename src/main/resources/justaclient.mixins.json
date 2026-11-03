@@ -37,6 +37,7 @@
 		"ParticleEngineMixin",
 		"PauseScreenMixin",
 		"PlayerTabOverlayMixin",
+		"ReloadableResourceManagerMixin",
 		"RenderSetupMixin",
 		"ScreenEffectRendererMixin",
 		"ScreenMixin",

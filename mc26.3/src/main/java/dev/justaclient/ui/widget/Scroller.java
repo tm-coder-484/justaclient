@@ -48,6 +48,11 @@ public final class Scroller {
 		return current;
 	}
 
+	/** Where the position is heading. */
+	public float target() {
+		return target;
+	}
+
 	public float max() {
 		return max;
 	}

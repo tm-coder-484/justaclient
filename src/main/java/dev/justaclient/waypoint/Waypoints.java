@@ -88,6 +88,12 @@ public final class Waypoints {
 		return byWorld.computeIfAbsent(key, k -> new ArrayList<>());
 	}
 
+	/** Every world that has waypoints, by world key. The map is live; call {@link #save} after changing it. */
+	public static Map<String, List<Waypoint>> byWorld() {
+		load();
+		return byWorld;
+	}
+
 	/** Waypoints of the current world in the dimension the player is in. */
 	public static List<Waypoint> here() {
 		String dim = dimension();

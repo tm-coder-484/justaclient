@@ -6,10 +6,13 @@ import dev.justaclient.anim.Easing;
 import dev.justaclient.config.JacConfig;
 import dev.justaclient.feature.Feature;
 import dev.justaclient.feature.Features;
+import dev.justaclient.feature.impl.DevConsoleFeature;
 import dev.justaclient.feature.impl.KeybindsFeature;
+import dev.justaclient.feature.impl.LabsFeature;
 import dev.justaclient.feature.impl.ModsPanelFeature;
 import dev.justaclient.feature.impl.ScreenshotsFeature;
 import dev.justaclient.feature.impl.ServersFeature;
+import dev.justaclient.feature.impl.WorldArchiveFeature;
 import dev.justaclient.render.Draw;
 import dev.justaclient.render.Icons;
 import dev.justaclient.render.text.JacText;
@@ -49,6 +52,11 @@ public final class HubPage {
 		TILES.add(new Tile(Icons.CAMERA, "Screenshots", "Tagged gallery, viewer and side-by-side compare", ScreenshotsFeature.class,
 			ScreenshotsScreen::new, () -> true));
 		TILES.add(new Tile(Icons.MOVE, "HUD editor", "Move, scale and snap your widgets", null, HudEditorScreen::new, () -> true));
+		TILES.add(new Tile(Icons.TERMINAL, "Dev Console", "Live log, diagnostics, pack audit and screen list", DevConsoleFeature.class,
+			DevConsoleScreen::new, () -> true));
+		TILES.add(new Tile(Icons.ARCHIVE, "World Archive", "Waypoints, sessions and screenshots per world", WorldArchiveFeature.class,
+			WorldArchiveScreen::new, () -> true));
+		TILES.add(new Tile(Icons.FLASK, "Labs", "Experimental features and the self-test", LabsFeature.class, LabsScreen::new, () -> true));
 	}
 
 	private HubPage() {
