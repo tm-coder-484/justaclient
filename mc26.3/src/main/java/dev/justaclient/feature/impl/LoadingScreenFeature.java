@@ -21,7 +21,7 @@ public final class LoadingScreenFeature extends Feature {
 	private long tipShown;
 
 	public LoadingScreenFeature() {
-		super("loading_screen", "Loading screen", "A cleaner world loading screen", Category.UTILITY, Icons.DOWNLOAD, true);
+		super("loading_screen", "Loading screen", "A cleaner world loading screen", Category.SCREENS, Icons.DOWNLOAD, true);
 	}
 
 	public void draw(GuiGraphicsExtractor g, int width, int height, String label, boolean hasProgress, float progress) {

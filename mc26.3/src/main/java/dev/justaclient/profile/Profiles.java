@@ -63,16 +63,41 @@ public final class Profiles {
 
 	/** Loads the active profile into the features, falling back to defaults for anything missing. */
 	public static void load() {
-		Features.all().forEach(Feature::resetToDefaults);
 		Path file = file(active());
+		JsonObject root = null;
 		if (Files.exists(file)) {
 			try (Reader reader = Files.newBufferedReader(file)) {
-				apply(JsonParser.parseReader(reader).getAsJsonObject());
-			} catch (IOException | JsonParseException | IllegalStateException e) {
+				JsonElement parsed = JsonParser.parseReader(reader);
+				if (parsed.isJsonObject() && valid(parsed.getAsJsonObject())) {
+					root = parsed.getAsJsonObject();
+				} else {
+					throw new JsonParseException("not a profile");
+				}
+			} catch (IOException | RuntimeException e) {
 				Justaclient.LOGGER.warn("Could not read profile {}, using defaults", file, e);
+				keepBroken(file);
 			}
 		}
+		JsonObject loaded = root;
+		if (!applySafely(loaded == null ? new JsonObject() : loaded, true)) {
+			keepBroken(file);
+			applySafely(new JsonObject(), true);
+		}
 		save();
+	}
+
+	/** Moves a profile that could not be read aside as {@code name.json.broken}, so saving defaults does not destroy it. */
+	private static void keepBroken(Path file) {
+		try {
+			if (Files.exists(file)) {
+				String stamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+				Path aside = file.resolveSibling(file.getFileName() + "." + stamp + ".broken");
+				Files.move(file, aside);
+				Justaclient.LOGGER.warn("Kept the unreadable profile as {}", aside.getFileName());
+			}
+		} catch (IOException e) {
+			Justaclient.LOGGER.warn("Could not move the unreadable profile {} aside", file, e);
+		}
 	}
 
 	public static void save() {
@@ -151,6 +176,10 @@ public final class Profiles {
 	/** Backs up the active profile, then puts every feature, setting, key and widget back to its default. */
 	public static @Nullable String resetAll() {
 		String saved = backup("before-reset");
+		if (saved == null) {
+			// Without a backup a reset could not be undone, so nothing changes.
+			return null;
+		}
 		Features.all().forEach(Feature::resetToDefaults);
 		save();
 		return saved;
@@ -197,7 +226,7 @@ public final class Profiles {
 	public static @Nullable JsonObject parseProfile(String text) {
 		try {
 			JsonElement parsed = JsonParser.parseString(text);
-			if (!parsed.isJsonObject() || !parsed.getAsJsonObject().has("features") || !parsed.getAsJsonObject().get("features").isJsonObject()) {
+			if (!parsed.isJsonObject() || !parsed.getAsJsonObject().has("features") || !valid(parsed.getAsJsonObject())) {
 				return null;
 			}
 			return parsed.getAsJsonObject();
@@ -210,15 +239,20 @@ public final class Profiles {
 	 * Makes a new profile from {@code root}: the current setup with whatever the JSON holds laid over it, so a file that
 	 * only has a HUD layout changes only the layout. Switches to it and returns its name.
 	 */
-	public static String importJson(JsonObject root, String fallbackName, boolean withTheme) {
+	public static @Nullable String importJson(JsonObject root, String fallbackName, boolean withTheme) {
+		if (!valid(root)) {
+			return null;
+		}
 		save();
 		String base = root.has("name") && root.get("name").isJsonPrimitive() ? root.get("name").getAsString().trim() : fallbackName;
-		base = base.isEmpty() ? fallbackName : base.substring(0, Math.min(32, base.length()));
-		List<String> names = list();
+		// Names become file names, so clean the name first and check the file, or "A/B" would overwrite "A_B".
+		base = safeName(base);
+		base = base.isBlank() ? fallbackName : base.substring(0, Math.min(32, base.length())).trim();
 		String name = base;
-		for (int n = 2; names.contains(name); n++) {
+		for (int n = 2; Files.exists(file(name)) || containsIgnoreCase(list(), name); n++) {
 			name = base + " " + n;
 		}
+		StyleTokens oldStyle = JacConfig.get().style;
 		if (withTheme && root.has("style") && root.get("style").isJsonObject()) {
 			try {
 				StyleTokens style = GSON.fromJson(root.get("style"), StyleTokens.class);
@@ -230,11 +264,83 @@ public final class Profiles {
 				Justaclient.LOGGER.warn("Ignoring the theme in an imported profile", e);
 			}
 		}
-		apply(root);
+		if (!applySafely(root, false)) {
+			JacConfig.get().style = oldStyle;
+			return null;
+		}
 		JacConfig.get().profile = name;
 		JacConfig.save();
 		save();
 		return name;
+	}
+
+	private static boolean containsIgnoreCase(List<String> names, String name) {
+		return names.stream().anyMatch(n -> n.equalsIgnoreCase(name));
+	}
+
+	/**
+	 * True if {@code root} has the shape of a profile all the way down: {@code features} is an object of objects whose
+	 * {@code enabled} is a boolean, {@code settings} an object and {@code position} an object of numbers. Checked before
+	 * anything live changes, so a bad file cannot half apply.
+	 */
+	public static boolean valid(JsonObject root) {
+		JsonElement features = root.get("features");
+		if (features == null) {
+			return true;
+		}
+		if (!features.isJsonObject()) {
+			return false;
+		}
+		for (var entry : features.getAsJsonObject().entrySet()) {
+			if (!entry.getValue().isJsonObject()) {
+				return false;
+			}
+			JsonObject f = entry.getValue().getAsJsonObject();
+			JsonElement enabled = f.get("enabled");
+			if (enabled != null && !(enabled.isJsonPrimitive() && enabled.getAsJsonPrimitive().isBoolean())) {
+				return false;
+			}
+			JsonElement settings = f.get("settings");
+			if (settings != null && !settings.isJsonObject()) {
+				return false;
+			}
+			JsonElement pos = f.get("position");
+			if (pos != null) {
+				if (!pos.isJsonObject()) {
+					return false;
+				}
+				for (var p : pos.getAsJsonObject().entrySet()) {
+					if (!p.getValue().isJsonPrimitive() || !p.getValue().getAsJsonPrimitive().isNumber()) {
+						return false;
+					}
+				}
+			}
+		}
+		JsonElement style = root.get("style");
+		return style == null || style.isJsonObject();
+	}
+
+	/**
+	 * Applies {@code root}; if anything in it still fails part way (a setting with a value of the wrong type), puts back
+	 * the state from before and returns false. {@code fromDefaults} starts from defaults rather than the current setup.
+	 */
+	private static boolean applySafely(JsonObject root, boolean fromDefaults) {
+		if (!valid(root)) {
+			return false;
+		}
+		JsonObject before = snapshot();
+		try {
+			apply(root, fromDefaults);
+			return true;
+		} catch (RuntimeException e) {
+			Justaclient.LOGGER.warn("Could not apply a profile, keeping the previous setup", e);
+			try {
+				apply(before, false);
+			} catch (RuntimeException again) {
+				Justaclient.LOGGER.error("Could not restore the previous setup", again);
+			}
+			return false;
+		}
 	}
 
 	/** Which parts of a profile an export holds. */
@@ -265,6 +371,7 @@ public final class Profiles {
 				out.add("settings", f.get("settings"));
 			}
 			if (parts.hud() && f.has("position")) {
+				// The scale lives with the settings, but a layout without it would lose every widget's size.
 				out.add("position", f.get("position"));
 			}
 			if (!out.isEmpty()) {
@@ -419,8 +526,11 @@ public final class Profiles {
 	}
 
 	private static Path file(String name) {
-		String safe = name.replaceAll("[^A-Za-z0-9 _.-]", "_");
-		return DIR.resolve(safe + ".json");
+		return DIR.resolve(safeName(name) + ".json");
+	}
+
+	private static String safeName(String name) {
+		return name.replaceAll("[^A-Za-z0-9 _.-]", "_");
 	}
 
 	private static JsonObject snapshot() {
@@ -438,6 +548,7 @@ public final class Profiles {
 				JsonObject pos = new JsonObject();
 				pos.addProperty("x", hud.relX);
 				pos.addProperty("y", hud.relY);
+				pos.addProperty("scale", hud.scale.get());
 				if (!Float.isNaN(hud.anchorX)) {
 					pos.addProperty("ax", hud.anchorX);
 					pos.addProperty("ay", hud.anchorY);
@@ -452,34 +563,51 @@ public final class Profiles {
 		return root;
 	}
 
-	private static void apply(JsonObject root) {
-		JsonObject features = root.getAsJsonObject("features");
-		if (features == null) {
-			return;
-		}
+	/**
+	 * Applies a validated profile. Each feature is turned off with its old settings, given its new settings, then turned
+	 * on again if it should be, so on and off side effects always see the settings they belong to.
+	 */
+	private static void apply(JsonObject root, boolean fromDefaults) {
+		JsonObject features = root.has("features") ? root.getAsJsonObject("features") : new JsonObject();
 		for (Feature feature : Features.all()) {
 			JsonElement element = features.get(feature.id);
-			if (element == null || !element.isJsonObject()) {
+			JsonObject f = element != null && element.isJsonObject() ? element.getAsJsonObject() : null;
+			if (f == null && !fromDefaults) {
 				continue;
 			}
-			JsonObject f = element.getAsJsonObject();
-			if (f.has("enabled")) {
-				feature.setEnabled(f.get("enabled").getAsBoolean());
-			}
-			feature.toggleKey.load(f.get(feature.toggleKey.id));
-			JsonObject settings = f.getAsJsonObject("settings");
-			if (settings != null) {
-				for (Setting<?> setting : feature.settings()) {
-					setting.load(settings.get(setting.id));
+			boolean wanted = f != null && f.has("enabled") ? f.get("enabled").getAsBoolean() : fromDefaults ? feature.enabledByDefault() : feature.isEnabled();
+			feature.replaceState(wanted, () -> {
+				if (fromDefaults) {
+					feature.resetSettings();
+					if (feature instanceof HudFeature hud) {
+						hud.resetPosition();
+					}
 				}
-			}
-			JsonObject pos = f.getAsJsonObject("position");
-			if (feature instanceof HudFeature hud && pos != null) {
-				hud.relX = clamp01(pos.get("x"));
-				hud.relY = clamp01(pos.get("y"));
-				hud.anchorX = pos.has("ax") ? clamp01(pos.get("ax")) : Float.NaN;
-				hud.anchorY = pos.has("ay") ? clamp01(pos.get("ay")) : Float.NaN;
-			}
+				if (f == null) {
+					return;
+				}
+				if (f.has(feature.toggleKey.id)) {
+					feature.toggleKey.load(f.get(feature.toggleKey.id));
+				}
+				JsonObject settings = f.has("settings") ? f.getAsJsonObject("settings") : null;
+				if (settings != null) {
+					for (Setting<?> setting : feature.settings()) {
+						if (settings.has(setting.id)) {
+							setting.load(settings.get(setting.id));
+						}
+					}
+				}
+				JsonObject pos = f.has("position") ? f.getAsJsonObject("position") : null;
+				if (feature instanceof HudFeature hud && pos != null) {
+					hud.relX = clamp01(pos.get("x"));
+					hud.relY = clamp01(pos.get("y"));
+					hud.anchorX = pos.has("ax") ? clamp01(pos.get("ax")) : Float.NaN;
+					hud.anchorY = pos.has("ay") ? clamp01(pos.get("ay")) : Float.NaN;
+					if (pos.has("scale")) {
+						hud.scale.load(pos.get("scale"));
+					}
+				}
+			});
 		}
 	}
 

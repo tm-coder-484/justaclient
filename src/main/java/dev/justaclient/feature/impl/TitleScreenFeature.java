@@ -50,7 +50,7 @@ public final class TitleScreenFeature extends Feature {
 	private final BoolSetting tips = bool("tips", "Random tips", true);
 
 	public TitleScreenFeature() {
-		super("title_screen", "Title screen", "A cleaner title screen in the client's style", Category.UTILITY, Icons.LAYOUT_DASHBOARD, true);
+		super("title_screen", "Title screen", "A cleaner title screen in the client's style", Category.SCREENS, Icons.LAYOUT_DASHBOARD, true);
 	}
 
 	public boolean showsTips() {

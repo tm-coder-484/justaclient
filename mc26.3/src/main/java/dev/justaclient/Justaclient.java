@@ -22,6 +22,9 @@ import dev.justaclient.hud.HudRenderer;
 import dev.justaclient.hud.PickupFeed;
 import dev.justaclient.hud.LifetimeStats;
 import dev.justaclient.hud.SessionHistory;
+import dev.justaclient.notes.NotesStore;
+import dev.justaclient.world.WorldStore;
+import dev.justaclient.feature.impl.ScreenBackgroundFeature;
 import dev.justaclient.hud.SessionStats;
 import dev.justaclient.hud.widgets.NowPlayingHud;
 import dev.justaclient.hud.widgets.TimerHud;
@@ -92,14 +95,19 @@ public final class Justaclient implements ClientModInitializer {
 			Features.get(TimerHud.class).onJoin();
 			LifetimeStats.onJoin();
 			JacTitleScreen.freeBackground();
+			Features.get(ScreenBackgroundFeature.class).unload();
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			SessionHistory.finish();
 			LifetimeStats.onLeave();
+			NotesStore.saveAll();
 		});
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
 			SessionHistory.finish();
 			LifetimeStats.save();
+			NotesStore.saveAll();
+			// Writes still queued for the world folders finish before the game exits.
+			WorldStore.flush();
 		});
 		ExploredMap.init();
 		KeyMappingHelper.registerKeyMapping(OPEN_MENU);

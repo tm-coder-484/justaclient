@@ -47,6 +47,20 @@ public final class AutoReconnectFeature extends Feature {
 		super("auto_reconnect", "Auto reconnect", "Rejoin the last server after a disconnect, with a countdown", Category.UTILITY, Icons.ROTATE_CCW, false);
 	}
 
+	/**
+	 * Called whenever a connection to a server starts, from the server list, direct connect or a retry. The retry target
+	 * is the server being tried, not the last one that worked, so a kick from B never sends you back to A.
+	 */
+	public static void connecting(@Nullable ServerData data) {
+		if (data == null) {
+			return;
+		}
+		if (lastServer == null || !lastServer.ip.equalsIgnoreCase(data.ip)) {
+			attempt = 0;
+		}
+		lastServer = data;
+	}
+
 	public static void init() {
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
 			ServerData data = client.getCurrentServer();

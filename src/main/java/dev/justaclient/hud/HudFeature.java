@@ -132,6 +132,19 @@ public abstract class HudFeature extends Feature {
 		return defaultY;
 	}
 
+	/**
+	 * The setting that holds the widget's width in GUI pixels if its edges can be dragged freely in the HUD editor, or
+	 * null when only its scale can change.
+	 */
+	public @org.jspecify.annotations.Nullable NumberSetting freeWidth() {
+		return null;
+	}
+
+	/** Like {@link #freeWidth} for the height. */
+	public @org.jspecify.annotations.Nullable NumberSetting freeHeight() {
+		return null;
+	}
+
 	public void resetPosition() {
 		relX = defaultX;
 		relY = defaultY;

@@ -1,6 +1,7 @@
 package dev.justaclient.mixin;
 
 import dev.justaclient.feature.Features;
+import dev.justaclient.feature.impl.ScreenStyleFeature;
 import dev.justaclient.feature.impl.TitleScreenFeature;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -14,6 +15,8 @@ abstract class MinecraftMixin {
 	@ModifyVariable(method = "setScreen", at = @At("HEAD"), argsOnly = true)
 	private @Nullable Screen justaclient$titleScreen(@Nullable Screen screen) {
 		TitleScreenFeature feature = Features.get(TitleScreenFeature.class);
-		return screen == null || feature == null ? screen : feature.replace(screen);
+		Screen result = screen == null || feature == null ? screen : feature.replace(screen);
+		ScreenStyleFeature.seen(result);
+		return result;
 	}
 }

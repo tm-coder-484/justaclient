@@ -35,7 +35,29 @@ final class NotesPage {
 	private static float padScroll;
 	private static List<TextBuffer.Line> lastLines = List.of();
 
+	private static boolean scopeShown;
+	private static final float[] scopeX = new float[2];
+	private static final float[] scopeW = new float[2];
+	private static float scopeY;
+
 	private NotesPage() {
+	}
+
+	/** Switches between the all-worlds and this-world notes, saving the open one first. */
+	private static boolean clickScope(double mx, double my) {
+		if (!scopeShown || my < scopeY || my >= scopeY + 12) {
+			return false;
+		}
+		for (int i = 0; i < 2; i++) {
+			if (mx >= scopeX[i] && mx < scopeX[i] + scopeW[i]) {
+				leave();
+				NotesStore.setPerWorld(i == 1);
+				pad = null;
+				padScroll = 0;
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static TextBuffer pad() {
@@ -61,7 +83,25 @@ final class NotesPage {
 		float radius = Math.min(6f, JacConfig.get().style.cornerRadius);
 		int accent = JacConfig.accent();
 		JacText.draw(g, "Notes", x, y, Colors.fade(Theme.TEXT, a), Theme.TITLE - 1.5f, JacText.Weight.SEMIBOLD);
-		String hint = "Saved in config/justaclient/notes.json";
+		// All worlds or this world, beside the title, while in a world.
+		scopeShown = NotesStore.world() != null;
+		if (scopeShown) {
+			float cx = x + JacText.width("Notes", Theme.TITLE - 1.5f, JacText.Weight.SEMIBOLD) + 10;
+			String[] scopes = {"All worlds", "This world"};
+			for (int i = 0; i < 2; i++) {
+				float cw = JacText.width(scopes[i], Theme.SMALL, JacText.Weight.SEMIBOLD) + 14;
+				scopeX[i] = cx;
+				scopeW[i] = cw;
+				boolean active = (i == 1) == NotesStore.perWorld();
+				boolean hover = mx >= cx && mx < cx + cw && my >= y - 1 && my < y + 11;
+				Draw.rect(g, cx, y - 1, cw, 12, 6f, Colors.fade(active ? Colors.withAlpha(accent, 0xC0) : hover ? Theme.CONTROL_HOVER : Theme.CONTROL, a));
+				JacText.drawCentered(g, scopes[i], cx + cw / 2f, y + 2.5f, Colors.fade(active ? 0xFFFFFFFF : Theme.TEXT_DIM, a), Theme.SMALL,
+					JacText.Weight.SEMIBOLD);
+				cx += cw + 4;
+			}
+			scopeY = y - 1;
+		}
+		String hint = NotesStore.perWorld() ? "Saved with this world" : "Saved in config/justaclient/notes.json";
 		JacText.draw(g, hint, x + w - JacText.width(hint, Theme.SMALL, JacText.Weight.REGULAR), y + 2, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL,
 			JacText.Weight.REGULAR);
 		boolean blink = System.currentTimeMillis() / 500 % 2 == 0;
@@ -182,6 +222,9 @@ final class NotesPage {
 
 	/** Returns true if the click landed on the page. {@code button} is 0 for left. */
 	static boolean click(double mx, double my, int button) {
+		if (clickScope(mx, my)) {
+			return true;
+		}
 		int before = focus;
 		if (mx >= padX && mx < padX + padW && my >= padY && my < padY + padH) {
 			focus = PAD_FOCUS;

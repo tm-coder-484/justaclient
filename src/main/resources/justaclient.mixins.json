@@ -4,9 +4,12 @@
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"AbstractClientPlayerMixin",
+		"AbstractScrollAreaMixin",
+		"AbstractWidgetMixin",
 		"BiomeMixin",
 		"BossHealthOverlayAccessor",
 		"ClientPacketListenerMixin",
+		"ConnectScreenMixin",
 		"DisconnectedScreenAccessor",
 		"EndCrystalRendererMixin",
 		"EntityHitboxDebugRendererMixin",
@@ -33,6 +36,7 @@
 		"PlayerTabOverlayMixin",
 		"RenderSetupMixin",
 		"ScreenEffectRendererMixin",
+		"ScreenMixin",
 		"SkyRendererMixin",
 		"TextureTransformMixin",
 		"WeatherEffectRendererMixin"

@@ -1,6 +1,10 @@
 package dev.justaclient.feature;
 
 import dev.justaclient.feature.impl.AmbientParticlesFeature;
+import dev.justaclient.feature.impl.GuiSoundsFeature;
+import dev.justaclient.feature.impl.ScreenBackgroundFeature;
+import dev.justaclient.feature.impl.ScreenStyleFeature;
+import dev.justaclient.feature.impl.SmoothScrollFeature;
 import dev.justaclient.feature.impl.AutoReconnectFeature;
 import dev.justaclient.feature.impl.BlockHighlightFeature;
 import dev.justaclient.feature.impl.BossBarFeature;
@@ -184,6 +188,10 @@ public final class Features {
 		register(new ExitConfirmFeature());
 		register(new DiscordPresenceFeature());
 		register(new NameProtectFeature());
+		register(new ScreenStyleFeature());
+		register(new ScreenBackgroundFeature());
+		register(new SmoothScrollFeature());
+		register(new GuiSoundsFeature());
 		register(new TitleScreenFeature());
 		register(new LoadingScreenFeature());
 		register(new WeatherToastFeature());

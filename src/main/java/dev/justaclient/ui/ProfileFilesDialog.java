@@ -246,6 +246,10 @@ public final class ProfileFilesDialog implements Overlay {
 			return;
 		}
 		String name = Profiles.importJson(preview.root(), "Imported", useTheme);
+		if (name == null) {
+			Notifications.push(Icons.INFO, "Could not import", "the file has values of the wrong type");
+			return;
+		}
 		Notifications.push(Icons.DOWNLOAD, name, "imported");
 		onImported.run();
 	}

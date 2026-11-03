@@ -61,11 +61,31 @@ public final class WorldStore {
 	/** Writes {@code json} to {@code name}.json in the current world's folder, in the background. */
 	public static void write(String name, JsonElement json) {
 		Path folder = folder();
-		if (folder == null) {
-			return;
+		if (folder != null) {
+			write(folder, name, json);
 		}
+	}
+
+	/** Writes {@code json} to {@code name}.json in the folder of the world with key {@code worldKey}, in the background. */
+	public static void write(String worldKey, String name, JsonElement json) {
+		write(DIR.resolve(WorldKeys.folder(worldKey)), name, json);
+	}
+
+	/** Waits (up to a few seconds) for queued writes to land, so closing the game does not drop them. */
+	public static void flush() {
+		WRITER.shutdown();
+		try {
+			if (!WRITER.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+				Justaclient.LOGGER.warn("Some world data was still being written when the game closed");
+			}
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+	}
+
+	private static void write(Path folder, String name, JsonElement json) {
 		String text = GSON.toJson(json);
-		WRITER.execute(() -> {
+		Runnable task = () -> {
 			Path file = folder.resolve(name + ".json");
 			try {
 				Files.createDirectories(folder);
@@ -77,6 +97,12 @@ public final class WorldStore {
 			} catch (IOException e) {
 				Justaclient.LOGGER.warn("Could not write {}", file, e);
 			}
-		});
+		};
+		if (WRITER.isShutdown()) {
+			// After the flush on exit, write straight away.
+			task.run();
+		} else {
+			WRITER.execute(task);
+		}
 	}
 }

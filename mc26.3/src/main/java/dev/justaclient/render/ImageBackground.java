@@ -133,6 +133,74 @@ public final class ImageBackground {
 		g.blit(RenderPipelines.GUI_TEXTURED, ids.get(frame), 0, 0, u, v, w, h, Math.round(srcW), Math.round(srcH), width, height, color);
 	}
 
+	/** How a picture fills its area. */
+	public enum Fit implements dev.justaclient.feature.setting.ChoiceSetting.Named {
+		COVER("Fill"), CONTAIN("Fit"), STRETCH("Stretch");
+
+		private final String label;
+
+		Fit(String label) {
+			this.label = label;
+		}
+
+		@Override
+		public String label() {
+			return label;
+		}
+	}
+
+	/**
+	 * Draws the current frame over {@code w} x {@code h} at the origin. {@code px} and {@code py} (-1 to 1) shift the picture
+	 * slightly for a parallax effect; the picture is scaled up a little so the shift never shows an edge.
+	 */
+	public void draw(GuiGraphicsExtractor g, int w, int h, int color, Fit fit, float px, float py) {
+		if (!ready()) {
+			return;
+		}
+		boolean parallax = px != 0f || py != 0f;
+		float over = parallax ? 1.06f : 1f;
+		float dw;
+		float dh;
+		switch (fit) {
+			case CONTAIN -> {
+				float scale = Math.min(w / (float) width, h / (float) height);
+				dw = width * scale;
+				dh = height * scale;
+				g.fill(0, 0, w, h, 0xFF000000);
+			}
+			case STRETCH -> {
+				dw = w * over;
+				dh = h * over;
+			}
+			default -> {
+				float scale = Math.max(w / (float) width, h / (float) height) * over;
+				dw = width * scale;
+				dh = height * scale;
+			}
+		}
+		float dx = (w - dw) / 2f;
+		float dy = (h - dh) / 2f;
+		if (fit != Fit.CONTAIN) {
+			dx += px * Math.max(0f, (dw - w) / 2f);
+			dy += py * Math.max(0f, (dh - h) / 2f);
+		}
+		g.blit(RenderPipelines.GUI_TEXTURED, ids.get(frame()), Math.round(dx), Math.round(dy), 0f, 0f, Math.round(dw), Math.round(dh), width, height,
+			width, height, color);
+	}
+
+	private int frame() {
+		if (textures.size() > 1 && totalMs > 0) {
+			long t = System.currentTimeMillis() % totalMs;
+			for (int i = 0; i < delays.length; i++) {
+				t -= delays[i];
+				if (t < 0) {
+					return i;
+				}
+			}
+		}
+		return 0;
+	}
+
 	private void poll() {
 		if (pending == null || !pending.isDone()) {
 			return;

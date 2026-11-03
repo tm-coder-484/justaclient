@@ -1,5 +1,9 @@
 package dev.justaclient.hud;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+import com.mojang.serialization.JsonOps;
 import dev.justaclient.Justaclient;
 import dev.justaclient.common.SessionLog;
 import dev.justaclient.feature.Features;
@@ -16,7 +20,9 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.RegistryOps;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
@@ -32,6 +38,8 @@ public final class SessionHistory {
 	private static @Nullable String world;
 	private static LocalDateTime started = LocalDateTime.now();
 	private static List<SessionLog.Carried> carried = new ArrayList<>();
+	private static List<SessionLog.Slot> slots = new ArrayList<>();
+	private static String worldKey = "";
 	private static int sampleTicks;
 
 	private SessionHistory() {
@@ -49,6 +57,8 @@ public final class SessionHistory {
 		world = worldName(mc);
 		started = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
 		carried = new ArrayList<>();
+		slots = new ArrayList<>();
+		worldKey = "";
 		sampleTicks = 0;
 	}
 
@@ -58,6 +68,16 @@ public final class SessionHistory {
 		}
 		sampleTicks = 0;
 		carried = snapshot(mc);
+		slots = slots(mc);
+		if (worldKey.isEmpty()) {
+			String key = dev.justaclient.waypoint.Waypoints.worldKey();
+			worldKey = key == null ? "" : key;
+		}
+	}
+
+	/** The world key of the world being played, once known; empty in menus. */
+	public static String currentWorldKey() {
+		return world == null ? "" : worldKey;
 	}
 
 	/** Records the running session, if any. Called on leave and when the game closes. */
@@ -84,11 +104,24 @@ public final class SessionHistory {
 			.sorted(Map.Entry.<Item, Integer>comparingByValue().reversed())
 			.limit(12)
 			.forEach(e -> s.pickedUp.put(BuiltInRegistries.ITEM.getKey(e.getKey()).toString(), e.getValue()));
+		s.worldKey = worldKey;
 		if (feature.recordsCarried()) {
 			s.carried = carried;
+			s.slots = slots;
 		}
 		try {
 			SessionLog.add(FILE, all(), s, feature.keep());
+			if (!worldKey.isEmpty()) {
+				// A copy of this world's sessions goes in the world's own folder too.
+				com.google.gson.JsonArray mine = new com.google.gson.JsonArray();
+				Gson gson = new Gson();
+				for (SessionLog.Session one : all()) {
+					if (worldKey.equals(one.worldKey)) {
+						mine.add(gson.toJsonTree(one));
+					}
+				}
+				dev.justaclient.world.WorldStore.write(worldKey, "sessions", mine);
+			}
 		} catch (IOException e) {
 			Justaclient.LOGGER.warn("Could not save the session history", e);
 		}
@@ -104,9 +137,47 @@ public final class SessionHistory {
 		List<SessionLog.Carried> out = new ArrayList<>();
 		counts.entrySet().stream()
 			.sorted(Map.Entry.<Item, Integer>comparingByValue().reversed())
-			.limit(16)
+			.limit(36)
 			.forEach(e -> out.add(new SessionLog.Carried(BuiltInRegistries.ITEM.getKey(e.getKey()).toString(), e.getValue())));
 		return out;
+	}
+
+	/** Every filled slot with its exact stack, so the history can show the inventory as it was. */
+	private static List<SessionLog.Slot> slots(Minecraft mc) {
+		List<SessionLog.Slot> out = new ArrayList<>();
+		Inventory inventory = mc.player.getInventory();
+		RegistryOps<JsonElement> ops = mc.level == null ? null : mc.level.registryAccess().createSerializationContext(JsonOps.INSTANCE);
+		for (int i = 0; i < inventory.getContainerSize(); i++) {
+			ItemStack stack = inventory.getItem(i);
+			if (stack.isEmpty()) {
+				continue;
+			}
+			String json = null;
+			if (ops != null && !stack.getComponentsPatch().isEmpty()) {
+				json = ItemStack.CODEC.encodeStart(ops, stack).result().map(JsonElement::toString).orElse(null);
+			}
+			out.add(new SessionLog.Slot(i, BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(), stack.getCount(), json));
+		}
+		return out;
+	}
+
+	/** The stack a recorded slot held, with its components when a world is loaded to read them, else the plain item. */
+	public static ItemStack stackOf(SessionLog.Slot slot) {
+		Minecraft mc = Minecraft.getInstance();
+		if (slot.stack != null && mc.level != null) {
+			try {
+				RegistryOps<JsonElement> ops = mc.level.registryAccess().createSerializationContext(JsonOps.INSTANCE);
+				ItemStack decoded = ItemStack.CODEC.parse(ops, JsonParser.parseString(slot.stack)).result().orElse(null);
+				if (decoded != null) {
+					return decoded;
+				}
+			} catch (RuntimeException e) {
+				// Fall back to the plain item.
+			}
+		}
+		net.minecraft.resources.Identifier id = net.minecraft.resources.Identifier.tryParse(slot.item);
+		Item item = id == null ? net.minecraft.world.item.Items.BARRIER : BuiltInRegistries.ITEM.getOptional(id).orElse(net.minecraft.world.item.Items.BARRIER);
+		return new ItemStack(item, Math.max(1, slot.count));
 	}
 
 	private static String worldName(Minecraft mc) {

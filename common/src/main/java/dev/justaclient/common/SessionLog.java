@@ -32,6 +32,28 @@ public final class SessionLog {
 		public Map<String, Integer> pickedUp = new LinkedHashMap<>();
 		/** What was in your inventory when you left, biggest stacks first. */
 		public List<Carried> carried = new ArrayList<>();
+		/** The world's key in the world store, so the history can be shown for one world. */
+		public String worldKey = "";
+		/** The exact inventory when you left, slot by slot (0-8 hotbar, 9-35 main, 36-39 armour, 40 offhand). */
+		public List<Slot> slots = new ArrayList<>();
+	}
+
+	public static final class Slot {
+		public int slot;
+		public String item = "";
+		public int count;
+		/** The whole stack with its components (enchantments, names, damage) as JSON, or null for a plain stack. */
+		public String stack;
+
+		public Slot() {
+		}
+
+		public Slot(int slot, String item, int count, String stack) {
+			this.slot = slot;
+			this.item = item;
+			this.count = count;
+			this.stack = stack;
+		}
 	}
 
 	public static final class Carried {
@@ -64,11 +86,22 @@ public final class SessionLog {
 						if (s.carried == null) {
 							s.carried = new ArrayList<>();
 						}
+						if (s.slots == null) {
+							s.slots = new ArrayList<>();
+						}
+						if (s.worldKey == null) {
+							s.worldKey = "";
+						}
 					}
 					return list;
 				}
-			} catch (IOException | JsonParseException e) {
-				// Start a fresh log; the broken one is left on disk.
+			} catch (IOException | RuntimeException e) {
+				// Start a fresh log, and move the broken one aside so the next save does not overwrite it.
+				try {
+					Files.move(file, file.resolveSibling(file.getFileName() + "." + System.currentTimeMillis() + ".broken"));
+				} catch (IOException ignored) {
+					// Left where it is.
+				}
 			}
 		}
 		return new ArrayList<>();

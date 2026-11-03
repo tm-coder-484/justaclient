@@ -5,6 +5,7 @@ import dev.justaclient.anim.Easing;
 import dev.justaclient.config.JacConfig;
 import dev.justaclient.config.StyleTokens;
 import dev.justaclient.feature.setting.BoolSetting;
+import dev.justaclient.feature.setting.ChoiceSetting;
 import dev.justaclient.feature.setting.NumberSetting;
 import dev.justaclient.hud.HudFeature;
 import dev.justaclient.hud.Notifications;
@@ -33,6 +34,7 @@ public final class NotificationsHud extends HudFeature {
 	private final BoolSetting other = bool("other", "Other messages", true);
 	private final NumberSetting seconds = number("seconds", "Show for", 2.5, 1, 8, 0.5, NumberSetting.decimal(" s"));
 	private final NumberSetting max = number("max", "Most at once", 4, 1, 8, 1, NumberSetting.unit(""));
+	private final ChoiceSetting<Show> show = choice("min_priority", "Show", Show.ALL);
 	private final NumberSetting opacity = number("opacity", "Opacity", 1.0, 0.2, 1.0, 0.05, NumberSetting.percent());
 	private final List<Notifications.Toast> visible = new ArrayList<>();
 
@@ -47,6 +49,28 @@ public final class NotificationsHud extends HudFeature {
 			case INVENTORY_FULL -> full.on();
 			case GENERAL -> other.on();
 		};
+	}
+
+	public enum Show implements ChoiceSetting.Named {
+		ALL("Everything", Notifications.Priority.LOW), NORMAL("Skip minor", Notifications.Priority.NORMAL),
+		HIGH("Important only", Notifications.Priority.HIGH);
+
+		private final String label;
+		final Notifications.Priority min;
+
+		Show(String label, Notifications.Priority min) {
+			this.label = label;
+			this.min = min;
+		}
+
+		@Override
+		public String label() {
+			return label;
+		}
+	}
+
+	public Notifications.Priority minPriority() {
+		return show.get().min;
 	}
 
 	public int maxToasts() {

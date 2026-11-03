@@ -56,6 +56,7 @@ public final class Button extends Widget {
 	@Override
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
 		if (button == 0 && isMouseOver(mouseX, mouseY)) {
+			dev.justaclient.feature.impl.GuiSoundsFeature.menuClick();
 			action.run();
 			return true;
 		}

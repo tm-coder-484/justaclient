@@ -27,7 +27,7 @@ import org.lwjgl.glfw.GLFW;
 
 /**
  * Drag HUD widgets into place. Widgets snap to the screen edges, the centre lines and each other's edges with a small gap
- * (hold Shift to place freely). Drag a corner or scroll to resize, press A over a widget to change which point is
+ * (hold Shift to place freely). Drag a corner or scroll to scale, an edge bar to resize, press A over a widget to change which point is
  * anchored, right click for its settings. The Layout menu switches between saved layouts.
  */
 public final class HudEditorScreen extends Screen {
@@ -53,6 +53,8 @@ public final class HudEditorScreen extends Screen {
 	private final List<Runnable> layoutActions = new ArrayList<>();
 	/** Corner being dragged to resize: 0 top left, 1 top right, 2 bottom right, 3 bottom left; -1 when moving. */
 	private int corner = -1;
+	/** Edge being dragged to resize a freely sized widget: 0 top, 1 right, 2 bottom, 3 left; -1 when not. */
+	private int edge = -1;
 	private float fixedX;
 	private float fixedY;
 	private static final float HANDLE = 4f;
@@ -141,6 +143,14 @@ public final class HudEditorScreen extends Screen {
 					Draw.outline(g, c[0] - HANDLE / 2f, c[1] - HANDLE / 2f, HANDLE, HANDLE, 1f, 0.5f, Colors.fade(accent, t * hv));
 				}
 			}
+			if (hv > 0.01f && editor().resizeHandles()) {
+				for (int e = 0; e < 4; e++) {
+					float[] r = edgeHandle(hud, e, x, y, w, h);
+					if (r != null) {
+						Draw.rect(g, r[0], r[1], r[2], r[3], 1f, Colors.fade(accent, t * hv));
+					}
+				}
+			}
 			if (hv > 0.01f && !Float.isNaN(hud.anchorX)) {
 				Draw.circle(g, x + hud.anchorX * w, y + hud.anchorY * h, 2.5f, Colors.fade(accent, t * hv));
 				Draw.circle(g, x + hud.anchorX * w, y + hud.anchorY * h, 1.2f, Colors.fade(0xFFFFFFFF, t * hv));
@@ -226,7 +236,7 @@ public final class HudEditorScreen extends Screen {
 
 	private void drawToolbar(GuiGraphics g, double mx, double my, float t) {
 		List<HudFeature> off = Features.hud().stream().filter(h -> !h.isEnabled()).toList();
-		String hint = "Drag to move  ·  Drag a corner or scroll to resize  ·  A: anchor  ·  Right click: settings  ·  Shift: no snap";
+		String hint = "Drag to move  ·  Corner or scroll: scale  ·  Edge bar: resize  ·  A: anchor  ·  Right click: settings  ·  Shift: no snap";
 		float hintW = JacText.width(hint, Theme.SMALL, JacText.Weight.REGULAR);
 		float chipsW = 0f;
 		for (HudFeature hud : off) {
@@ -352,6 +362,17 @@ public final class HudEditorScreen extends Screen {
 				layout(w);
 				float x = w.screenX(width);
 				float y = w.screenY(height);
+				for (int e = 0; e < 4; e++) {
+					float[] r = edgeHandle(w, e, x, y, w.scaledWidth(), w.scaledHeight());
+					if (r != null && mx >= r[0] - 2 && mx < r[0] + r[2] + 2 && my >= r[1] - 2 && my < r[1] + r[3] + 2) {
+						dragging = w;
+						corner = -1;
+						edge = e;
+						fixedX = e == 3 ? x + w.scaledWidth() : x;
+						fixedY = e == 0 ? y + w.scaledHeight() : y;
+						return true;
+					}
+				}
 				float[][] corners = {{x, y}, {x + w.scaledWidth(), y}, {x + w.scaledWidth(), y + w.scaledHeight()}, {x, y + w.scaledHeight()}};
 				for (int c = 0; c < 4; c++) {
 					if (Math.abs(mx - corners[c][0]) <= HANDLE && Math.abs(my - corners[c][1]) <= HANDLE) {
@@ -377,6 +398,7 @@ public final class HudEditorScreen extends Screen {
 		if (event.button() == 0) {
 			dragging = hud;
 			corner = -1;
+			edge = -1;
 			grabX = (float) mx - hud.screenX(width);
 			grabY = (float) my - hud.screenY(height);
 			return true;
@@ -393,6 +415,10 @@ public final class HudEditorScreen extends Screen {
 		layout(hud);
 		if (corner >= 0) {
 			resize(hud, (float) event.x(), (float) event.y());
+			return true;
+		}
+		if (edge >= 0) {
+			resizeEdge(hud, (float) event.x(), (float) event.y());
 			return true;
 		}
 		float w = hud.scaledWidth();
@@ -428,6 +454,38 @@ public final class HudEditorScreen extends Screen {
 		boolean left = corner == 0 || corner == 3;
 		boolean top = corner == 0 || corner == 1;
 		hud.moveTo(left ? fixedX - w : fixedX, top ? fixedY - h : fixedY, width, height);
+	}
+
+	/** The bar drawn in the middle of an edge that can be dragged, as {x, y, w, h}, or null if that edge is fixed. */
+	private static float @org.jspecify.annotations.Nullable [] edgeHandle(HudFeature hud, int e, float x, float y, float w, float h) {
+		boolean horizontal = e == 1 || e == 3;
+		if ((horizontal ? hud.freeWidth() : hud.freeHeight()) == null) {
+			return null;
+		}
+		return switch (e) {
+			case 0 -> new float[] {x + w / 2f - 5, y - 1.25f, 10, 2.5f};
+			case 1 -> new float[] {x + w - 1.25f, y + h / 2f - 5, 2.5f, 10};
+			case 2 -> new float[] {x + w / 2f - 5, y + h - 1.25f, 10, 2.5f};
+			default -> new float[] {x - 1.25f, y + h / 2f - 5, 2.5f, 10};
+		};
+	}
+
+	/** Changes a freely sized widget's width or height so the dragged edge follows the mouse and the opposite edge stays. */
+	private void resizeEdge(HudFeature hud, float mx, float my) {
+		boolean horizontal = edge == 1 || edge == 3;
+		var setting = horizontal ? hud.freeWidth() : hud.freeHeight();
+		if (setting == null) {
+			return;
+		}
+		float scale = hud.scale.f();
+		float now = horizontal ? hud.scaledWidth() : hud.scaledHeight();
+		float want = horizontal ? Math.abs(mx - fixedX) : Math.abs(my - fixedY);
+		setting.set(setting.get() + (want - now) / scale);
+		layout(hud);
+		// fixedX and fixedY hold the edges that stay put: the left or right one, and the top or bottom one.
+		float x = edge == 3 ? fixedX - hud.scaledWidth() : fixedX;
+		float y = edge == 0 ? fixedY - hud.scaledHeight() : fixedY;
+		hud.moveTo(x, y, width, height);
 	}
 
 	/** Returns the snapped position and the guide line to draw (NaN for none) along one axis. */
@@ -478,6 +536,7 @@ public final class HudEditorScreen extends Screen {
 			}
 			dragging = null;
 			corner = -1;
+			edge = -1;
 			guideX = null;
 			guideY = null;
 			Profiles.save();

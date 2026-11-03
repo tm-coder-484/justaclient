@@ -36,6 +36,8 @@ public abstract class Feature {
 	private final List<Setting<?>> settings = new ArrayList<>();
 	private final boolean enabledByDefault;
 	private boolean enabled;
+	/** Whether {@link #onEnable} has run without a matching {@link #onDisable}. Starts in step with the default state. */
+	private boolean hooked;
 
 	protected Feature(String id, String name, String description, Category category, Icons icon, boolean enabledByDefault) {
 		this.id = id;
@@ -46,6 +48,7 @@ public abstract class Feature {
 		this.cost = FrameCost.section(name);
 		this.enabledByDefault = enabledByDefault;
 		this.enabled = enabledByDefault;
+		this.hooked = enabledByDefault;
 	}
 
 	public boolean isEnabled() {
@@ -57,14 +60,37 @@ public abstract class Feature {
 	}
 
 	public void setEnabled(boolean enabled) {
-		if (this.enabled != enabled) {
-			this.enabled = enabled;
-			if (enabled) {
-				onEnable();
-			} else {
-				onDisable();
-			}
+		this.enabled = enabled;
+		syncHooks();
+	}
+
+	/**
+	 * Runs {@link #onEnable} or {@link #onDisable} if the state differs from the last hook that ran, so every path that
+	 * changes the state (toggle, reset, profile switch) keeps side effects such as a window mode or a worker in step.
+	 */
+	private void syncHooks() {
+		if (enabled && !hooked) {
+			hooked = true;
+			onEnable();
+		} else if (!enabled && hooked) {
+			hooked = false;
+			onDisable();
 		}
+	}
+
+	/**
+	 * Replaces this feature's state: turns it off with its old settings, lets {@code load} reset or load the settings, then
+	 * turns it on with the new ones if {@code wanted} is true.
+	 */
+	public void replaceState(boolean wanted, Runnable load) {
+		boolean cycle = hooked;
+		if (cycle) {
+			enabled = false;
+			syncHooks();
+		}
+		load.run();
+		enabled = wanted;
+		syncHooks();
 	}
 
 	public void toggle() {
@@ -97,8 +123,12 @@ public abstract class Feature {
 	}
 
 	public void resetToDefaults() {
-		enabled = enabledByDefault;
-		settings.forEach(Setting::reset);
+		replaceState(enabledByDefault, this::resetSettings);
+	}
+
+	/** Puts the settings and toggle key back to their defaults without changing whether the feature is on. */
+	public void resetSettings() {
+		settings().forEach(Setting::reset);
 		toggleKey.reset();
 	}
 

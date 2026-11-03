@@ -75,6 +75,16 @@ public final class MinimapHud extends HudFeature {
 	}
 
 	private final NumberSetting size = number("size", "Size", 96, 64, 160, 4, NumberSetting.unit(" px"));
+
+	@Override
+	public NumberSetting freeWidth() {
+		return size;
+	}
+
+	@Override
+	public NumberSetting freeHeight() {
+		return size;
+	}
 	private final ChoiceSetting<Zoom> zoom = choice("zoom", "Zoom", Zoom.NEAR);
 	private final BoolSetting rotate = bool("rotate", "Rotate with view", true);
 	private final BoolSetting waypoints = bool("waypoints", "Show waypoints", true);

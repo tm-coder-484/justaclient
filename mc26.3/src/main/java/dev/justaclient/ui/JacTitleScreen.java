@@ -142,14 +142,14 @@ public final class JacTitleScreen extends Screen {
 				Draw.horizontalGradient(g, 0, 0, width * 0.6f, height, 0, 0x70000000, 0x00000000);
 				return;
 			}
-			drawGradient(g);
+			drawGradient(g, width, height);
 			String note = PICTURE.loading() ? "Loading your picture" : PICTURE.error() != null ? "Could not read the picture: " + PICTURE.error()
 				: "Put a PNG, JPG or GIF in config/justaclient/backgrounds";
 			JacText.draw(g, note, width - JacText.width(note, Theme.SMALL, JacText.Weight.REGULAR) - 8, 6, Theme.TEXT_DIM, Theme.SMALL, JacText.Weight.REGULAR);
 			return;
 		}
 		if (bg == TitleScreenFeature.Background.GRADIENT) {
-			drawGradient(g);
+			drawGradient(g, width, height);
 			return;
 		}
 		extractPanorama(g, partialTick);
@@ -161,7 +161,7 @@ public final class JacTitleScreen extends Screen {
 	}
 
 	/** Slow soft blobs of the accent colours over a dark surface. */
-	private void drawGradient(GuiGraphicsExtractor g) {
+	public static void drawGradient(GuiGraphicsExtractor g, int width, int height) {
 		Draw.verticalGradient(g, 0, 0, width, height, 0, 0xFF0E1016, 0xFF07080C);
 		float t = (System.currentTimeMillis() % 120_000L) / 1000f;
 		float size = Math.max(width, height);

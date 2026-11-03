@@ -23,6 +23,49 @@ public final class Notifications {
 		TOGGLE, PICKUP, INVENTORY_FULL, GENERAL
 	}
 
+	/**
+	 * How much a toast matters. When more arrive than fit, low ones go first; important ones stay up twice as long. The
+	 * widget can hide everything below a level.
+	 */
+	public enum Priority {
+		LOW, NORMAL, HIGH;
+
+		static Priority of(Source source) {
+			return switch (source) {
+				case PICKUP -> LOW;
+				case INVENTORY_FULL -> HIGH;
+				default -> NORMAL;
+			};
+		}
+	}
+
+	/** One line in the notification history, which keeps toasts after they fade, including hidden ones. */
+	public static final class Entry {
+		public final @Nullable String key;
+		public final Source source;
+		public final Priority priority;
+		public final Icons icon;
+		public String bold;
+		public String rest;
+		public long millis;
+		/** True if the widget did not show it (switched off, or below the priority filter). */
+		public final boolean hidden;
+
+		Entry(Toast t, boolean hidden) {
+			this.key = t.key;
+			this.source = t.source;
+			this.priority = t.priority;
+			this.icon = t.icon;
+			this.bold = t.bold;
+			this.rest = t.rest;
+			this.millis = System.currentTimeMillis();
+			this.hidden = hidden;
+		}
+	}
+
+	private static final int HISTORY_SIZE = 150;
+	private static final Deque<Entry> HISTORY = new ArrayDeque<>();
+
 	public static final class Toast {
 		public final @Nullable String key;
 		public final Source source;
@@ -40,6 +83,7 @@ public final class Notifications {
 		public long createdNanos;
 		/** When a stacked toast last grew, for a small bump. */
 		public long bumpNanos;
+		public Priority priority;
 
 		public Toast(@Nullable String key, Source source, Icons icon, String bold, String rest, boolean toggle, boolean on, long now) {
 			this.key = key;
@@ -51,6 +95,7 @@ public final class Notifications {
 			this.on = on;
 			this.firstNanos = now;
 			this.createdNanos = now;
+			this.priority = Priority.of(source);
 		}
 	}
 
@@ -58,7 +103,13 @@ public final class Notifications {
 	}
 
 	public static void push(Icons icon, String bold, String rest) {
-		add(new Toast(null, Source.GENERAL, icon, bold, rest, false, false, System.nanoTime()));
+		push(icon, bold, rest, Priority.NORMAL);
+	}
+
+	public static void push(Icons icon, String bold, String rest, Priority priority) {
+		Toast t = new Toast(null, Source.GENERAL, icon, bold, rest, false, false, System.nanoTime());
+		t.priority = priority;
+		add(t);
 	}
 
 	public static void toggled(Feature feature) {
@@ -125,24 +176,60 @@ public final class Notifications {
 		t.createdNanos = now;
 		TOASTS.remove(t);
 		TOASTS.addFirst(t);
+		// A stacked toast updates its history line instead of adding one per pickup.
+		Entry newest = t.key == null ? null : HISTORY.stream().filter(e -> t.key.equals(e.key)).findFirst().orElse(null);
+		if (newest != null && System.currentTimeMillis() - newest.millis < 30_000) {
+			newest.bold = t.bold;
+			newest.rest = t.rest;
+			newest.millis = System.currentTimeMillis();
+		} else {
+			remember(t, false);
+		}
+	}
+
+	private static void remember(Toast t, boolean hidden) {
+		HISTORY.addFirst(new Entry(t, hidden));
+		while (HISTORY.size() > HISTORY_SIZE) {
+			HISTORY.removeLast();
+		}
+	}
+
+	/** Recent notifications, newest first. */
+	public static Deque<Entry> history() {
+		return HISTORY;
+	}
+
+	public static void clearHistory() {
+		HISTORY.clear();
 	}
 
 	private static void add(Toast toast) {
 		NotificationsHud hud = Features.get(NotificationsHud.class);
-		if (hud == null || !hud.isEnabled() || !hud.shows(toast.source)) {
+		boolean shown = hud != null && hud.isEnabled() && hud.shows(toast.source) && toast.priority.ordinal() >= hud.minPriority().ordinal();
+		remember(toast, !shown);
+		if (!shown) {
 			return;
 		}
 		TOASTS.addFirst(toast);
 		int max = hud.maxToasts();
 		while (TOASTS.size() > max) {
-			TOASTS.removeLast();
+			// Drop the oldest of the least important toasts, so a pickup flood never pushes out an important one.
+			Toast drop = null;
+			for (Toast t : TOASTS) {
+				if (drop == null || t.priority.ordinal() <= drop.priority.ordinal()) {
+					drop = t;
+				}
+			}
+			TOASTS.remove(drop);
 		}
 	}
 
 	/** Drops toasts older than {@code lifeNanos}. */
 	public static void expire(long now, long lifeNanos) {
 		for (Iterator<Toast> it = TOASTS.iterator(); it.hasNext(); ) {
-			if (now - it.next().createdNanos > lifeNanos) {
+			Toast t = it.next();
+			long life = t.priority == Priority.HIGH ? lifeNanos * 2 : lifeNanos;
+			if (now - t.createdNanos > life) {
 				it.remove();
 			}
 		}

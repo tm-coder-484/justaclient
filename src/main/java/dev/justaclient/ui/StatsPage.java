@@ -29,11 +29,12 @@ final class StatsPage {
 		armedAt = -1;
 		java.util.Arrays.fill(bars, 0f);
 		SessionsTab.leave();
+		NotificationsTab.leave();
 	}
 
 	private static int tab;
-	private static final float[] tabX = new float[2];
-	private static final float[] tabW = new float[2];
+	private static final float[] tabX = new float[3];
+	private static final float[] tabW = new float[3];
 	private static float tabY;
 
 	static void draw(GuiGraphics g, float x, float y, float w, float h, float a, double mx, double my) {
@@ -44,7 +45,7 @@ final class StatsPage {
 		// Overview and Sessions tabs beside the title.
 		float cx = x + JacText.width("Stats", Theme.TITLE - 1.5f, JacText.Weight.SEMIBOLD) + 10;
 		tabY = y - 1;
-		String[] tabs = {"Overview", "Sessions"};
+		String[] tabs = {"Overview", "Sessions", "Notifications"};
 		for (int i = 0; i < tabs.length; i++) {
 			float cw = JacText.width(tabs[i], Theme.SMALL, JacText.Weight.SEMIBOLD) + 14;
 			tabX[i] = cx;
@@ -57,6 +58,10 @@ final class StatsPage {
 		}
 		if (tab == 1) {
 			SessionsTab.draw(g, x, y, w, h, a, mx, my);
+			return;
+		}
+		if (tab == 2) {
+			NotificationsTab.draw(g, x, y, w, h, a, mx, my);
 			return;
 		}
 		String hint = "Since " + d.since + "  ·  " + d.sessions + (d.sessions == 1 ? " session" : " sessions");
@@ -157,7 +162,7 @@ final class StatsPage {
 	}
 
 	static boolean click(double mx, double my) {
-		for (int i = 0; i < 2; i++) {
+		for (int i = 0; i < tabX.length; i++) {
 			if (mx >= tabX[i] && mx < tabX[i] + tabW[i] && my >= tabY && my < tabY + 12) {
 				tab = i;
 				return true;
@@ -165,6 +170,9 @@ final class StatsPage {
 		}
 		if (tab == 1) {
 			return SessionsTab.click(mx, my);
+		}
+		if (tab == 2) {
+			return NotificationsTab.click(mx, my);
 		}
 		if (mx >= resetX && mx < resetX + resetW && my >= resetY - 2 && my < resetY + 9) {
 			if (armedAt >= 0 && System.currentTimeMillis() - armedAt < 3000) {
@@ -179,7 +187,7 @@ final class StatsPage {
 	}
 
 	static boolean scroll(double amount) {
-		return tab == 1 && SessionsTab.scroll(amount);
+		return tab == 1 ? SessionsTab.scroll(amount) : tab == 2 && NotificationsTab.scroll(amount);
 	}
 
 	static String duration(long seconds) {

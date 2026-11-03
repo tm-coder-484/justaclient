@@ -923,7 +923,7 @@ public final class ClickGuiScreen extends Screen {
 					"Reset all", () -> {
 						dialog = null;
 						String backup = Profiles.resetAll();
-						Notifications.push(Icons.ROTATE_CCW, "Reset all", backup == null ? "done (backup failed)" : "done, backup saved");
+						Notifications.push(Icons.ROTATE_CCW, "Reset all", backup == null ? "cancelled: the backup could not be saved" : "done, backup saved");
 						knobs.clear();
 						settingWidgets.clear();
 						rowY.clear();

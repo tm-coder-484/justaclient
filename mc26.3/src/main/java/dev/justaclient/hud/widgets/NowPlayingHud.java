@@ -107,6 +107,11 @@ public final class NowPlayingHud extends HudFeature {
 
 	private final BoolSetting showCard = bool("card", "Show the card (off: only what is in the sky)", true);
 	private final NumberSetting cardWidth = number("width", "Width", 184, 150, 260, 2, NumberSetting.unit(" px"));
+
+	@Override
+	public NumberSetting freeWidth() {
+		return cardWidth;
+	}
 	private final BoolSetting spotifyOnly = bool("spotify_only", "Spotify only (app or web player, ignore other players)", true);
 	private final BoolSetting artColors = bool("art_colors", "Colours from the album cover", true);
 	private final BoolSetting backdrop = bool("backdrop", "Blurred cover behind the card", true);
