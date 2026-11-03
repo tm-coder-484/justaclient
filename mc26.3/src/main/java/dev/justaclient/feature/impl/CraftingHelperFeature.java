@@ -281,7 +281,7 @@ public final class CraftingHelperFeature extends Feature {
 
 		@Override
 		public boolean click(ContainerOverlays.Box box, float x, float y, float w, float h, double mx, double my, int button) {
-			if (!InvCompat.isLeft(button) || target == null) {
+			if (button != 0 || target == null) {
 				return true;
 			}
 			if (in(clear, mx, my)) {

@@ -66,6 +66,10 @@ public final class SelfTest {
 		lines.clear();
 		failed = 0;
 		NS = "SelfTest-" + Long.toHexString(System.nanoTime() & 0xFFFFFFL);
+		// A readable profile must never be set aside: on 26.3 a feature hook running before the game's Gui existed once
+		// failed the load, and Default.json was moved aside as broken on every launch.
+		List<String> setAside = Profiles.keptAside().stream().filter(n -> !n.startsWith("SelfTest-")).toList();
+		check("no profile was set aside as unreadable since the game started", setAside.isEmpty(), String.join(", ", setAside));
 		AutoReconnectFeature.Target target = AutoReconnectFeature.saveTarget();
 		String profile = Profiles.active();
 		Profiles.save();

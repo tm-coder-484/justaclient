@@ -36,6 +36,7 @@ public final class ContainerOverlays {
 
 		void draw(Box box, GuiGraphicsExtractor g, float x, float y, float w, float h, double mouseX, double mouseY);
 
+		/** {@code button} is 0 for the left button on every game version (26.3's 1-based numbers are converted). */
 		default boolean click(Box box, float x, float y, float w, float h, double mouseX, double mouseY, int button) {
 			return false;
 		}
@@ -187,7 +188,7 @@ public final class ContainerOverlays {
 		Box box = box(screen);
 		float[] chip = offerChip;
 		if (chip != null && mx >= chip[0] && mx < chip[0] + chip[2] && my >= chip[1] && my < chip[1] + chip[3]) {
-			if (InvCompat.isLeft(button)) {
+			if (button == 0) {
 				StorageFinder.accept();
 			}
 			return true;

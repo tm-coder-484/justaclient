@@ -107,6 +107,13 @@ public final class Profiles {
 	 * Moves a profile that could not be read aside as {@code name.json.<time>.broken} (with a number added if that name is
 	 * taken), so saving defaults does not destroy it. Returns false if the file is still there.
 	 */
+	/** Profile files set aside as unreadable since the game started, for the self-test. */
+	private static final List<String> KEPT_ASIDE = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+	public static List<String> keptAside() {
+		return List.copyOf(KEPT_ASIDE);
+	}
+
 	static boolean keepBroken(Path file) {
 		if (!Files.exists(file)) {
 			return true;
@@ -120,6 +127,7 @@ public final class Profiles {
 			try {
 				Files.move(file, aside);
 				Justaclient.LOGGER.warn("Kept the unreadable profile as {}", aside.getFileName());
+				KEPT_ASIDE.add(file.getFileName().toString());
 				return true;
 			} catch (java.nio.file.FileAlreadyExistsException e) {
 				// Taken in between; try the next name.

@@ -380,7 +380,7 @@ public final class AnvilHelperFeature extends Feature {
 
 		@Override
 		public boolean click(ContainerOverlays.Box box, float x, float y, float w, float h, double mx, double my, int button) {
-			if (!InvCompat.isLeft(button)) {
+			if (button != 0) {
 				return true;
 			}
 			AnvilMenu menu = (AnvilMenu) box.screen().getMenu();

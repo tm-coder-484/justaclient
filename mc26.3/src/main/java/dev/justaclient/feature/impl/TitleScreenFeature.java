@@ -91,7 +91,8 @@ public final class TitleScreenFeature extends Feature {
 	/** Applies the change straight away if the title screen is showing behind the menu. */
 	private void swapOpenScreen() {
 		Minecraft mc = Minecraft.getInstance();
-		if (mc.gui.screen() instanceof ClickGuiScreen menu) {
+		// Profiles load before the game has its Gui; there is no screen to swap then.
+		if (mc.gui != null && mc.gui.screen() instanceof ClickGuiScreen menu) {
 			menu.replaceParentTitle(isEnabled() ? new JacTitleScreen() : new TitleScreen());
 		}
 	}
