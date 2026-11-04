@@ -8,6 +8,11 @@ public enum Category {
 	FIRST_PERSON("First person", Icons.HAND),
 	WORLD("World", Icons.MOUNTAIN),
 	CAMERA("Camera", Icons.VIDEO),
+	SCREENS("Screens", Icons.MAXIMIZE),
+	INVENTORY("Inventory", Icons.BACKPACK),
+	CHAT("Chat", Icons.MESSAGE_CIRCLE),
+	SOCIAL("Social", Icons.USERS),
+	TOOLS("Tools", Icons.HAMMER),
 	UTILITY("Utility", Icons.WRENCH);
 
 	public final String label;

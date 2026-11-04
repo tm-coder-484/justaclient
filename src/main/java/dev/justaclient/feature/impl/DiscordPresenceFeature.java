@@ -38,7 +38,7 @@ public final class DiscordPresenceFeature extends Feature {
 	private volatile int generation;
 
 	public DiscordPresenceFeature() {
-		super("discord", "Discord status", "Show what you are playing on your Discord profile", Category.UTILITY, Icons.GLOBE, false);
+		super("discord", "Discord status", "Show what you are playing on your Discord profile", Category.SOCIAL, Icons.GLOBE, false);
 	}
 
 	@Override

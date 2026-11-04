@@ -35,8 +35,20 @@ public final class LightColorFeature extends Feature {
 		return tint(isEnabled() && block.on(), blockColor.argb(), blockStrength.f());
 	}
 
+	/** Sky tint, with the biome you are in (Biome effects) blended over it. */
 	public float[] skyTint() {
-		return tint(isEnabled() && sky.on(), skyColor.argb(), skyStrength.f());
+		float[] own = tint(isEnabled() && sky.on(), skyColor.argb(), skyStrength.f());
+		float[] biome = BiomeEffectsFeature.get().lightTint();
+		if (biome[3] <= 0f) {
+			return own;
+		}
+		if (own[3] <= 0f) {
+			return biome.clone();
+		}
+		// Both on: the biome colour wins in proportion to how far its blend has come in.
+		float w = Math.min(1f, biome[3] / Math.max(0.001f, Math.max(biome[3], own[3])));
+		return new float[] {own[0] + (biome[0] - own[0]) * w, own[1] + (biome[1] - own[1]) * w, own[2] + (biome[2] - own[2]) * w,
+			Math.max(own[3], biome[3])};
 	}
 
 	private static float[] tint(boolean on, int argb, float strength) {

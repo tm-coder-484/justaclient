@@ -1,7 +1,10 @@
 package dev.justaclient.hud;
 
+import java.util.HashMap;
+import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.item.Item;
 
 /** Counts what happened since you joined the current world or server, for the Session stats widget. */
 public final class SessionStats {
@@ -13,6 +16,8 @@ public final class SessionStats {
 	private static double lastX = Double.NaN;
 	private static double lastZ;
 	private static boolean wasDead;
+	private static final Map<Item, Integer> pickups = new HashMap<>();
+	private static int pickedUp;
 
 	private SessionStats() {
 	}
@@ -24,6 +29,22 @@ public final class SessionStats {
 		blocks = 0;
 		distance = 0;
 		lastX = Double.NaN;
+		pickups.clear();
+		pickedUp = 0;
+	}
+
+	public static void onPickup(Item item, int amount) {
+		pickups.merge(item, amount, Integer::sum);
+		pickedUp += amount;
+	}
+
+	/** Items picked up this session, by item. */
+	public static Map<Item, Integer> pickups() {
+		return pickups;
+	}
+
+	public static int pickedUp() {
+		return pickedUp;
 	}
 
 	public static void onKill() {

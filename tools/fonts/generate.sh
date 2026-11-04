@@ -21,7 +21,7 @@ for W in Regular SemiBold; do
 done
 # Icons: Lucide, single-channel SDF because its glyphs are built from overlapping strokes that confuse MSDF.
 python3 "$ROOT/tools/fonts/icon_charset.py" node_modules/lucide-static/font/info.json "$ROOT/tools/fonts/icons.txt" > icons.txt
-node_modules/.bin/msdf-bmfont -f json -i icons.txt -s 48 -r 6 -m 512,512 -t sdf --smart-size --pot -o lucide node_modules/lucide-static/font/lucide.ttf
+node_modules/.bin/msdf-bmfont -f json -i icons.txt -s 48 -r 6 -m 1024,1024 -t sdf --smart-size --pot -o lucide node_modules/lucide-static/font/lucide.ttf
 python3 "$ROOT/tools/fonts/slim.py" lucide.json lucide > "$ROOT/src/main/resources/assets/justaclient/msdf/lucide.json"
 cp lucide.png "$ROOT/src/main/resources/assets/justaclient/textures/font/lucide.png"
 cp node_modules/lucide-static/LICENSE "$ROOT/src/main/resources/assets/justaclient/msdf/Lucide-LICENSE.txt"

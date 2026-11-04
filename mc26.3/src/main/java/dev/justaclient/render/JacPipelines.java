@@ -44,6 +44,10 @@ public final class JacPipelines {
 		.withUniform("HistorySampler", UniformType.COMBINED_IMAGE_SAMPLER)
 		.withUniform("JacPost", UniformType.UNIFORM_BUFFER)
 		.build();
+	private static final BindGroupLayout SPATIAL_UNIFORMS = BindGroupLayout.builder()
+		.withUniform("GuiSampler", UniformType.COMBINED_IMAGE_SAMPLER)
+		.withUniform("JacSpatial", UniformType.UNIFORM_BUFFER)
+		.build();
 	private static final BindGroupLayout HAND_UNIFORMS = BindGroupLayout.builder()
 		.withUniform("HandSampler", UniformType.COMBINED_IMAGE_SAMPLER)
 		.withUniform("HandDepthSampler", UniformType.COMBINED_IMAGE_SAMPLER)
@@ -121,6 +125,16 @@ public final class JacPipelines {
 			.build()
 	);
 
+	/** The same glow, drawn over blocks: outlines of places you already found, such as a remembered chest. */
+	public static final RenderPipeline WORLD_FX_XRAY = RenderPipelines.register(
+		RenderPipeline.builder(WORLD_FX_SNIPPET)
+			.withLocation(Justaclient.id("pipeline/world_fx_xray"))
+			.withFragmentShader(Justaclient.id("core/world_fx"))
+			.withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+			.withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+			.build()
+	);
+
 	/** The same sprites added onto the sky, for stars and shooting stars. */
 	public static final RenderPipeline SKY_FX = RenderPipelines.register(
 		RenderPipeline.builder(WORLD_FX_SNIPPET)
@@ -180,6 +194,18 @@ public final class JacPipelines {
 			.withVertexShader("core/screenquad")
 			.withFragmentShader(Justaclient.id("post/hand"))
 			.withBindGroupLayout(HAND_UNIFORMS)
+			.withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA))
+			.withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
+			.build()
+	);
+
+	/** Lays the menu texture over the frame on a panel in the world (see {@link SpatialMenus}). */
+	public static final RenderPipeline SPATIAL = RenderPipelines.register(
+		RenderPipeline.builder(RenderPipelines.GLOBALS_SNIPPET)
+			.withLocation(Justaclient.id("pipeline/spatial"))
+			.withVertexShader("core/screenquad")
+			.withFragmentShader(Justaclient.id("post/spatial"))
+			.withBindGroupLayout(SPATIAL_UNIFORMS)
 			.withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA))
 			.withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
 			.build()

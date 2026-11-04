@@ -1,5 +1,5 @@
 #version 330
-// Vanilla's lightmap shader with Justaclient's light colour tint added.
+// Vanilla's lightmap shader with Justaclient's light colour tint and fullbright added.
 
 layout(std140) uniform LightmapInfo {
     float AmbientLightFactor;
@@ -17,6 +17,8 @@ layout(std140) uniform LightmapInfo {
 layout(std140) uniform JacLight {
     vec4 BlockTint;
     vec4 SkyTint;
+    // x: Fullbright amount (0 off, 1 on).
+    vec4 Extra;
 };
 
 in vec2 texCoord;
@@ -71,6 +73,9 @@ void main() {
             color = mix(color, bright_color, lightmapInfo.NightVisionFactor);
         }
     }
+
+    // Fullbright: every light level reads as full daylight. The Darkness effect below still applies.
+    color = mix(color, vec3(1.0), Extra.x);
 
     if (lightmapInfo.AmbientLightFactor == 0.0f) {
         color = color - vec3(lightmapInfo.DarknessScale);

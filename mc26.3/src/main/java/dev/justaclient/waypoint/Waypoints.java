@@ -44,6 +44,16 @@ public final class Waypoints {
 		public int color;
 		public boolean visible = true;
 		public boolean death;
+		/** False for a place saved from afar (the map, typed coordinates) until you get there. Older saves count as visited. */
+		public boolean visited = true;
+		/** When it was saved, in milliseconds; 0 for older saves. */
+		public long created;
+		/** The structure it was saved for automatically, such as {@code minecraft:village_plains}, or null. */
+		public @Nullable String structure;
+
+		/** For Gson: fields missing from older saves keep the defaults above. */
+		private Waypoint() {
+		}
 
 		public Waypoint(String name, int x, int y, int z, String dimension, int color) {
 			this.name = name;
@@ -88,6 +98,12 @@ public final class Waypoints {
 		return byWorld.computeIfAbsent(key, k -> new ArrayList<>());
 	}
 
+	/** Every world that has waypoints, by world key. The map is live; call {@link #save} after changing it. */
+	public static Map<String, List<Waypoint>> byWorld() {
+		load();
+		return byWorld;
+	}
+
 	/** Waypoints of the current world in the dimension the player is in. */
 	public static List<Waypoint> here() {
 		String dim = dimension();
@@ -110,6 +126,9 @@ public final class Waypoints {
 			list.remove(existing);
 		}
 		Waypoint w = new Waypoint(name, x, y, z, dimension(), PALETTE[list.size() % PALETTE.length]);
+		w.created = System.currentTimeMillis();
+		net.minecraft.client.player.LocalPlayer player = Minecraft.getInstance().player;
+		w.visited = player == null || player.distanceToSqr(x + 0.5, y + 0.5, z + 0.5) < VISIT_RANGE * VISIT_RANGE;
 		list.add(w);
 		save();
 		return w;
@@ -131,6 +150,38 @@ public final class Waypoints {
 	/** True if the GPS points at this waypoint. */
 	public static boolean isTracked(Waypoint w) {
 		return w.name.equalsIgnoreCase(tracking);
+	}
+
+	/** How close you have to get for a place to count as visited, in blocks. */
+	public static final double VISIT_RANGE = 16;
+
+	/** The colour tag a colour belongs to (its place in {@link #PALETTE}), or -1 for a custom colour. */
+	public static int tag(int color) {
+		for (int i = 0; i < PALETTE.length; i++) {
+			if (PALETTE[i] == color) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	/** {@code base}, or "base 2", "base 3"... whichever is free. */
+	public static String freeName(String base) {
+		if (find(base) == null) {
+			return base;
+		}
+		int n = 2;
+		while (find(base + " " + n) != null) {
+			n++;
+		}
+		return base + " " + n;
+	}
+
+	/** "minecraft:village_plains" as "Village plains". */
+	public static String structureName(String id) {
+		String path = id.contains(":") ? id.substring(id.indexOf(':') + 1) : id;
+		path = path.substring(path.lastIndexOf('/') + 1).replace('_', ' ').trim();
+		return path.isEmpty() ? "Structure" : Character.toUpperCase(path.charAt(0)) + path.substring(1);
 	}
 
 	/** The next free "Waypoint N" name. */
@@ -174,6 +225,9 @@ public final class Waypoints {
 
 	public static void track(@Nullable String name) {
 		tracking = name;
+		if (name != null) {
+			Locate.clear();
+		}
 	}
 
 	public static void load() {
@@ -185,15 +239,24 @@ public final class Waypoints {
 			return;
 		}
 		try (Reader reader = Files.newBufferedReader(FILE)) {
-			Map<String, List<Waypoint>> read = GSON.fromJson(reader, new TypeToken<LinkedHashMap<String, List<Waypoint>>>() {
-			}.getType());
+			Map<String, List<Waypoint>> read = parse(reader);
 			if (read != null) {
-				read.values().forEach(list -> list.removeIf(w -> w == null || w.name == null || w.dimension == null));
 				byWorld = read;
 			}
 		} catch (IOException | JsonParseException e) {
 			Justaclient.LOGGER.warn("Could not read {}", FILE, e);
 		}
+	}
+
+	/** Reads a waypoints file; entries without a name or dimension are dropped. */
+	public static @Nullable Map<String, List<Waypoint>> parse(Reader reader) {
+		Map<String, List<Waypoint>> read = GSON.fromJson(reader, new TypeToken<LinkedHashMap<String, List<Waypoint>>>() {
+		}.getType());
+		if (read != null) {
+			read.values().removeIf(java.util.Objects::isNull);
+			read.values().forEach(list -> list.removeIf(w -> w == null || w.name == null || w.dimension == null));
+		}
+		return read;
 	}
 
 	public static void save() {

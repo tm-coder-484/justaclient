@@ -1,0 +1,25 @@
+# Justaclient services on Cloudflare Workers: feedback (M8) and the messaging relay (M11).
+name = "justaclient"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "justaclient"
+# deploy.bat / deploy.sh fill this in the first time they run.
+database_id = "REPLACE_WITH_DATABASE_ID"
+
+[vars]
+# Optional: set a secret with `npx wrangler secret put ADMIN_TOKEN` to read reports at /feedback?token=...
+MAX_FIELD_BYTES = "400000"
+# Testing only: "true" lets the relay accept names Mojang did not confirm (offline accounts). Leave "false" when deployed.
+ALLOW_OFFLINE = "false"
+
+# The messaging relay: one Durable Object with SQLite storage (available on the free plan).
+[[durable_objects.bindings]]
+name = "RELAY"
+class_name = "Relay"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Relay"]

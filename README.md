@@ -32,17 +32,21 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 | Where | What to do |
 | --- | --- |
 | **Right Shift** | Opens the menu: categories on the left, features in the middle, settings on the right. |
-| Typing in the menu | Searches every feature and setting. Esc clears the search, Esc again closes. |
+| Typing in the menu | Searches every feature and setting (or click the search box). The x or a right click clears it, Esc clears it too, Esc again closes. |
 | Feature cards | Click to see settings, click the switch (or right click the card) to turn it on or off. |
 | **Toggle key** row | Click it and press any key to toggle that feature in game. Esc or Backspace unbinds. |
-| **Profile** (bottom left) | Switch profiles, copy the current one, copy it to the clipboard to share, paste one a friend sent, delete it, or open the profiles folder. |
-| **Edit HUD layout** | Drag widgets; they snap to edges, the centre and each other (hold Shift to place freely). Scroll to resize, right click for settings. |
-| **Theme** | Accent, panel opacity, corners, blur, outline, font and motion. Everything follows these. |
+| **Profile** (bottom left) | Switch profiles, copy the current one, copy it to the clipboard to share, paste one a friend sent, export to a file (choose which parts), import a file with a preview of what changes, delete it, open the profiles folder, or reset everything (a backup is saved first). |
+| **Edit HUD layout** | Drag widgets; they snap to edges, the centre and each other with a small gap (hold Shift to place freely). Drag a corner or scroll to resize, press **A** over a widget to change its anchor, right click for settings. **Layout** switches between Default, Combat, Explore, Minimal and your own saved layouts. |
+| **Notes** (menu sidebar) | A notepad and a todo list. Pin a todo to show it on the Pinned todos widget. |
+| **Feedback** (menu sidebar) | Send a bug report or idea, with your log, crash report, mod list or settings attached. Off until you turn it on and set your server (see `cloudflare/README.md`). |
+| **Theme** | Accent, panel opacity, corners, blur, outline, font, motion and the menu layout (Classic or Ring). Everything follows these. |
+| **Ring layout** | With Theme > Menu layout on Ring, Right Shift opens the ring: click a panel for its category, a button on the ring for a page. **Customise** (bottom right) changes the ring's look, spin, density, glow, gauges and what is shown, live. **Classic view** switches back. |
+| **Command Centre** (menu sidebar) | Tiles for the client's full screens: Mods, Servers, Key binds, Screenshots, HUD editor, Dev Console, World Archive and Labs. |
 | **Performance** (menu, or click the frame cost in the footer) | What each feature costs per frame, against the 5% budget. |
 | **C** (hold) | Zoom. Scroll while zooming to go further. The key is in Camera > Zoom. |
 | **I** | Inspect the held item (First person > Hand). |
 | **M** | Open the map. Drag (or arrow keys) to move, scroll to zoom, Space to find yourself, right-click to drop a waypoint, and click one to rename, move, recolour, track, hide or delete it. |
-| **Stats** (menu sidebar) | Lifetime play time, kills, deaths, blocks and records. |
+| **Stats** (menu sidebar) | Lifetime play time, kills, deaths, blocks and records. **Sessions** lists past sessions; click one to see what you carried and picked up. |
 | **T** (chat) over the Spotify card | Click its previous, play and next buttons. With the chat open you can also grab and throw the physics trinket. |
 | **B** | Save a waypoint where you stand. `/jwp list`, `/jwp gps <name>`, `/jwp remove <name>` manage them too. |
 | **Middle click** a player | Add or remove a friend. `/jfriend add <name>` and `/jfriend list` work too. |
@@ -52,6 +56,176 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 ![HUD editor with a snap guide](docs/screenshots/hud-editor.png)
 
 ## What is in this build
+
+### M12: spatial menus and the Modrinth browser (v0.12.0, third person and the tile grid in v0.12.1)
+
+Both are off by default and have their own switches, in both the 1.21.11 and 26.3 jars.
+
+- **Spatial menus** (Screens): menus float in the world in front of you on a panel, in first and third person, instead
+  of lying flat on the window. Distance, size, lean, turn, curve and height are sliders; the panel tilts gently away
+  from the mouse, floats, flies in when it opens and can stay where it opened instead of following the camera. The
+  world behind can be dimmed or blurred. One switch turns every menu spatial; kinds of screens (client menus, ring
+  menu, inventory and containers, game screens, chat, world map, death screen, other mods' screens) each have their
+  own switch, and single screens can be kept flat by name. The HUD editor, loading and connecting screens always stay
+  flat. Buttons, sliders and slots work as usual: the mouse is traced onto the panel.
+  In third person the menu floats beside your character (right or left, with its own size and turn) while the camera
+  glides over your shoulder to make room, stopping short of walls. **Switch to third person while a menu floats**
+  (off by default) goes to third person when a menu opens and back to first person when it closes, unless you changed
+  the view yourself in between.
+- **Modrinth browser** (Tools, `/jmodrinth`, or **Browse Modrinth** in the Mods panel): search Modrinth for mods,
+  shaders, resource packs and data packs, filtered to this Minecraft version and Fabric. Install puts each file in the
+  right folder (`mods`, `shaderpacks`, `resourcepacks`, or a world's `datapacks`: it asks which world) after checking
+  its hash, adds required dependencies, offers Iris when a shader pack needs it, can turn a new resource pack on
+  straight away, and shows what is installed, loaded or has an update. Mods take effect after a restart, using the same
+  restart button as the Mods panel. The details panel on the right can be hidden (its X, or **Hide details**) to show
+  the results as a grid of tiles; clicking a tile brings it back. It only goes online once you turn it on.
+
+### M11: chat, world and social (v0.11.0)
+
+Every new feature has its own switch, in both the 1.21.11 and 26.3 jars. Messages and Auto GG are off by default;
+Messages only connects to a relay you deploy yourself (see `cloudflare/README.md`).
+
+- **Chat** category. **Chat timestamps** (three styles, own colour), **Chat highlights** (your name and keywords in a
+  colour, with an optional sound and popup; mentions are collected), **Chat history** (`/chatlog`): this session's chat
+  by tab (All, Mentions, Private, your own keyword tabs), with search (`from:Name`, `has:link`, `is:mention`,
+  `is:private`, `is:system`) and click to copy (plain, with time, or quoted). **Chat scroll memory** keeps your place
+  when chat closes. **Saved messages**: Ctrl+S in chat saves what you typed, Alt+1 to 9 puts one back.
+- **Command shortcuts**: `/cmd 1` to `/cmd 8` run your Macros slots by number (`/cmd` lists them).
+- **Auto GG**: your own messages and triggers, at most one per game, with a cooldown and a list of servers it may run
+  on; never in singleplayer and never in reply to player chat.
+- **Biome effects** (`/biomes`): every biome can have its own particles (fireflies, drifting motes, linked dots or none),
+  daylight colour, fog colour and a quiet ambience, each with its own switch. Walking between biomes blends them. A few
+  biomes (swamp, cherry grove, pale garden, desert, snow, nether forests) come with a look. It never thins fog.
+- **Custom cape**: a PNG or GIF (animated GIFs play) in `config/justaclient/capes`, or a cape in your theme colours,
+  on your player and optionally your elytra. Only you see it. Cape textures (64 x 32, OptiFine 46 x 22) are used as they
+  are; any other picture is fitted onto the cape.
+- **Messages** (`/jmessages`, `/jdm <friend> <text>`): friends' online status and profiles, and direct messages between
+  Justaclient players who have each other as friends, through your own Cloudflare Worker. Sign-in is checked with
+  Mojang; the relay keeps a message only until it is delivered; history stays on your computer.
+- **Social** and **Tools** categories tidy the menu: Friends, Discord status, Tiers, Name protect and Messages under
+  Social; the copy, crash, console, feedback, Labs, backup, session and archive tools under Tools.
+
+### M10: containers and survival (v0.10.0)
+
+Every new feature has its own switch, in both the 1.21.11 and 26.3 jars. The anvil and crafting helpers are off by
+default and send at most one action per click (the same as a shift-click or a recipe book click), never a sequence.
+
+- **Inventory** category in the menu for the container helpers below. Panels sit beside the container and keep off the
+  open recipe book.
+- **Furnace info**: time left for the item and the stack, fuel left, how many items the fuel smelts and whether it is
+  enough (furnace, blast furnace, smoker). **Food info**: hunger and saturation on food tooltips and a preview on the
+  food bar.
+- **Potion guide**: `/potions` lists every potion with its brewing route; beside the brewing stand, pick a target and
+  the next ingredient is ringed. Routes come from the game's own brewing rules.
+- **Storage memory**: chests, barrels, shulker boxes and the ender chest you open are remembered per world. `/storage`
+  searches them ("iron 32+", "<5 torch"), shows totals, where each item is and when you last checked it ("Last checked:
+  12 minutes ago"), and sets GPS to the container with a through-wall outline. Shulker box tooltips show what is inside.
+  Only containers you opened are stored.
+- **Finds it in your chests**: when a helper sees you are short (Brew this, furnace fuel, a kit, a repair material, a
+  crafting ingredient), it looks in the containers you opened and says which one has it. Press **G** (or click the chip
+  under the container) to set GPS there.
+- **Landmarks** (`/landmarks`): waypoints as a board with colour tags, visited state, direction arrows and Map buttons;
+  structures you walk into can be added automatically (off by default).
+- **Death recap**: a card on the death screen with what hit you, damage over the last seconds and a GPS back;
+  `/lastdeath` keeps the last 20.
+- **Kits** (`/ck`): `/ck save` opens the kit editor from your inventory (click a slot to leave it free), `/ck preview`,
+  `/ck load` gives the kit in singleplayer with cheats on, and elsewhere checks your inventory slot by slot (green
+  right, amber short, red wrong, faded ghost for empty) and finds missing items in your chests.
+- **Anvil helper**: lists what you can combine (books onto items, repairs, two books), with past work and "too costly";
+  click a pair to move the item, click again for the book or material.
+- **Crafting helper**: pick a recipe in the recipe book and the panel shows each ingredient as have/need for the number
+  of crafts you set, what is missing and which chest has it; **Fill the grid** is the recipe book's own action.
+
+### M9: screens, hubs and the ring (v0.9.0)
+
+Every new feature has its own switch, in both the 1.21.11 and 26.3 jars.
+
+- **Styled screens** (Screens): vanilla and modded screens (including Sodium's and Distant Horizons') draw their
+  buttons, sliders, text boxes, check boxes, scroll bars, tabs and lists in the client style; any screen can be left
+  vanilla. **Screen backgrounds** by group (menus, pause, containers): glass, gradient, dim, or your own picture or GIF.
+  **Smooth scrolling** for vanilla and modded lists, and **GUI sounds**.
+- **Mods panel**: every mod with its icon, details, links and settings button; turn mods off or on (applied on restart,
+  with a warning for mods others depend on, and their key binds kept). **Restart now** relaunches the game.
+- **Server list**: folders (drag a server onto one), favourites, recent, search, live pings, and a **Servers** button in
+  the pause menu to hop straight to another server.
+- **Key bind manager**: search, clashes highlighted, bind mouse buttons, reset one or all, and **key sets** you can
+  save, apply and link to a server so they switch when you join it.
+- **Command Centre**: a menu page with tiles for all the full screens below.
+- **Screenshot manager**: each new screenshot remembers the world, dimension, biome, weather, time of day and position
+  (coordinates can be left out, and Stream mode hides them). A gallery with search, favourites, three sizes and a
+  This world filter; a viewer with tags you add; and a **compare slider** for two shots (Shift-click two, or Compare
+  in the viewer).
+- **Dev Console**: the live `latest.log` with Warnings and Errors filters and a search (click a line to copy it); a
+  **diagnostics** sheet (versions, GPU, CPU, memory, window, media) you can copy into a bug report; a **resource pack
+  audit** (files per pack by kind, how many replace vanilla, how many a higher pack hides) with a **reload history**;
+  and the **screens** seen this session, each with a switch for the restyle.
+- **World Archive**: every world the client remembers, with play time, sessions, waypoints and screenshots, and the
+  map for the world you are in.
+- **Labs**: the features still marked experimental (they carry a Labs badge in the menu), and a button that runs the
+  client's self-test (45 checks) and shows the results.
+- **Ring layout** (Theme > Menu layout): a ring of light around the client's mark with the categories on either side,
+  pages on the ring, two gauges (frame rate, memory, ping or features on) and a strip with your profile, world and
+  clock. Classic stays the default.
+
+### M8: HUD, profiles and tools (v0.8.1)
+
+Every new feature has its own switch, in both the 1.21.11 and 26.3 jars.
+
+- **HUD editor** (HUD > HUD editor): drag a widget's corner to resize it; widgets snap to the screen edges and to each
+  other with an adjustable gap (and to centre lines); a dropped widget anchors to its nearest corner or edge, so it
+  grows away from it when its content changes (press **A** to pick another anchor). **Layouts**: Default, Combat,
+  Explore and Minimal built in, save your own, switch from the editor or with a key. A widget you switch on goes to the
+  nearest free spot instead of on top of another one.
+- **Profiles**: *Export to file* (choose features on/off, settings, keys, HUD layout, theme) to
+  `config/justaclient/exports/`; *Import from file* lists exports, backups and your Downloads folder and shows what
+  would change before importing. **Auto backup** (Utility) copies your profile and theme on launch and every 30 minutes
+  when it changed, keeping the newest 20. The search box remembers recent searches.
+- **Session history** (Utility): each session is saved (world, time, kills, deaths, blocks, distance, pickups and what
+  you carried when you left) and listed in Stats > Sessions. The Session stats widget can show items picked up.
+- **Notes**: notepad and todo list in the menu, saved in `config/justaclient/notes.json`; **Pinned todos** widget.
+- **Tips**: a random tip under the title screen menu and on the loading screen (switches in Title screen and Loading
+  screen).
+- **Command macros** (Utility): 8 slots, each a key and a command or chat line.
+- **Spotify in the sky**: previous, play/pause and next beside the song name; click them with the chat open.
+- **Crash helper** (Utility, on): after a crash, the next launch explains it in plain words, names the mods that show
+  up in it, builds a diagnostic zip (crash, log, mod list, system, profile) in `config/justaclient/diagnostics/`, copies
+  the mod list, or opens a prefilled bug report. Nothing is sent unless you choose to.
+- **Feedback** (Utility, off until you turn it on): the Feedback page sends bug reports and ideas to your own Cloudflare
+  Worker with D1 (`cloudflare/`: run `deploy.bat`, then paste the address it prints into the Feedback page). Attach the
+  latest log, newest crash report, mod list and settings; send anonymously if you like; reports you sent are listed.
+- **Fixes**: the menu sidebar fits all its pages; on 26.3, typing in the menu search, notes and the map now reaches the game (SDL text input is switched on).
+
+### M7: foundations and quick wins (v0.8.0)
+
+Every new feature has its own switch. All of it is in both the 1.21.11 and 26.3 jars.
+
+- **Notifications v2**: the toast feed now shows pickups ("+12 Cobblestone", stacking while more arrive, with the item
+  icon) and an **Inventory full** popup when you stand on items you have no room for. Switches for toggles, pickups,
+  inventory full and other messages, plus how long toasts stay, how many show at once and their opacity.
+- **Fullbright** (World): full brightness everywhere through the lightmap, so it also works with shaders. The Darkness
+  effect still shows.
+- **Clean world**: *Hide explosion particles*, and *No particles* (hides every vanilla particle, with a separate switch
+  for the client's own effect particles).
+- **Fog**: *No fog* removes distance fog (water, lava, blindness and darkness fog stay).
+- **Camera**: *Keep held item still*: the hand stops bobbing, swaying behind the camera and shaking when hurt.
+- **Block highlight**: *Pulse* the outline, the fill or both, with a speed slider.
+- **Custom crosshair**: *Show hit distance*: the reach of your last melee hit, beside the crosshair, fading out.
+- **Weapon comparison** (Combat feel): weapon tooltips compare damage and attack speed with the weapon you hold.
+- **New HUD widgets**: Combat info (combo, best combo, hit counter, last hit distance, shield durability and whether
+  an axe disabled it), Speed (blocks/s or km/h, vertical speed, facing with degrees), Performance overlay (FPS, 1% low,
+  stability meter, frame-time graph, client frame cost, entity, chunk and particle counts), Timer (start/pause and reset
+  keys, optional auto start), Biome card, Day cycle (sun track, day number, time until night or morning), Held item
+  (total carried, durability, enchantments) and Durability overview (your most worn items).
+- **Widget upgrades**: Coordinates can show chunk coordinates; Potion effects has a compact one-row summary; Armor can
+  show empty armour slots.
+- **Exit confirmation** (Utility, on by default): Save and Quit and Disconnect ask first, in the client's style.
+- **Auto reconnect**: *Retry already-online*: when a server says your last session is still online, it retries up to
+  5 times on a short countdown (from Tom's server-switcher mod). *Rejoin after any disconnect* keeps the old behaviour.
+- **Menu**: the search box can be clicked (caret, and an x to clear it); **Reset all settings** in the profile menu asks
+  first and saves a backup to `config/justaclient/backups/` before resetting.
+- **Fix**: binding a key in the menu no longer also types that letter into the search.
+- Under the hood: a shared `common/` source folder compiled by both builds, a per-world store
+  (`config/justaclient/worlds/<world>/`) for upcoming features, and a reusable confirm dialog.
 
 ### Fixes (v0.7.1 to v0.7.6)
 
@@ -257,6 +431,8 @@ The world effects (sky, fog, trails, jump circles, hit sounds) start off; turn t
 
 | Path | What it holds |
 | --- | --- |
+| `common/src/main/java/` | Plain Java shared by both builds (frame stats, stopwatch, durations, world keys) |
+| `src/main/java/dev/justaclient/world/` | Per-world store (`config/justaclient/worlds/<world>/`) |
 | `src/main/java/dev/justaclient/render/` | Shape kit (`Draw`), blur (`BlurEngine`), pipelines, world effects (`WorldFx`) |
 | `src/main/java/dev/justaclient/render/text/` | MSDF font loader and text renderer (`JacText`) |
 | `src/main/java/dev/justaclient/anim/` | `Easing`, `Animation`, `Spring`, `Colors` |

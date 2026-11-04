@@ -13,6 +13,8 @@ import dev.justaclient.feature.setting.ColorSetting;
 import dev.justaclient.feature.setting.NumberSetting;
 import dev.justaclient.render.Draw;
 import dev.justaclient.render.Icons;
+import dev.justaclient.render.text.JacText;
+import java.util.Locale;
 import net.minecraft.client.AttackIndicatorStatus;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -51,6 +53,9 @@ public final class CrosshairFeature extends Feature {
 	private final BoolSetting targetColor = bool("target_color", "Change colour on target", true);
 	private final ColorSetting targetColorValue = color("target_color_value", "Target colour", "#F43F5E").visibleWhen(targetColor::on);
 	private final BoolSetting dynamicSpread = bool("dynamic_spread", "Dynamic spread", false);
+	private final BoolSetting hitDistance = bool("hit_distance", "Show hit distance", false);
+	private final NumberSetting hitDistanceSeconds = number("hit_distance_seconds", "Hit distance shows for", 1.5, 0.5, 5, 0.25,
+		NumberSetting.decimal(" s")).visibleWhen(hitDistance::on);
 	private final Animation pulse = new Animation(Easing.CUBIC_OUT, 260, 0f);
 	private final Animation targetFade = new Animation(Easing.CUBIC_OUT, 140, 0f);
 	private final Spring spread = Spring.ui(0f);
@@ -90,6 +95,20 @@ public final class CrosshairFeature extends Feature {
 			extra = spread.update();
 		}
 		draw(g, cx, cy, 1f, extra);
+		if (hitDistance.on() && CombatTracker.lastReach() >= 0f) {
+			// The reach of your last melee hit, fading out after a moment.
+			float age = CombatTracker.secondsSinceReach();
+			float show = hitDistanceSeconds.f();
+			float a = age < show ? 1f : 1f - Math.min(1f, (age - show) / 0.4f);
+			if (a > 0f) {
+				String text = String.format(Locale.ROOT, "%.2f", CombatTracker.lastReach());
+				// To the right of the crosshair, so the target card that usually sits below it never covers it.
+				float tx = cx + gap.f() + size.f() + 5f;
+				float ty = cy - JacText.lineHeight(6f) / 2f;
+				JacText.draw(g, text, tx + 0.5f, ty + 0.5f, Colors.fade(0xA0000000, a), 6f, JacText.Weight.SEMIBOLD);
+				JacText.draw(g, text, tx, ty, Colors.fade(color.argb(), a), 6f, JacText.Weight.SEMIBOLD);
+			}
+		}
 		if (mc.options.attackIndicator().get() == AttackIndicatorStatus.CROSSHAIR) {
 			float strength = player.getAttackStrengthScale(0f);
 			if (strength < 1f) {

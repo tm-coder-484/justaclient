@@ -30,6 +30,20 @@ public final class Projection {
 		return camera;
 	}
 
+	public static boolean valid() {
+		return valid;
+	}
+
+	/** The last world frame's projection (a copy). */
+	public static Matrix4f projection() {
+		return new Matrix4f(PROJECTION);
+	}
+
+	/** The last world frame's camera rotation (a copy). */
+	public static Matrix4f modelView() {
+		return new Matrix4f(MODEL_VIEW);
+	}
+
 	/** Where {@code world} lands on a GUI of the given size, or null when it is behind the camera. */
 	public static @Nullable Vector2f toGui(Vec3 world, float guiWidth, float guiHeight) {
 		if (!valid) {

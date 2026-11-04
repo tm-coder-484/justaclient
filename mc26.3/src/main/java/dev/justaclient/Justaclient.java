@@ -10,6 +10,8 @@ import dev.justaclient.feature.impl.BlockHighlightFeature;
 import dev.justaclient.feature.impl.CombatTracker;
 import dev.justaclient.feature.impl.CosmeticsFeature;
 import dev.justaclient.feature.impl.EndCrystalFeature;
+import dev.justaclient.feature.impl.ExitConfirmFeature;
+import dev.justaclient.feature.impl.WeaponCompareFeature;
 import dev.justaclient.feature.impl.HatsFeature;
 import dev.justaclient.feature.impl.SlashTrailFeature;
 import dev.justaclient.feature.impl.HotbarFeature;
@@ -17,9 +19,15 @@ import dev.justaclient.feature.impl.TargetMarkerFeature;
 import dev.justaclient.feature.impl.TrailsFeature;
 import dev.justaclient.feature.impl.WaypointsFeature;
 import dev.justaclient.hud.HudRenderer;
+import dev.justaclient.hud.PickupFeed;
 import dev.justaclient.hud.LifetimeStats;
+import dev.justaclient.hud.SessionHistory;
+import dev.justaclient.notes.NotesStore;
+import dev.justaclient.world.WorldStore;
+import dev.justaclient.feature.impl.ScreenBackgroundFeature;
 import dev.justaclient.hud.SessionStats;
 import dev.justaclient.hud.widgets.NowPlayingHud;
+import dev.justaclient.hud.widgets.TimerHud;
 import dev.justaclient.profile.Profiles;
 import dev.justaclient.render.ExploredMap;
 import dev.justaclient.render.JacPipelines;
@@ -51,16 +59,22 @@ public final class Justaclient implements ClientModInitializer {
 	public static final KeyMapping OPEN_MENU = new KeyMapping("key.justaclient.menu", InputConstants.KEY_RSHIFT, CATEGORY);
 	public static final KeyMapping OPEN_MAP = new KeyMapping("key.justaclient.map", InputConstants.KEY_M, CATEGORY);
 
+	private static boolean crashChecked;
+
 	public static Identifier id(String path) {
 		return Identifier.fromNamespaceAndPath(MOD_ID, path);
 	}
 
 	@Override
 	public void onInitializeClient() {
+		// Mod renames that could not happen last time (the jar was in use) are done first.
+		dev.justaclient.common.mods.DeferredRenames.load();
 		JacConfig.load();
 		JacPipelines.init();
 		Features.init();
 		Profiles.load();
+		Features.get(dev.justaclient.feature.impl.ProfileBackupFeature.class).launched();
+		dev.justaclient.debug.SelfTest.maybeRunAtStartup();
 		HudRenderer.init();
 		HotbarFeature.init();
 		BlockHighlightFeature.init();
@@ -71,29 +85,67 @@ public final class Justaclient implements ClientModInitializer {
 		HatsFeature.init();
 		TrailsFeature.init();
 		AmbientParticlesFeature.init();
+		dev.justaclient.feature.impl.BiomeEffectsFeature.init();
 		CosmeticsFeature.init();
 		WaypointsFeature.init();
 		AutoReconnectFeature.init();
+		ExitConfirmFeature.init();
+		WeaponCompareFeature.init();
+		dev.justaclient.inventory.ContainerOverlays.init();
+		dev.justaclient.feature.impl.FurnaceInfoFeature.init();
+		dev.justaclient.feature.impl.FoodInfoFeature.init();
+		dev.justaclient.feature.impl.PotionGuideFeature.init();
+		dev.justaclient.feature.impl.AnvilHelperFeature.init();
+		dev.justaclient.feature.impl.CraftingHelperFeature.init();
+		dev.justaclient.chat.ChatHook.init();
+		dev.justaclient.chat.ChatScreens.init();
+		dev.justaclient.feature.impl.StorageMemoryFeature.init();
+		dev.justaclient.feature.impl.DeathRecapFeature.init();
+		dev.justaclient.feature.impl.KitsFeature.init();
 		JacCommands.init();
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+			SessionHistory.onJoin(client);
 			SessionStats.reset();
+			CombatTracker.resetSession();
+			Features.get(TimerHud.class).onJoin();
 			LifetimeStats.onJoin();
 			JacTitleScreen.freeBackground();
+			Features.get(ScreenBackgroundFeature.class).unload();
+			dev.justaclient.feature.impl.KeybindsFeature.get().onJoin(client.getCurrentServer());
 		});
-		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> LifetimeStats.onLeave());
-		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> LifetimeStats.save());
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+			dev.justaclient.inventory.StorageFinder.clear();
+			SessionHistory.finish();
+			LifetimeStats.onLeave();
+			NotesStore.saveAll();
+			client.execute(() -> dev.justaclient.feature.impl.KeybindsFeature.get().onLeave());
+		});
+		ClientLifecycleEvents.CLIENT_STARTED.register(client -> dev.justaclient.feature.impl.KeybindsFeature.get().startup());
+		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+			SessionHistory.finish();
+			LifetimeStats.save();
+			NotesStore.saveAll();
+			// Writes still queued for the world folders finish before the game exits.
+			WorldStore.flush();
+			dev.justaclient.feature.impl.KeybindsFeature.get().onLeave();
+			// Mods switched while their jar was locked are renamed once the game has closed, and the game restarts if asked.
+			dev.justaclient.common.mods.DeferredRenames.applyAfterExit();
+		});
 		ExploredMap.init();
 		KeyMappingHelper.registerKeyMapping(OPEN_MENU);
 		KeyMappingHelper.registerKeyMapping(OPEN_MAP);
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			CombatTracker.tick();
+			dev.justaclient.waypoint.Locate.tick();
 			ExploredMap.tick(client);
 			SessionStats.tick();
+			SessionHistory.tick(client);
+			PickupFeed.tick(client);
 			LifetimeStats.tick();
 			Features.tick(client);
 			while (OPEN_MENU.consumeClick()) {
 				if (client.gui.screen() == null) {
-					client.gui.setScreen(new ClickGuiScreen(null));
+					client.gui.setScreen(ClickGuiScreen.open(null));
 				}
 			}
 			while (OPEN_MAP.consumeClick()) {
@@ -116,10 +168,19 @@ public final class Justaclient implements ClientModInitializer {
 					return true;
 				});
 			}
+			if ((screen instanceof TitleScreen || screen instanceof JacTitleScreen) && !crashChecked) {
+				crashChecked = true;
+				if (Features.get(dev.justaclient.feature.impl.CrashHelperFeature.class).isEnabled()) {
+					dev.justaclient.crash.CrashHelper.Crash crash = dev.justaclient.crash.CrashHelper.unseen();
+					if (crash != null) {
+						client.execute(() -> client.gui.setScreen(new dev.justaclient.ui.CrashHelperScreen(client.gui.screen(), crash)));
+					}
+				}
+			}
 			if (screen instanceof TitleScreen) {
 				ScreenKeyboardEvents.afterKeyPress(screen).register((current, event) -> {
 					if (OPEN_MENU.matches(event) && client.gui.screen() == current) {
-						client.gui.setScreen(new ClickGuiScreen(current));
+						client.gui.setScreen(ClickGuiScreen.open(current));
 					}
 				});
 			}

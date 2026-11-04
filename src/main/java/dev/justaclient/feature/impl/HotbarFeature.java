@@ -259,6 +259,9 @@ public final class HotbarFeature extends Feature {
 		// Hunger drains from the right like vanilla's drumsticks, so the bar is anchored on the right edge.
 		float fw = Math.max(h, half * food / maxValue);
 		Draw.horizontalGradient(g, right + half - fw, y, fw, h, h / 2f, c1, c0);
+		if (mount == null) {
+			Features.get(FoodInfoFeature.class).drawBar(g, player, right, y, half, h, c0);
+		}
 		if (numbers.on()) {
 			shadowed(g, String.valueOf((int) Math.ceil(value)), right + half + 3f, y + h / 2f - JacText.lineHeight(6.5f) / 2f, mount != null ? c0 : 0xFFFFC56B, 6.5f);
 		}

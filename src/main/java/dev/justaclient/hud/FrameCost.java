@@ -16,6 +16,8 @@ import java.util.Map;
 public final class FrameCost {
 	/** The release target from the roadmap: everything on should stay under this share of the frame. */
 	public static final float BUDGET = 0.05f;
+	/** Raw frame times for the performance overlay's graph, 1% low and stability. */
+	public static final dev.justaclient.common.FrameStats FRAMES = new dev.justaclient.common.FrameStats(240);
 	private static final float SMOOTHING = 0.03f;
 	private static final Map<String, Section> SECTIONS = new LinkedHashMap<>();
 	private static long lastFrame = -1;
@@ -85,6 +87,7 @@ public final class FrameCost {
 	/** Called once per frame from the HUD pass. */
 	public static void frame() {
 		long now = System.nanoTime();
+		FRAMES.frame(now);
 		long spent = 0;
 		for (Section s : SECTIONS.values()) {
 			spent += s.spentThisFrame;

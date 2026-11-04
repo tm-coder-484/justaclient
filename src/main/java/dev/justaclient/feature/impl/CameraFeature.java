@@ -2,6 +2,8 @@ package dev.justaclient.feature.impl;
 
 import dev.justaclient.feature.Category;
 import dev.justaclient.feature.Feature;
+import dev.justaclient.feature.Features;
+import dev.justaclient.feature.setting.BoolSetting;
 import dev.justaclient.feature.setting.ChoiceSetting;
 import dev.justaclient.feature.setting.NumberSetting;
 import dev.justaclient.render.Icons;
@@ -32,9 +34,10 @@ public final class CameraFeature extends Feature {
 	private final NumberSetting custom = number("custom", "Custom ratio", 1.5, 1, 2.4, 0.01, v -> String.format("%.2f", v))
 		.visibleWhen(() -> aspect.get() == Aspect.CUSTOM);
 	private final NumberSetting handFov = number("hand_fov", "Hand FOV", 70, 40, 110, 1, NumberSetting.unit("°"));
+	private final BoolSetting stillHand = bool("still_hand", "Keep held item still", false);
 
 	public CameraFeature() {
-		super("camera", "Camera", "Stretched aspect ratio and hand field of view", Category.CAMERA, Icons.VIDEO, false);
+		super("camera", "Camera", "Stretched aspect ratio, hand field of view, still held item", Category.CAMERA, Icons.VIDEO, false);
 	}
 
 	/** The aspect ratio the world is projected with; the picture is then stretched to fill the window. */
@@ -47,6 +50,12 @@ public final class CameraFeature extends Feature {
 			case CUSTOM -> custom.f();
 			default -> aspect.get().ratio;
 		};
+	}
+
+	/** The held item stays put: no lag behind the camera when turning, no walking bob and no hurt shake on the hand. */
+	public static boolean keepsHandStill() {
+		CameraFeature f = Features.get(CameraFeature.class);
+		return f != null && f.isEnabled() && f.stillHand.on();
 	}
 
 	public float handFov(float vanilla) {

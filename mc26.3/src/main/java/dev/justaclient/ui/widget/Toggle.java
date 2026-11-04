@@ -47,6 +47,7 @@ public final class Toggle extends Widget {
 	@Override
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
 		if (button == 0 && isMouseOver(mouseX, mouseY)) {
+			dev.justaclient.feature.impl.GuiSoundsFeature.menuClick();
 			setter.accept(!getter.get());
 			return true;
 		}

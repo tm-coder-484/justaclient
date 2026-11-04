@@ -1,9 +1,12 @@
 package dev.justaclient.ui.widget;
 
+import dev.justaclient.feature.setting.ActionSetting;
 import dev.justaclient.feature.setting.BoolSetting;
 import dev.justaclient.feature.setting.ChoiceSetting;
 import dev.justaclient.feature.setting.ColorSetting;
+import dev.justaclient.feature.setting.FileSetting;
 import dev.justaclient.feature.setting.KeySetting;
+import dev.justaclient.feature.setting.ListSetting;
 import dev.justaclient.feature.setting.NumberSetting;
 import dev.justaclient.feature.setting.Setting;
 import dev.justaclient.feature.setting.TextSetting;
@@ -16,12 +19,15 @@ public final class SettingWidgets {
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public static Widget create(Setting<?> setting, float x, float y, float width) {
 		return switch (setting) {
+			case ActionSetting a -> new Button(x, y, width, 18f, a.name, false, a.action);
 			case BoolSetting b -> new Toggle(x, y, width, b.name, b::get, b::set);
 			case NumberSetting n -> new Slider(x, y, width, n.name, n.min, n.max, n.step, n::get, n::set, n.format);
 			case ChoiceSetting c -> new Segmented(x, y, width, c.name, c.options, c.labels(), c::get, c::set);
 			case ColorSetting c -> new ColorPicker(x, y, width, c);
 			case KeySetting k -> new KeyBinder(x, y, width, k);
 			case TextSetting t -> new TextField(x, y, width, t);
+			case ListSetting l -> new ListEditor(x, y, width, l);
+			case FileSetting f -> new FilePicker(x, y, width, f);
 			default -> throw new IllegalArgumentException("No widget for " + setting.getClass());
 		};
 	}

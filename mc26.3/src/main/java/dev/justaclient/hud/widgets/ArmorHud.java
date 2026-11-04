@@ -58,6 +58,7 @@ public final class ArmorHud extends HudFeature {
 	private final ChoiceSetting<Style> style = choice("style", "Style", Style.BAR);
 	private final ChoiceSetting<BarColor> barColor = choice("bar_color", "Bar colour", BarColor.HEALTH);
 	private final BoolSetting heldItem = bool("held_item", "Include held item", false);
+	private final BoolSetting emptySlots = bool("empty_slots", "Show empty armour slots", false);
 	private final List<ItemStack> items = new ArrayList<>();
 	private final Spring[] fills = new Spring[5];
 
@@ -94,7 +95,7 @@ public final class ArmorHud extends HudFeature {
 		} else {
 			for (EquipmentSlot slot : SLOTS) {
 				ItemStack stack = player.getItemBySlot(slot);
-				if (!stack.isEmpty()) {
+				if (!stack.isEmpty() || emptySlots.on()) {
 					items.add(stack);
 				}
 			}
@@ -120,6 +121,13 @@ public final class ArmorHud extends HudFeature {
 		float y = PAD;
 		for (int i = 0; i < items.size(); i++) {
 			ItemStack stack = items.get(i);
+			if (stack.isEmpty()) {
+				// An empty slot: a dashed-looking frame and a dim label, so a missing piece stands out.
+				Draw.outline(g, PAD + 1f, y + 1f, ICON - 2f, ICON - 2f, 2f, 0.75f, Theme.TEXT_DIM);
+				textRight(g, "Empty", width - PAD, y + (ICON - JacText.lineHeight(TEXT)) / 2f, 0xFFF43F5E, TEXT, JacText.Weight.SEMIBOLD);
+				y += ICON + 2f;
+				continue;
+			}
 			g.pose().pushMatrix();
 			g.pose().translate(PAD, y);
 			g.pose().scale(ICON / 16f, ICON / 16f);

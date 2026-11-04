@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.justaclient.anim.Colors;
 import dev.justaclient.feature.Feature;
+import dev.justaclient.feature.impl.CleanWorldFeature;
 import dev.justaclient.feature.impl.PerformanceModeFeature;
 import dev.justaclient.hud.FrameCost;
 import java.util.ArrayList;
@@ -27,6 +28,8 @@ import org.joml.Vector3f;
  */
 public final class WorldFx {
 	public static final RenderType FX = RenderType.create("justaclient_fx", RenderSetup.builder(JacPipelines.WORLD_FX).sortOnUpload().createRenderSetup());
+	public static final RenderType FX_XRAY = RenderType.create("justaclient_fx_xray", RenderSetup.builder(JacPipelines.WORLD_FX_XRAY).sortOnUpload()
+		.createRenderSetup());
 	/**
 	 * Used instead of {@link #FX} while a shader pack is on: packs only draw render types they know, so the glow and bubble
 	 * shapes come from a texture baked from world_fx.fsh, drawn as a glowing translucent entity.
@@ -38,6 +41,7 @@ public final class WorldFx {
 	private static final List<Ring> RINGS = new ArrayList<>();
 	private static final List<Layer> LAYERS = new ArrayList<>();
 	private static final List<Layer> SOLID_LAYERS = new ArrayList<>();
+	private static final List<Layer> XRAY_LAYERS = new ArrayList<>();
 	private static final FrameCost.Section COST = FrameCost.section("Effect particles");
 	private static long lastNanos = -1;
 
@@ -71,8 +75,19 @@ public final class WorldFx {
 		LAYERS.add(new Layer(owner, draw));
 	}
 
+	/**
+	 * Like {@link #layer}, but drawn over blocks, for outlines of places you already found. With a shader pack the
+	 * shapes stay depth tested, since packs draw the world in their own passes.
+	 */
+	public static void xrayLayer(Feature owner, Consumer<Frame> draw) {
+		XRAY_LAYERS.add(new Layer(owner, draw));
+	}
+
 	/** One glowing dot that flies, falls and fades. Velocity is in blocks per second. */
 	public static void particle(double x, double y, double z, double vx, double vy, double vz, float size, int color, float life, float gravity, float drag) {
+		if (CleanWorldFeature.hidesClientParticles()) {
+			return;
+		}
 		if (PARTICLES.size() >= PerformanceModeFeature.particleCap(MAX_PARTICLES)) {
 			PARTICLES.removeFirst();
 		}
@@ -145,6 +160,24 @@ public final class WorldFx {
 					}
 				}
 			});
+		}
+		boolean anyXray = false;
+		for (Layer layer : XRAY_LAYERS) {
+			anyXray |= layer.owner.isEnabled();
+		}
+		if (anyXray && Minecraft.getInstance().level != null) {
+			boolean pack = dev.justaclient.compat.Shaders.packInUse();
+			context.submitNodeCollector().submitCustomGeometry(context.poseStack(), pack ? RenderTypes.entityTranslucentEmissive(GLOW) : FX_XRAY,
+				(pose, buffer) -> {
+					Frame frame = new Frame(context, pose, buffer, 0f, pack);
+					for (Layer layer : XRAY_LAYERS) {
+						if (layer.owner.isEnabled()) {
+							layer.owner.cost.begin();
+							layer.draw.accept(frame);
+							layer.owner.cost.end();
+						}
+					}
+				});
 		}
 		boolean anyLayer = false;
 		for (Layer layer : LAYERS) {
@@ -333,6 +366,19 @@ public final class WorldFx {
 					vertex(cx + s1 * outer, cy, cz + c1 * outer, 0f, 1f, color);
 					vertex(cx + s1 * inner, cy, cz + c1 * inner, 0f, -1f, color);
 				}
+			}
+		}
+
+		/** The twelve edges of a box, as thin glowing strips. */
+		public void boxOutline(double x0, double y0, double z0, double x1, double y1, double z1, float width, int color) {
+			double[][] c = {{x0, y0, z0}, {x1, y0, z0}, {x1, y0, z1}, {x0, y0, z1}, {x0, y1, z0}, {x1, y1, z0}, {x1, y1, z1}, {x0, y1, z1}};
+			int[][] edges = {{0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6}, {6, 7}, {7, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
+			float[] widths = {width, width};
+			int[] colors = {color, color};
+			for (int[] e : edges) {
+				double[] a = c[e[0]];
+				double[] b = c[e[1]];
+				ribbon(List.of(new Vec3(a[0], a[1], a[2]), new Vec3(b[0], b[1], b[2])), widths, colors);
 			}
 		}
 

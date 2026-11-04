@@ -28,6 +28,10 @@ repositories {
 
 sourceSets {
 	main {
+		java {
+			// Plain Java shared with the 1.21.11 build (no Minecraft classes).
+			srcDirs = ['src/main/java', '../common/src/main/java']
+		}
 		resources {
 			srcDirs = ['src/main/resources', '../src/main/resources']
 		}

@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.justaclient.anim.Colors;
 import dev.justaclient.feature.Feature;
+import dev.justaclient.feature.impl.CleanWorldFeature;
 import dev.justaclient.feature.impl.PerformanceModeFeature;
 import dev.justaclient.hud.FrameCost;
 import java.util.ArrayList;
@@ -26,6 +27,8 @@ import org.joml.Vector3f;
  */
 public final class WorldFx {
 	public static final RenderType FX = RenderType.create("justaclient_fx", RenderSetup.builder(JacPipelines.WORLD_FX).sortOnUpload().createRenderSetup());
+	public static final RenderType FX_XRAY = RenderType.create("justaclient_fx_xray", RenderSetup.builder(JacPipelines.WORLD_FX_XRAY).sortOnUpload()
+		.createRenderSetup());
 	/**
 	 * Used instead of {@link #FX} while a shader pack is on: packs only draw render types they know, so the glow and bubble
 	 * shapes come from a texture baked from world_fx.fsh, drawn as a glowing translucent entity.
@@ -69,8 +72,23 @@ public final class WorldFx {
 		LAYERS.add(new Layer(owner, draw));
 	}
 
+	/**
+	 * Like {@link #layer}, but drawn over blocks, for outlines of places you already found. With a shader pack the
+	 * shapes stay depth tested, since packs draw the world in their own passes.
+	 */
+	public static void xrayLayer(Feature owner, Consumer<Frame> draw) {
+		LAYERS.add(new Layer(owner, f -> {
+			f.xray(true);
+			draw.accept(f);
+			f.xray(false);
+		}));
+	}
+
 	/** One glowing dot that flies, falls and fades. Velocity is in blocks per second. */
 	public static void particle(double x, double y, double z, double vx, double vy, double vz, float size, int color, float life, float gravity, float drag) {
+		if (CleanWorldFeature.hidesClientParticles()) {
+			return;
+		}
 		if (PARTICLES.size() >= PerformanceModeFeature.particleCap(MAX_PARTICLES)) {
 			PARTICLES.removeFirst();
 		}
@@ -215,6 +233,7 @@ public final class WorldFx {
 		private final float[] quad = new float[20];
 		private final int[] quadColors = new int[4];
 		private int corners;
+		private boolean xray;
 		private final Vector3f right;
 		private final Vector3f up;
 
@@ -355,7 +374,31 @@ public final class WorldFx {
 		}
 
 		private VertexConsumer buffer() {
+			if (xray && !shaderPack) {
+				return consumers.getBuffer(FX_XRAY);
+			}
 			return consumers.getBuffer(shaderPack ? net.minecraft.client.renderer.rendertype.RenderTypes.entityTranslucentEmissive(GLOW) : FX);
+		}
+
+		/** Switches later shapes to show through blocks (or back). */
+		void xray(boolean on) {
+			if (xray != on) {
+				xray = on;
+				out = buffer();
+			}
+		}
+
+		/** The twelve edges of a box, as thin glowing strips. */
+		public void boxOutline(double x0, double y0, double z0, double x1, double y1, double z1, float width, int color) {
+			double[][] c = {{x0, y0, z0}, {x1, y0, z0}, {x1, y0, z1}, {x0, y0, z1}, {x0, y1, z0}, {x1, y1, z0}, {x1, y1, z1}, {x0, y1, z1}};
+			int[][] edges = {{0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6}, {6, 7}, {7, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
+			float[] widths = {width, width};
+			int[] colors = {color, color};
+			for (int[] e : edges) {
+				double[] a = c[e[0]];
+				double[] b = c[e[1]];
+				ribbon(List.of(new Vec3(a[0], a[1], a[2]), new Vec3(b[0], b[1], b[2])), widths, colors);
+			}
 		}
 
 		private void vertex(float x, float y, float z, float u, float v, int color) {

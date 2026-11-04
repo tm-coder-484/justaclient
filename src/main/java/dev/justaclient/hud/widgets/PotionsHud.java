@@ -50,11 +50,13 @@ public final class PotionsHud extends HudFeature {
 	private final BoolSetting ring = bool("ring", "Timer ring", true);
 	private final ChoiceSetting<RingColor> ringColor = choice("ring_color", "Ring colour", RingColor.EFFECT).visibleWhen(ring::on);
 	private final BoolSetting blink = bool("blink", "Pulse when ending", true);
+	private final BoolSetting compact = bool("compact", "Compact summary (one row)", false);
 	private final List<Entry> entries = new ArrayList<>();
 	/** Longest duration seen per effect, so the ring can show how much is left. Instances do not keep their start time. */
 	private final Map<Holder<MobEffect>, Integer> longest = new HashMap<>();
 	private final Spring heightSpring = Spring.ui(0f);
 	private int lastCount;
+	private float compactCell;
 
 	private record Entry(Holder<MobEffect> effect, String name, String time, float left, boolean ending) {
 	}
@@ -93,6 +95,17 @@ public final class PotionsHud extends HudFeature {
 			}
 			longest.keySet().retainAll(active);
 		}
+		if (compact.on()) {
+			float cell = RING + 8f;
+			for (Entry e : entries) {
+				cell = Math.max(cell, JacText.width(e.time, TEXT - 0.5f, JacText.Weight.REGULAR) + 4f);
+			}
+			compactCell = cell;
+			width = PAD * 2 + Math.max(1, entries.size()) * cell - 4f;
+			height = PAD * 2 + RING + 3f + JacText.lineHeight(TEXT - 0.5f);
+			lastCount = entries.size();
+			return;
+		}
 		float textW = 0f;
 		for (Entry e : entries) {
 			textW = Math.max(textW, Math.max(JacText.width(e.name, TEXT, JacText.Weight.SEMIBOLD), JacText.width(e.time, TEXT, JacText.Weight.REGULAR)));
@@ -121,10 +134,12 @@ public final class PotionsHud extends HudFeature {
 		panel(g, width, height);
 		float y = PAD;
 		long now = System.currentTimeMillis();
+		float column = 0f;
 		for (Entry e : entries) {
 			float alpha = e.ending && blink.on() ? 0.55f + 0.45f * (float) Math.abs(Math.cos(now / 250.0)) : 1f;
-			float cx = PAD + RING / 2f;
-			float cy = y + RING / 2f;
+			boolean row = compact.on();
+			float cx = row ? PAD + column + (compactCell - 4f) / 2f : PAD + RING / 2f;
+			float cy = row ? PAD + RING / 2f : y + RING / 2f;
 			if (ring.on()) {
 				int color = ringColor.get() == RingColor.ACCENT ? JacConfig.accent() : 0xFF000000 | e.effect.value().getColor();
 				Draw.arc(g, cx, cy, RING / 2f, 1.5f, 0f, 1f, Theme.CONTROL);
@@ -136,6 +151,12 @@ public final class PotionsHud extends HudFeature {
 			g.pose().scale(icon / 18f, icon / 18f);
 			g.blitSprite(RenderPipelines.GUI_TEXTURED, Gui.getMobEffectSprite(e.effect), 0, 0, 18, 18, Colors.fade(0xFFFFFFFF, alpha));
 			g.pose().popMatrix();
+			if (row) {
+				float tw = JacText.width(e.time, TEXT - 0.5f, JacText.Weight.REGULAR);
+				text(g, e.time, cx - tw / 2f, PAD + RING + 3f, Colors.fade(Theme.TEXT_DIM, alpha), TEXT - 0.5f, JacText.Weight.REGULAR);
+				column += compactCell;
+				continue;
+			}
 			float tx = PAD + RING + 6f;
 			float lh = JacText.lineHeight(TEXT);
 			text(g, e.name, tx, cy - lh + 0.5f, Colors.fade(Theme.TEXT, alpha), TEXT, JacText.Weight.SEMIBOLD);

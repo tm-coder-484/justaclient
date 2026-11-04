@@ -23,6 +23,15 @@ repositories {
 	}
 }
 
+// Plain Java shared with the 26.3 build (no Minecraft classes), so it is written once for both versions.
+sourceSets {
+	main {
+		java {
+			srcDirs = ['src/main/java', 'common/src/main/java']
+		}
+	}
+}
+
 loom {
 	mods {
 		"justaclient" {

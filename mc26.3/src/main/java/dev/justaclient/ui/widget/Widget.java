@@ -9,7 +9,7 @@ public abstract class Widget {
 	protected float x;
 	protected float y;
 	protected final float width;
-	protected final float height;
+	protected float height;
 	/** 0..1 hover amount, eased so highlights fade rather than snap. */
 	protected final Animation hover = new Animation(Easing.CUBIC_OUT, 120, 0f);
 
@@ -25,8 +25,16 @@ public abstract class Widget {
 		this.y = y;
 	}
 
+	public float x() {
+		return x;
+	}
+
 	public float y() {
 		return y;
+	}
+
+	public float width() {
+		return width;
 	}
 
 	public float height() {

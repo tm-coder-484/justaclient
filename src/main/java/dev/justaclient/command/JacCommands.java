@@ -24,11 +24,29 @@ import net.minecraft.world.entity.player.Player;
  * <li>{@code /jwp add [name]}, {@code /jwp set <name> <x> <y> <z>}, {@code /jwp remove <name>}, {@code /jwp list},
  * {@code /jwp gps <name>}, {@code /jwp gps off}, {@code /jwp hide|show <name>}</li>
  * <li>{@code /jfriend add|remove <name>}, {@code /jfriend list}</li>
+ * <li>{@code /potions} (or {@code /jpotions}): the potion guide</li>
+ * <li>{@code /storage} (or {@code /jstorage}): search the containers you opened</li>
+ * <li>{@code /landmarks} (or {@code /jlandmarks}): the landmark board</li>
+ * <li>{@code /lastdeath} (or {@code /jdeath}): the death recap and earlier deaths</li>
+ * <li>{@code /ck}: kits; {@code /ck save [name]}, {@code /ck preview|load|check <name>}, {@code /ck stop}, {@code /ck list}</li>
  * <li>{@code /jmedia}: what the Spotify card sees (player, track, timeline, cover, lyrics), for working out why
  * something is missing</li>
  * </ul>
  */
 public final class JacCommands {
+	private static final SuggestionProvider<FabricClientCommandSource> KITS = (ctx, builder) -> {
+		for (var kit : dev.justaclient.feature.impl.KitsFeature.get().kits()) {
+			builder.suggest(kit.name);
+		}
+		return builder.buildFuture();
+	};
+
+	private static int open(net.minecraft.client.gui.screens.Screen screen) {
+		Minecraft mc = Minecraft.getInstance();
+		mc.execute(() -> mc.setScreen(screen));
+		return 1;
+	}
+
 	private static final SuggestionProvider<FabricClientCommandSource> WAYPOINTS = (ctx, builder) -> {
 		for (Waypoint w : Waypoints.all()) {
 			builder.suggest(w.name);
@@ -78,6 +96,129 @@ public final class JacCommands {
 					})))
 				.then(literal("hide").then(argument("name", StringArgumentType.greedyString()).suggests(WAYPOINTS).executes(ctx -> visible(ctx, false))))
 				.then(literal("show").then(argument("name", StringArgumentType.greedyString()).suggests(WAYPOINTS).executes(ctx -> visible(ctx, true)))));
+			dispatcher.register(literal("jselftest").executes(ctx -> {
+				for (String line : dev.justaclient.debug.SelfTest.run()) {
+					ctx.getSource().sendFeedback(Component.literal(line).withStyle(line.startsWith("FAIL") ? ChatFormatting.RED : ChatFormatting.GRAY));
+				}
+				return 1;
+			}));
+			dispatcher.register(literal("ck")
+				.executes(ctx -> open(new dev.justaclient.ui.KitsScreen(null)))
+				.then(literal("save").executes(ctx -> open(dev.justaclient.ui.KitsScreen.fromInventory("Kit " + (dev.justaclient.feature.impl.KitsFeature.get()
+						.kits().size() + 1))))
+					.then(argument("name", StringArgumentType.greedyString()).executes(ctx -> {
+						String n = dev.justaclient.common.kits.Kit.cleanName(StringArgumentType.getString(ctx, "name"));
+						return n == null ? reply(ctx, false, "", "Give the kit a name") : open(dev.justaclient.ui.KitsScreen.fromInventory(n));
+					})))
+				.then(literal("preview").then(argument("name", StringArgumentType.greedyString()).suggests(KITS).executes(ctx -> {
+					var kit = dev.justaclient.common.kits.Kit.find(dev.justaclient.feature.impl.KitsFeature.get().kits(), StringArgumentType.getString(ctx, "name"));
+					return kit == null ? reply(ctx, false, "", "No kit called " + StringArgumentType.getString(ctx, "name")) : open(dev.justaclient.ui.KitsScreen
+						.preview(kit));
+				})))
+				.then(literal("load").then(argument("name", StringArgumentType.greedyString()).suggests(KITS).executes(ctx -> {
+					var kit = dev.justaclient.common.kits.Kit.find(dev.justaclient.feature.impl.KitsFeature.get().kits(), StringArgumentType.getString(ctx, "name"));
+					if (kit == null) {
+						return reply(ctx, false, "", "No kit called " + StringArgumentType.getString(ctx, "name"));
+					}
+					Minecraft.getInstance().execute(() -> dev.justaclient.feature.impl.KitsFeature.get().use(kit));
+					return 1;
+				})))
+				.then(literal("check").then(argument("name", StringArgumentType.greedyString()).suggests(KITS).executes(ctx -> {
+					var kit = dev.justaclient.common.kits.Kit.find(dev.justaclient.feature.impl.KitsFeature.get().kits(), StringArgumentType.getString(ctx, "name"));
+					if (kit == null) {
+						return reply(ctx, false, "", "No kit called " + StringArgumentType.getString(ctx, "name"));
+					}
+					Minecraft.getInstance().execute(() -> dev.justaclient.feature.impl.KitsFeature.get().check(kit, false));
+					return 1;
+				})))
+				.then(literal("stop").executes(ctx -> {
+					dev.justaclient.feature.impl.KitsFeature.get().stopChecking();
+					return reply(ctx, true, "Stopped checking the kit", "");
+				}))
+				.then(literal("list").executes(ctx -> {
+					var kits = dev.justaclient.feature.impl.KitsFeature.get().kits();
+					return reply(ctx, true, kits.isEmpty() ? "No kits yet: /ck save <name>" : "Kits: " + String.join(", ", kits.stream().map(k -> k.name)
+						.toList()), "");
+				})));
+			for (String name : new String[] {"lastdeath", "jdeath"}) {
+				dispatcher.register(literal(name).executes(ctx -> {
+					Minecraft mc = Minecraft.getInstance();
+					mc.execute(() -> mc.setScreen(new dev.justaclient.ui.DeathRecapScreen(null)));
+					return 1;
+				}));
+			}
+			for (String name : new String[] {"landmarks", "jlandmarks"}) {
+				dispatcher.register(literal(name).executes(ctx -> {
+					Minecraft mc = Minecraft.getInstance();
+					mc.execute(() -> mc.setScreen(new dev.justaclient.ui.LandmarksScreen(null)));
+					return 1;
+				}));
+			}
+			for (String name : new String[] {"jmessages", "jdm"}) {
+				dispatcher.register(literal(name).executes(ctx -> {
+					dev.justaclient.feature.impl.MessagingFeature.openScreen(null);
+					return 1;
+				}).then(argument("friend", StringArgumentType.word()).suggests(FRIENDS).executes(ctx -> {
+					dev.justaclient.feature.impl.MessagingFeature.openScreen(StringArgumentType.getString(ctx, "friend"));
+					return 1;
+				}).then(argument("text", StringArgumentType.greedyString()).executes(ctx -> {
+					var m = dev.justaclient.feature.impl.MessagingFeature.get();
+					String to = StringArgumentType.getString(ctx, "friend");
+					if (!m.isEnabled()) {
+						return reply(ctx, false, "", "Turn on Social > Messages first");
+					}
+					boolean sent = m.send(to, StringArgumentType.getString(ctx, "text"));
+					return reply(ctx, sent, "To " + to + ": " + StringArgumentType.getString(ctx, "text"), "Not connected to the relay: " + m.connectionLine());
+				}))));
+			}
+			dispatcher.register(literal("jmods").executes(ctx -> open(new dev.justaclient.ui.ModsScreen(null))));
+			dispatcher.register(literal("jmodrinth").executes(ctx -> open(new dev.justaclient.ui.ModrinthScreen(null))));
+			for (String name : new String[] {"biomes", "jbiomes"}) {
+				dispatcher.register(literal(name).executes(ctx -> open(new dev.justaclient.ui.BiomeEffectsScreen(null))));
+			}
+			for (String name : new String[] {"chatlog", "jchat"}) {
+				dispatcher.register(literal(name).executes(ctx -> {
+					dev.justaclient.feature.impl.ChatHistoryFeature.open(null);
+					return 1;
+				}).then(argument("tab", StringArgumentType.greedyString()).suggests((c, b) -> {
+					dev.justaclient.feature.impl.ChatHistoryFeature.get().tabNames().forEach(b::suggest);
+					return b.buildFuture();
+				}).executes(ctx -> {
+					String want = StringArgumentType.getString(ctx, "tab").trim();
+					String tab = dev.justaclient.feature.impl.ChatHistoryFeature.get().tabNames().stream().filter(n -> n.equalsIgnoreCase(want))
+						.findFirst().orElse(dev.justaclient.feature.impl.ChatHistoryFeature.ALL);
+					dev.justaclient.feature.impl.ChatHistoryFeature.open(tab);
+					return 1;
+				})));
+			}
+			// /cmd 1 to 8: send command macro N once (the same as its key).
+			dispatcher.register(literal("cmd").executes(ctx -> {
+				StringBuilder list = new StringBuilder();
+				for (int i = 1; i <= dev.justaclient.feature.impl.MacrosFeature.slots(); i++) {
+					String c = dev.justaclient.feature.impl.MacrosFeature.command(i);
+					if (!c.isEmpty()) {
+						list.append(list.isEmpty() ? "" : "  ").append(i).append(": ").append(c);
+					}
+				}
+				return reply(ctx, !list.isEmpty(), list.toString(), "No macros yet: set them in Chat > Command macros");
+			}).then(argument("n", IntegerArgumentType.integer(1, dev.justaclient.feature.impl.MacrosFeature.slots())).executes(ctx -> {
+				int n = IntegerArgumentType.getInteger(ctx, "n");
+				return reply(ctx, dev.justaclient.feature.impl.MacrosFeature.runSlot(n), "Sent macro " + n, "Macro " + n + " is empty: set it in Chat > Command macros");
+			})));
+			for (String name : new String[] {"storage", "jstorage"}) {
+				dispatcher.register(literal(name).executes(ctx -> {
+					Minecraft mc = Minecraft.getInstance();
+					mc.execute(() -> mc.setScreen(new dev.justaclient.ui.StorageScreen(null)));
+					return 1;
+				}));
+			}
+			for (String name : new String[] {"potions", "jpotions"}) {
+				dispatcher.register(literal(name).executes(ctx -> {
+					Minecraft mc = Minecraft.getInstance();
+					mc.execute(() -> mc.setScreen(new dev.justaclient.ui.PotionGuideScreen(null)));
+					return 1;
+				}));
+			}
 			dispatcher.register(literal("jmedia").executes(ctx -> {
 				ctx.getSource().sendFeedback(Component.literal("Justaclient media").withStyle(ChatFormatting.BOLD));
 				for (String line : NowPlaying.describe()) {

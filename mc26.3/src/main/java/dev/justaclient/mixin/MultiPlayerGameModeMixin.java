@@ -24,6 +24,13 @@ abstract class MultiPlayerGameModeMixin {
 		CombatTracker.onAttack(target);
 	}
 
+	/** The recipe book (or the crafting helper) asked to place a recipe: the crafting helper follows that recipe. */
+	@Inject(method = "handlePlaceRecipe", at = @At("HEAD"))
+	private void justaclient$onPlaceRecipe(int containerId, net.minecraft.world.item.crafting.display.RecipeDisplayId recipe, boolean all,
+		CallbackInfo ci) {
+		dev.justaclient.feature.impl.CraftingHelperFeature.picked(recipe);
+	}
+
 	@Inject(method = "destroyBlock", at = @At("HEAD"))
 	private void justaclient$beforeBlockBroken(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
 		BlockFoundFeature.beforeBreak(pos);

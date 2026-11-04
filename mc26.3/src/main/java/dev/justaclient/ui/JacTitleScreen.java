@@ -43,6 +43,8 @@ import org.jspecify.annotations.Nullable;
  * vanilla screen does (worlds, servers, Realms, options, language, accessibility, credits) in the client's own style.
  */
 public final class JacTitleScreen extends Screen {
+	/** One tip per visit to the title screen. */
+	private final String tip = dev.justaclient.common.Tips.random();
 	private static final float ROW_H = 20f;
 	private static final float MENU_W = 156f;
 	private static final float SMALL_LINKS_GAP = 8f;
@@ -81,12 +83,16 @@ public final class JacTitleScreen extends Screen {
 		rows.add(new Row(Icons.USER, "Singleplayer", null, true, () -> minecraft.gui.setScreen(new SelectWorldScreen(this))));
 		boolean multiplayer = minecraft.allowsMultiplayer();
 		rows.add(new Row(Icons.USERS, "Multiplayer", null, multiplayer, () -> minecraft.gui.setScreen(
-			minecraft.options.skipMultiplayerWarning ? new JoinMultiplayerScreen(this) : new SafetyScreen(this))));
+			dev.justaclient.feature.impl.ServersFeature.multiplayer(this))));
 		rows.add(new Row(Icons.GLOBE, "Realms", null, multiplayer && minecraft.allowsRealms(), () -> minecraft.gui.setScreen(new RealmsMainScreen(this))));
 		rows.add(null);
 		rows.add(new Row(Icons.SLIDERS, "Options", null, true, () -> minecraft.gui.setScreen(new OptionsScreen(this, minecraft.options))));
+		dev.justaclient.feature.impl.ModsPanelFeature mods = dev.justaclient.feature.Features.get(dev.justaclient.feature.impl.ModsPanelFeature.class);
+		if (mods != null && mods.titleButton()) {
+			rows.add(new Row(Icons.PACKAGE, "Mods", null, true, () -> minecraft.gui.setScreen(new ModsScreen(this))));
+		}
 		rows.add(new Row(Icons.LAYOUT_DASHBOARD, "Client settings", Justaclient.OPEN_MENU.getTranslatedKeyMessage().getString(), true,
-			() -> minecraft.gui.setScreen(new ClickGuiScreen(this))));
+			() -> minecraft.gui.setScreen(ClickGuiScreen.open(this))));
 		rows.add(new Row(Icons.LOG_OUT, "Quit game", null, true, minecraft::stop));
 		while (hover.size() < rows.size()) {
 			hover.add(new Animation(Easing.CUBIC_OUT, 120, 0f));
@@ -140,14 +146,14 @@ public final class JacTitleScreen extends Screen {
 				Draw.horizontalGradient(g, 0, 0, width * 0.6f, height, 0, 0x70000000, 0x00000000);
 				return;
 			}
-			drawGradient(g);
+			drawGradient(g, width, height);
 			String note = PICTURE.loading() ? "Loading your picture" : PICTURE.error() != null ? "Could not read the picture: " + PICTURE.error()
 				: "Put a PNG, JPG or GIF in config/justaclient/backgrounds";
 			JacText.draw(g, note, width - JacText.width(note, Theme.SMALL, JacText.Weight.REGULAR) - 8, 6, Theme.TEXT_DIM, Theme.SMALL, JacText.Weight.REGULAR);
 			return;
 		}
 		if (bg == TitleScreenFeature.Background.GRADIENT) {
-			drawGradient(g);
+			drawGradient(g, width, height);
 			return;
 		}
 		extractPanorama(g, partialTick);
@@ -159,7 +165,7 @@ public final class JacTitleScreen extends Screen {
 	}
 
 	/** Slow soft blobs of the accent colours over a dark surface. */
-	private void drawGradient(GuiGraphicsExtractor g) {
+	public static void drawGradient(GuiGraphicsExtractor g, int width, int height) {
 		Draw.verticalGradient(g, 0, 0, width, height, 0, 0xFF0E1016, 0xFF07080C);
 		float t = (System.currentTimeMillis() % 120_000L) / 1000f;
 		float size = Math.max(width, height);
@@ -249,6 +255,10 @@ public final class JacTitleScreen extends Screen {
 		float ly = menuY + h + SMALL_LINKS_GAP;
 		link(g, "Language", menuX + 4, ly, mouseX, mouseY - slide * 0.6f, a);
 		link(g, "Accessibility", menuX + 4 + JacText.width("Language", Theme.SMALL, JacText.Weight.REGULAR) + 12, ly, mouseX, mouseY - slide * 0.6f, a);
+		if (Features.get(TitleScreenFeature.class).showsTips()) {
+			JacText.icon(g, Icons.LIGHTBULB, menuX + 4, ly + 16f, 6.5f, Colors.fade(accent, a));
+			JacText.draw(g, tip, menuX + 14, ly + 16.5f, Colors.fade(Theme.TEXT_DIM, a * 0.9f), Theme.SMALL, JacText.Weight.REGULAR);
+		}
 		g.pose().popMatrix();
 
 		drawAccount(g, a);
@@ -388,7 +398,7 @@ public final class JacTitleScreen extends Screen {
 	@Override
 	public boolean keyPressed(KeyEvent event) {
 		if (Justaclient.OPEN_MENU.matches(event)) {
-			minecraft.gui.setScreen(new ClickGuiScreen(this));
+			minecraft.gui.setScreen(ClickGuiScreen.open(this));
 			return true;
 		}
 		int key = event.key();

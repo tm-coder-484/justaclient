@@ -97,6 +97,16 @@ public final class JacPipelines {
 			.build()
 	);
 
+	/** The same glow, drawn over blocks: outlines of places you already found, such as a remembered chest. */
+	public static final RenderPipeline WORLD_FX_XRAY = RenderPipelines.register(
+		RenderPipeline.builder(WORLD_FX_SNIPPET)
+			.withLocation(Justaclient.id("pipeline/world_fx_xray"))
+			.withFragmentShader(Justaclient.id("core/world_fx"))
+			.withBlend(BlendFunction.TRANSLUCENT)
+			.withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+			.build()
+	);
+
 	/** The same sprites added onto the sky, for stars and shooting stars. */
 	public static final RenderPipeline SKY_FX = RenderPipelines.register(
 		RenderPipeline.builder(WORLD_FX_SNIPPET)
@@ -172,6 +182,21 @@ public final class JacPipelines {
 			.withFragmentShader(Justaclient.id("post/hand"))
 			.withSampler("HandSampler")
 			.withUniform("JacHand", UniformType.UNIFORM_BUFFER)
+			.withBlend(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA)
+			.withDepthWrite(false)
+			.withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+			.withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
+			.build()
+	);
+
+	/** Lays the menu texture over the frame on a panel in the world (see {@link SpatialMenus}). */
+	public static final RenderPipeline SPATIAL = RenderPipelines.register(
+		RenderPipeline.builder()
+			.withLocation(Justaclient.id("pipeline/spatial"))
+			.withVertexShader("core/screenquad")
+			.withFragmentShader(Justaclient.id("post/spatial"))
+			.withSampler("GuiSampler")
+			.withUniform("JacSpatial", UniformType.UNIFORM_BUFFER)
 			.withBlend(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA)
 			.withDepthWrite(false)
 			.withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)

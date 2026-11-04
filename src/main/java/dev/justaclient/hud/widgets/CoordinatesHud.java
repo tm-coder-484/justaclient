@@ -12,6 +12,7 @@ import net.minecraft.world.level.Level;
 
 public final class CoordinatesHud extends RowsHud {
 	private final BoolSetting nether = bool("nether", "Nether / overworld conversion", true);
+	private final BoolSetting chunk = bool("chunk", "Chunk coordinates", false);
 	private final BoolSetting facing = bool("facing", "Facing", true);
 	private final BoolSetting biome = bool("biome", "Biome", false);
 	private final BoolSetting clock = bool("clock", "Clock", false);
@@ -37,6 +38,10 @@ public final class CoordinatesHud extends RowsHud {
 			rows.add(inNether
 				? new Row("Overworld", x * 8 + " " + z * 8)
 				: new Row("Nether", Math.floorDiv(x, 8) + " " + Math.floorDiv(z, 8)));
+		}
+		if (chunk.on()) {
+			// The chunk you are in, then where you stand inside it (0 to 15 on each axis).
+			rows.add(new Row("Chunk", (x >> 4) + " " + (z >> 4) + "  (" + (x & 15) + " " + (z & 15) + ")"));
 		}
 		if (facing.on()) {
 			Direction dir = preview ? Direction.NORTH : player.getDirection();

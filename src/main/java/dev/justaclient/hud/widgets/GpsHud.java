@@ -18,11 +18,15 @@ import org.jspecify.annotations.Nullable;
 public final class GpsHud extends HudFeature {
 	private final BoolSetting nearest = bool("nearest", "Track nearest when none is chosen", false);
 	private @Nullable Waypoint target;
+	private dev.justaclient.waypoint.Locate.@Nullable Target place;
+	private double tx;
+	private double tz;
+	private int color;
 	private String name = "";
 	private String distance = "";
 
 	public GpsHud() {
-		super("gps", "GPS", "Arrow to the waypoint you are tracking", Icons.COMPASS, true, 0.5f, 0.12f);
+		super("gps", "GPS", "Arrow to the waypoint or place you are tracking", Icons.COMPASS, true, 0.5f, 0.12f);
 	}
 
 	private @Nullable Waypoint pick(LocalPlayer player) {
@@ -45,14 +49,25 @@ public final class GpsHud extends HudFeature {
 	@Override
 	public void layout(boolean preview) {
 		LocalPlayer player = Minecraft.getInstance().player;
-		target = preview || player == null ? null : pick(player);
+		place = preview || player == null ? null : dev.justaclient.waypoint.Locate.tracked();
+		target = preview || player == null || place != null ? null : pick(player);
+		if (place != null) {
+			tx = place.centreX();
+			tz = place.centreZ();
+			color = place.color();
+			name = place.label();
+		} else if (target != null) {
+			tx = target.x + 0.5;
+			tz = target.z + 0.5;
+			color = target.color;
+			name = target.name;
+		}
 		if (preview) {
 			name = "Base";
 			distance = "214 m";
-		} else if (target != null) {
-			name = target.name;
-			double dx = target.x + 0.5 - player.getX();
-			double dz = target.z + 0.5 - player.getZ();
+		} else if (target != null || place != null) {
+			double dx = tx - player.getX();
+			double dz = tz - player.getZ();
 			double d = Math.sqrt(dx * dx + dz * dz);
 			distance = d >= 1000 ? String.format("%.1f km", d / 1000) : String.format("%.0f m", d);
 		}
@@ -62,7 +77,7 @@ public final class GpsHud extends HudFeature {
 
 	@Override
 	public boolean hasContent() {
-		return target != null;
+		return target != null || place != null;
 	}
 
 	@Override
@@ -70,13 +85,13 @@ public final class GpsHud extends HudFeature {
 		panel(g, width, height);
 		float angle = 0f;
 		LocalPlayer player = Minecraft.getInstance().player;
-		if (!preview && target != null && player != null) {
-			double dx = target.x + 0.5 - player.getX();
-			double dz = target.z + 0.5 - player.getZ();
+		if (!preview && (target != null || place != null) && player != null) {
+			double dx = tx - player.getX();
+			double dz = tz - player.getZ();
 			float bearing = (float) Math.toDegrees(Math.atan2(-dx, dz));
 			angle = Mth.wrapDegrees(bearing - player.getYRot());
 		}
-		int accent = preview || target == null ? JacConfig.accent() : target.color;
+		int accent = preview || target == null && place == null ? JacConfig.accent() : color;
 		g.pose().pushMatrix();
 		g.pose().translate(PAD + 8f, PAD + 8f);
 		g.pose().rotate((float) Math.toRadians(angle));

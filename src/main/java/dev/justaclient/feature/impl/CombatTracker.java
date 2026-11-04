@@ -21,6 +21,14 @@ public final class CombatTracker {
 	private static long lastAttack;
 	private static long lastHit;
 	private static boolean reportedDeath;
+	/** A combo ends when you are hit or after this long without landing one. */
+	private static final long COMBO_NANOS = 3_000_000_000L;
+	private static float pendingReach = -1f;
+	private static float lastReach = -1f;
+	private static long lastReachAt;
+	private static int combo;
+	private static int bestCombo;
+	private static int hits;
 
 	private CombatTracker() {
 	}
@@ -40,7 +48,44 @@ public final class CombatTracker {
 		return lastHit == 0 ? 1e6f : (System.nanoTime() - lastHit) / 1e9f;
 	}
 
+	/** Distance from your eyes to the nearest point of the last entity you hit in melee, or -1 before the first hit. */
+	public static float lastReach() {
+		return lastReach;
+	}
+
+	/** Seconds since {@link #lastReach} was measured. */
+	public static float secondsSinceReach() {
+		return lastReachAt == 0 ? 1e6f : (System.nanoTime() - lastReachAt) / 1e9f;
+	}
+
+	/** Hits in a row without being hit back. */
+	public static int combo() {
+		return System.nanoTime() - lastHit > COMBO_NANOS ? 0 : combo;
+	}
+
+	public static int bestCombo() {
+		return bestCombo;
+	}
+
+	/** Hits landed since joining. */
+	public static int hits() {
+		return hits;
+	}
+
+	public static void resetSession() {
+		combo = 0;
+		bestCombo = 0;
+		hits = 0;
+		lastReach = -1f;
+		lastReachAt = 0;
+	}
+
 	public static void onAttack(Entity entity) {
+		LocalPlayer self = Minecraft.getInstance().player;
+		if (self != null) {
+			// Measured from the eyes to the closest point of the hitbox, the same way reach is checked.
+			pendingReach = (float) Math.sqrt(entity.getBoundingBox().distanceToSqr(self.getEyePosition()));
+		}
 		if (entity instanceof LivingEntity living) {
 			if (living != target) {
 				reportedDeath = false;
@@ -60,24 +105,36 @@ public final class CombatTracker {
 		Minecraft mc = Minecraft.getInstance();
 		LocalPlayer player = mc.player;
 		long now = System.nanoTime();
+		if (player != null && entity == player) {
+			combo = 0;
+		}
 		if (player != null && causeId == player.getId() && entity != player && entity instanceof LivingEntity living) {
 			if (living != target) {
 				reportedDeath = false;
 			}
 			target = living;
 			lastAttack = now;
-			if (directId != causeId) {
+			boolean melee = directId == causeId;
+			if (!melee) {
 				// A projectile hit: there was no swing, so pulse the crosshair now as a hit marker.
 				Features.get(CrosshairFeature.class).onAttack();
 			}
-			hit(living, now);
+			hit(living, now, melee);
 		} else if (causeId < 0 && entity == target && now - lastAttack < HIT_WINDOW_NANOS) {
 			// No source sent (some servers strip it): fall back to timing against the last swing.
-			hit(target, now);
+			hit(target, now, true);
 		}
 	}
 
-	private static void hit(LivingEntity entity, long now) {
+	private static void hit(LivingEntity entity, long now, boolean melee) {
+		combo = now - lastHit > COMBO_NANOS ? 1 : combo + 1;
+		bestCombo = Math.max(bestCombo, combo);
+		hits++;
+		if (melee && pendingReach >= 0f) {
+			lastReach = pendingReach;
+			lastReachAt = now;
+			pendingReach = -1f;
+		}
 		lastHit = now;
 		Features.get(HitParticlesFeature.class).onHit(entity);
 		Features.get(HitBubblesFeature.class).onHit(entity);

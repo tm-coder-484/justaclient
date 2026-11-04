@@ -1,6 +1,7 @@
 package dev.justaclient.feature.impl;
 
 import dev.justaclient.anim.Colors;
+import dev.justaclient.common.Tips;
 import dev.justaclient.config.JacConfig;
 import dev.justaclient.feature.Category;
 import dev.justaclient.feature.Feature;
@@ -14,10 +15,13 @@ import net.minecraft.client.gui.GuiGraphics;
 /** The world loading screen as a glass card with a smooth progress bar and spinner, over the blurred panorama. */
 public final class LoadingScreenFeature extends Feature {
 	private final BoolSetting percent = bool("percent", "Show percentage", true);
+	private final BoolSetting tips = bool("tips", "Random tips", true);
 	private float shownProgress;
+	private String tip = "";
+	private long tipShown;
 
 	public LoadingScreenFeature() {
-		super("loading_screen", "Loading screen", "A cleaner world loading screen", Category.UTILITY, Icons.DOWNLOAD, true);
+		super("loading_screen", "Loading screen", "A cleaner world loading screen", Category.SCREENS, Icons.DOWNLOAD, true);
 	}
 
 	public void draw(GuiGraphics g, int width, int height, String label, boolean hasProgress, float progress) {
@@ -49,6 +53,17 @@ public final class LoadingScreenFeature extends Feature {
 			}
 		} else {
 			shownProgress = 0f;
+		}
+		if (tips.on()) {
+			// A new tip every eight seconds on long loads.
+			long now = System.currentTimeMillis();
+			if (tip.isEmpty() || now - tipShown > 8000L) {
+				tip = Tips.random();
+				tipShown = now;
+			}
+			JacText.icon(g, Icons.LIGHTBULB, (width - JacText.width(tip, Theme.SMALL, JacText.Weight.REGULAR)) / 2f - 10f, y + h + 10.5f, 6.5f,
+				JacConfig.accent());
+			JacText.drawCentered(g, tip, width / 2f + 1f, y + h + 11f, Theme.TEXT_DIM, Theme.SMALL, JacText.Weight.REGULAR);
 		}
 	}
 }

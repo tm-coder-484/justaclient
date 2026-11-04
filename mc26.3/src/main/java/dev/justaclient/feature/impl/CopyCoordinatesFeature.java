@@ -31,7 +31,7 @@ public final class CopyCoordinatesFeature extends Feature {
 	private boolean wasDown;
 
 	public CopyCoordinatesFeature() {
-		super("copy_coordinates", "Copy coordinates", "Copy your position with one key", Category.UTILITY, Icons.COPY, true);
+		super("copy_coordinates", "Copy coordinates", "Copy your position with one key", Category.TOOLS, Icons.COPY, true);
 	}
 
 	@Override

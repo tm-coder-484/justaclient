@@ -30,8 +30,15 @@ public abstract class HudFeature extends Feature {
 
 	public final BoolSetting background = new BoolSetting("background", "Background panel", true);
 	public final NumberSetting scale = new NumberSetting("scale", "Scale", 1.0, 0.5, 2.0, 0.05, v -> Math.round(v * 100) + "%");
+	/**
+	 * Without an anchor, where the widget sits in the free space (0 = flush left/top, 1 = flush right/bottom). With one,
+	 * where its anchor point sits across the screen, so the widget grows away from that point when its content changes.
+	 */
 	public float relX;
 	public float relY;
+	/** Which point of the widget is pinned: 0 left/top, 0.5 centre, 1 right/bottom. NaN means no anchor (the old behaviour). */
+	public float anchorX = Float.NaN;
+	public float anchorY = Float.NaN;
 	private final float defaultX;
 	private final float defaultY;
 	protected float width;
@@ -71,25 +78,88 @@ public abstract class HudFeature extends Feature {
 	}
 
 	public float screenX(float screenWidth) {
-		return MARGIN + relX * Math.max(0f, screenWidth - 2 * MARGIN - scaledWidth());
+		return axis(relX, anchorX, scaledWidth(), screenWidth);
 	}
 
 	public float screenY(float screenHeight) {
-		return MARGIN + relY * Math.max(0f, screenHeight - 2 * MARGIN - scaledHeight());
+		return axis(relY, anchorY, scaledHeight(), screenHeight);
+	}
+
+	private static float axis(float rel, float anchor, float size, float screen) {
+		if (Float.isNaN(anchor)) {
+			return MARGIN + rel * Math.max(0f, screen - 2 * MARGIN - size);
+		}
+		float pos = MARGIN + rel * Math.max(0f, screen - 2 * MARGIN) - anchor * size;
+		return Math.max(MARGIN, Math.min(screen - MARGIN - size, pos));
+	}
+
+	private static float relative(float pos, float anchor, float size, float screen) {
+		if (Float.isNaN(anchor)) {
+			float free = screen - 2 * MARGIN - size;
+			return free <= 0 ? 0f : Math.max(0f, Math.min(1f, (pos - MARGIN) / free));
+		}
+		float span = screen - 2 * MARGIN;
+		return span <= 0 ? 0f : Math.max(0f, Math.min(1f, (pos + anchor * size - MARGIN) / span));
 	}
 
 	/** Places the widget's top-left at x, y on a screen of the given size. */
 	public void moveTo(float x, float y, float screenWidth, float screenHeight) {
-		float freeX = screenWidth - 2 * MARGIN - scaledWidth();
-		float freeY = screenHeight - 2 * MARGIN - scaledHeight();
-		relX = freeX <= 0 ? 0f : Math.max(0f, Math.min(1f, (x - MARGIN) / freeX));
-		relY = freeY <= 0 ? 0f : Math.max(0f, Math.min(1f, (y - MARGIN) / freeY));
+		relX = relative(x, anchorX, scaledWidth(), screenWidth);
+		relY = relative(y, anchorY, scaledHeight(), screenHeight);
+	}
+
+	/** Pins a different point of the widget without moving it. NaN for both removes the anchor. */
+	public void setAnchor(float ax, float ay, float screenWidth, float screenHeight) {
+		float x = screenX(screenWidth);
+		float y = screenY(screenHeight);
+		anchorX = ax;
+		anchorY = ay;
+		moveTo(x, y, screenWidth, screenHeight);
+	}
+
+	/** Anchors to the nearest third of the screen the widget sits in: left, centre or right, and top, middle or bottom. */
+	public void anchorToNearest(float screenWidth, float screenHeight) {
+		float cx = (screenX(screenWidth) + scaledWidth() / 2f) / screenWidth;
+		float cy = (screenY(screenHeight) + scaledHeight() / 2f) / screenHeight;
+		setAnchor(cx < 1 / 3f ? 0f : cx > 2 / 3f ? 1f : 0.5f, cy < 1 / 3f ? 0f : cy > 2 / 3f ? 1f : 0.5f, screenWidth, screenHeight);
+	}
+
+	public float defaultX() {
+		return defaultX;
+	}
+
+	public float defaultY() {
+		return defaultY;
+	}
+
+	/**
+	 * The setting that holds the widget's width in GUI pixels if its edges can be dragged freely in the HUD editor, or
+	 * null when only its scale can change.
+	 */
+	public @org.jspecify.annotations.Nullable NumberSetting freeWidth() {
+		return null;
+	}
+
+	/** Like {@link #freeWidth} for the height. */
+	public @org.jspecify.annotations.Nullable NumberSetting freeHeight() {
+		return null;
 	}
 
 	public void resetPosition() {
 		relX = defaultX;
 		relY = defaultY;
+		anchorX = Float.NaN;
+		anchorY = Float.NaN;
 		scale.reset();
+	}
+
+	/** Switching a widget on by hand puts it in the nearest free spot if it would cover another one. */
+	@Override
+	public void toggle() {
+		super.toggle();
+		if (isEnabled()) {
+			HudPlacer.placeNew(this);
+		}
 	}
 
 	@Override
