@@ -182,7 +182,8 @@ public final class FurnaceInfoFeature extends Feature {
 					ContainerOverlays.row(g, "Short by", fit(more + " " + what, w - 50), AMBER, x, ly, w);
 					if (box.screen() != offeredFor) {
 						offeredFor = box.screen();
-						offerFuel(more);
+						// The offer is about coal, so count in coal even when the fuel slot holds something else (planks).
+						offerFuel(shortBy(needed, covered, cook, coalTicks(fast(screen))));
 					}
 				}
 			}

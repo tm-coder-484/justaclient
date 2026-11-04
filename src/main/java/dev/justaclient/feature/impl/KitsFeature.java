@@ -74,6 +74,8 @@ public final class KitsFeature extends Feature {
 					kits.addAll(Kit.fromJson(JsonParser.parseReader(reader)));
 				} catch (IOException | RuntimeException e) {
 					Justaclient.LOGGER.warn("Could not read {}", FILE, e);
+					// Otherwise the next kit saved would replace every kit in the file.
+					dev.justaclient.world.WorldStore.keepAside(FILE);
 				}
 			}
 		}

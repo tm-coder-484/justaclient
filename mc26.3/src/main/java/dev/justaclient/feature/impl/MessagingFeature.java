@@ -87,13 +87,14 @@ public final class MessagingFeature extends Feature {
 		save();
 	}
 
-	/** Reads the saved history once, the first time anything needs it. */
+	/**
+	 * Reads the saved history once, the first time anything needs it while history is on. Not marking it loaded while
+	 * history is off keeps a later save (after history is turned on) from writing over the file unread.
+	 */
 	public void ensureLoaded() {
-		if (!loaded) {
+		if (!loaded && history.on()) {
 			loaded = true;
-			if (history.on()) {
-				conversations.load(HISTORY);
-			}
+			conversations.loadKeeping(HISTORY);
 		}
 	}
 
@@ -197,9 +198,7 @@ public final class MessagingFeature extends Feature {
 		if (clean.isEmpty()) {
 			return false;
 		}
-		if (clean.length() > RelayProtocol.MAX_TEXT) {
-			clean = clean.substring(0, RelayProtocol.MAX_TEXT);
-		}
+		clean = RelayProtocol.cut(clean);
 		String id = UUID.randomUUID().toString().substring(0, 12);
 		boolean sent = relay.send(RelayProtocol.dm(id, friend, clean));
 		conversations.add(friend, new Conversations.Message(id, true, clean, System.currentTimeMillis(), sent ? "sending" : "offline"));

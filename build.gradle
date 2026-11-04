@@ -30,6 +30,12 @@ sourceSets {
 			srcDirs = ['src/main/java', 'common/src/main/java']
 		}
 	}
+	// JUnit tests for the shared plain Java, run by both builds.
+	test {
+		java {
+			srcDirs = ['common/src/test/java']
+		}
+	}
 }
 
 loom {
@@ -55,6 +61,14 @@ dependencies {
 	localRuntime "org.anarres:jcpp:1.4.14"
 	localRuntime "io.github.douira:glsl-transformer:3.0.0-pre3"
 	localRuntime "org.antlr:antlr4-runtime:4.13.1"
+
+	testImplementation platform("org.junit:junit-bom:${project.junit_version}")
+	testImplementation "org.junit.jupiter:junit-jupiter"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+test {
+	useJUnitPlatform()
 }
 
 processResources {

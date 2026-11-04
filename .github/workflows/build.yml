@@ -19,6 +19,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build
         run: ./gradlew build
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-1.21.11
+          path: build/reports/tests/test
       - name: Upload mod jar
         uses: actions/upload-artifact@v4
         with:
@@ -39,6 +45,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build
         run: ./gradlew -p mc26.3 build
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-26.3
+          path: mc26.3/build/reports/tests/test
       - name: Upload mod jar
         uses: actions/upload-artifact@v4
         with:

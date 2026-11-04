@@ -10,6 +10,7 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -245,6 +246,12 @@ public final class Waypoints {
 			}
 		} catch (IOException | JsonParseException e) {
 			Justaclient.LOGGER.warn("Could not read {}", FILE, e);
+			// Set aside, or the next waypoint added would save an empty list over every world's waypoints.
+			try {
+				Files.move(FILE, FILE.resolveSibling(FILE.getFileName() + "." + System.currentTimeMillis() + ".broken"));
+			} catch (IOException moveFailed) {
+				Justaclient.LOGGER.warn("Could not set aside {}", FILE, moveFailed);
+			}
 		}
 	}
 
@@ -262,10 +269,13 @@ public final class Waypoints {
 	public static void save() {
 		try {
 			Files.createDirectories(FILE.getParent());
-			try (Writer writer = Files.newBufferedWriter(FILE)) {
+			// Written beside it and moved over it, so a crash mid-write cannot leave half a file.
+			Path tmp = FILE.resolveSibling(FILE.getFileName() + ".tmp");
+			try (Writer writer = Files.newBufferedWriter(tmp)) {
 				byWorld.values().removeIf(List::isEmpty);
 				GSON.toJson(byWorld, writer);
 			}
+			Files.move(tmp, FILE, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
 		} catch (IOException e) {
 			Justaclient.LOGGER.warn("Could not write {}", FILE, e);
 		}

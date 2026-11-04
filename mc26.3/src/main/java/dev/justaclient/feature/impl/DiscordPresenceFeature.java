@@ -92,7 +92,8 @@ public final class DiscordPresenceFeature extends Feature {
 					pipe.write(1, frame(null));
 					pipe.read();
 				}
-			} catch (IOException e) {
+			} catch (IOException | RuntimeException e) {
+				// A RuntimeException (the world closing while this thread reads it) must not end the thread for good.
 				Justaclient.LOGGER.debug("Discord IPC unavailable: {}", e.toString());
 				sleep(15000);
 			}
@@ -126,10 +127,12 @@ public final class DiscordPresenceFeature extends Feature {
 	}
 
 	private @Nullable String dimension(Minecraft mc) {
-		if (!showDimension.on() || mc.level == null) {
+		// Read once: this runs on the Discord thread, and the world can close between two reads.
+		var level = mc.level;
+		if (!showDimension.on() || level == null) {
 			return null;
 		}
-		String path = mc.level.dimension().identifier().getPath().replace('_', ' ');
+		String path = level.dimension().identifier().getPath().replace('_', ' ');
 		return "In the " + path.substring(0, 1).toUpperCase(Locale.ROOT) + path.substring(1);
 	}
 
