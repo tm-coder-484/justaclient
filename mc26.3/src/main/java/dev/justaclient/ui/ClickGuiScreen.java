@@ -6,6 +6,7 @@ import dev.justaclient.anim.Animation;
 import dev.justaclient.anim.Colors;
 import dev.justaclient.anim.Easing;
 import dev.justaclient.anim.Spring;
+import dev.justaclient.common.ui.Fit;
 import dev.justaclient.config.JacConfig;
 import dev.justaclient.feature.Category;
 import dev.justaclient.feature.Feature;
@@ -41,16 +42,29 @@ import org.jspecify.annotations.Nullable;
  * selected feature's settings on the right. The Theme page swaps the two right columns for the style token controls.
  */
 public final class ClickGuiScreen extends Screen {
-	static final float W = 500f;
-	static final float H = 290f;
+	/** The smallest panel; it grows taller to fit the sidebar and wider when the window's shape leaves room. */
+	private static final float MIN_W = 500f;
+	private static final float MIN_H = 290f;
+	private static final float MAX_W = 640f;
 	private static final float SIDEBAR = 108f;
-	private static final float LIST_W = 182f;
+	private static final float MIN_LIST_W = 182f;
 	private static final float FOOTER = 30f;
-	private static final float BODY_H = H - FOOTER;
 	private static final float LIST_X = SIDEBAR;
-	private static final float SET_X = SIDEBAR + LIST_W;
-	private static final float SET_W = W - SET_X;
-	private static final float CARD_H = 27f;
+	private static final float NAV_TOP = 58f;
+	/** Sidebar rows: at least this far apart, so a row's highlight never touches the next one. */
+	private static final float NAV_MIN_STEP = 17f;
+	private static final float NAV_MAX_STEP = 19f;
+	private static final float NAV_GAP = 2f;
+	private static final float NAV_DIVIDER = 10f;
+	// Panel size, worked out in init() from the window and the number of sidebar rows.
+	private float W = MIN_W;
+	private float H = MIN_H;
+	private float BODY_H = MIN_H - FOOTER;
+	private float LIST_W = MIN_LIST_W;
+	private float SET_X = SIDEBAR + MIN_LIST_W;
+	private float SET_W = MIN_W - SET_X;
+	/** Feature cards have room for a two-line description. */
+	private static final float CARD_H = 33f;
 	private static final float CARD_GAP = 4f;
 	private static final float LIST_TOP = 34f;
 	private static final float SET_TOP = 72f;
@@ -102,6 +116,7 @@ public final class ClickGuiScreen extends Screen {
 	/** Setting controls, kept per setting so their animations survive re-layout. */
 	private final Map<Setting<?>, Widget> settingWidgets = new IdentityHashMap<>();
 	private final Map<Widget, Spring> rowY = new IdentityHashMap<>();
+	private final Map<String, List<String>> descCache = new java.util.HashMap<>();
 	private final List<Widget> visibleSettings = new ArrayList<>();
 	private final List<Widget> chrome = new ArrayList<>();
 	private final List<Widget> themeWidgets = new ArrayList<>();
@@ -192,6 +207,7 @@ public final class ClickGuiScreen extends Screen {
 	protected void init() {
 		// Typing anywhere goes to the search or a focused box, so SDL text input stays on while the menu is open.
 		minecraft.textInputManager().startTextInput(this);
+		layoutPanel();
 		chrome.clear();
 		chrome.add(new Button(W - 14 - 96, H - FOOTER + 6, 96, 18, Icons.MOVE, "Edit HUD layout", false, this::openHudEditor));
 		themeWidgets.clear();
@@ -201,6 +217,28 @@ public final class ClickGuiScreen extends Screen {
 			rebuildWidgets();
 		}));
 		refreshList();
+	}
+
+	/**
+	 * Sizes the panel: tall enough for every sidebar row at a comfortable spacing, and as wide as the window's shape
+	 * allows without making the panel smaller on screen. The extra width goes to the feature list and the settings.
+	 */
+	private void layoutPanel() {
+		int rows = navItems().size();
+		float navBottom = NAV_TOP + (rows - 1) * NAV_MIN_STEP + NAV_DIVIDER + (NAV_MIN_STEP - NAV_GAP) + 8f;
+		float h = Math.max(MIN_H, navBottom + FOOTER);
+		float w = Fit.menuWidth(width - 16f, height - 16f, h, MIN_W, MAX_W);
+		if (w != W || h != H) {
+			settingWidgets.clear();
+			rowY.clear();
+		}
+		descCache.clear();
+		W = w;
+		H = h;
+		BODY_H = H - FOOTER;
+		LIST_W = MIN_LIST_W + (W - MIN_W) * 0.45f;
+		SET_X = SIDEBAR + LIST_W;
+		SET_W = W - SET_X;
 	}
 
 	private void openHudEditor() {
@@ -439,6 +477,7 @@ public final class ClickGuiScreen extends Screen {
 
 		// Categories, then Theme below a divider. A single marker slides to the active one.
 		List<Object> items = navItems();
+		float rowH = navRowH();
 		int activeIndex = -1;
 		for (int i = 0; i < items.size(); i++) {
 			Object item = items.get(i);
@@ -454,24 +493,24 @@ public final class ClickGuiScreen extends Screen {
 			}
 			float my0 = navMarker.update();
 			int accent = JacConfig.accent();
-			Draw.rect(g, 10, my0, SIDEBAR - 20, 17, r, Colors.fade(Colors.withAlpha(accent, 0x38), t));
-			Draw.rect(g, 10, my0 + 3, 1.5f, 11, 0.75f, Colors.fade(accent, t));
+			Draw.rect(g, 10, my0, SIDEBAR - 20, rowH, r, Colors.fade(Colors.withAlpha(accent, 0x38), t));
+			Draw.rect(g, 10, my0 + (rowH - 11) / 2f, 1.5f, 11, 0.75f, Colors.fade(accent, t));
 		}
 		Draw.rect(g, 14, navY(items.indexOf(HubPage.class)) - 6, SIDEBAR - 28, 0.75f, 0, Colors.fade(Theme.DIVIDER, t));
 		for (int i = 0; i < items.size(); i++) {
 			Object item = items.get(i);
 			float y = navY(i);
-			boolean hover = mx >= 10 && mx < SIDEBAR - 10 && my >= y && my < y + 17;
+			boolean hover = mx >= 10 && mx < SIDEBAR - 10 && my >= y && my < y + rowH;
 			float h = navHover.computeIfAbsent(item, k -> new Animation(Easing.CUBIC_OUT, 120, 0f)).animateTo(hover ? 1f : 0f).get();
 			if (h > 0.01f && i != activeIndex) {
-				Draw.rect(g, 10, y, SIDEBAR - 20, 17, r, Colors.fade(Colors.withAlpha(0xFFFFFF, 0x0E), t * h));
+				Draw.rect(g, 10, y, SIDEBAR - 20, rowH, r, Colors.fade(Colors.withAlpha(0xFFFFFF, 0x0E), t * h));
 			}
 			boolean active = i == activeIndex;
 			Icons icon = item instanceof Category c ? c.icon : pageIcon(item);
 			String label = item instanceof Category c ? c.label : pageLabel(item);
 			int color = Colors.lerp(Theme.TEXT_DIM, Theme.TEXT, active ? 1f : h * 0.6f);
-			JacText.icon(g, icon, 17, y + (17 - 7.5f) / 2f, 7.5f, Colors.fade(active ? JacConfig.accent() : color, t));
-			JacText.draw(g, label, 31, y + (17 - JacText.lineHeight(Theme.LABEL)) / 2f, Colors.fade(color, t), Theme.LABEL,
+			JacText.icon(g, icon, 17, y + (rowH - 7.5f) / 2f, 7.5f, Colors.fade(active ? JacConfig.accent() : color, t));
+			JacText.draw(g, label, 31, y + (rowH - JacText.lineHeight(Theme.LABEL)) / 2f, Colors.fade(color, t), Theme.LABEL,
 				active ? JacText.Weight.SEMIBOLD : JacText.Weight.REGULAR);
 		}
 	}
@@ -495,9 +534,18 @@ public final class ClickGuiScreen extends Screen {
 	private float navY(int index) {
 		List<Object> items = navItems();
 		int pages = items.indexOf(HubPage.class);
-		// Rows tighten when there are more than fit above the footer.
-		float step = Math.min(19f, (BODY_H - 6f - 58f - 10f - 17f) / Math.max(1, items.size() - 1));
-		return 58 + index * step + (index >= pages ? 10 : 0);
+		return NAV_TOP + index * navStep(items.size()) + (index >= pages ? NAV_DIVIDER : 0);
+	}
+
+	/** How far apart the sidebar rows are: roomy when the panel has space, never closer than {@link #NAV_MIN_STEP}. */
+	private float navStep(int rows) {
+		float room = (BODY_H - 8f - NAV_TOP - NAV_DIVIDER - (NAV_MIN_STEP - NAV_GAP)) / Math.max(1, rows - 1);
+		return Math.max(NAV_MIN_STEP, Math.min(NAV_MAX_STEP, room));
+	}
+
+	/** The height of a sidebar row's highlight, which leaves a gap before the next row. */
+	private float navRowH() {
+		return navStep(navItems().size()) - NAV_GAP;
 	}
 
 	private void drawList(GuiGraphicsExtractor g, double mx, double my, float t) {
@@ -536,30 +584,55 @@ public final class ClickGuiScreen extends Screen {
 			if (sel) {
 				Draw.outline(g, cx, y, cw, CARD_H, radius, 0.85f, Colors.fade(Colors.withAlpha(JacConfig.accent(), 0xB0), a));
 			}
-			JacText.draw(g, f.name, cx + 9, y + 5.5f, Colors.fade(Theme.TEXT, a), Theme.LABEL, JacText.Weight.SEMIBOLD);
-			if (f.isExperimental()) {
-				float bxl = cx + 9 + JacText.width(f.name, Theme.LABEL, JacText.Weight.SEMIBOLD) + 4;
-				float bwl = JacText.width("Labs", Theme.SMALL - 0.5f, JacText.Weight.SEMIBOLD) + 8;
-				Draw.rect(g, bxl, y + 5f, bwl, 9, 4.5f, Colors.fade(0x40A78BFA, a));
-				JacText.draw(g, "Labs", bxl + 4, y + 7f, Colors.fade(0xFFC4B5FD, a), Theme.SMALL - 0.5f, JacText.Weight.SEMIBOLD);
-			}
 			String sub = query.isBlank() ? f.description : f.category.label + " · " + f.description;
-			JacText.draw(g, fitEnd(sub, cw - 50), cx + 9, y + 15f, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL, JacText.Weight.REGULAR);
+			List<String> lines = descLines(sub, cw - 50);
+			float lh = JacText.lineHeight(Theme.SMALL);
+			// A one-line description sits in the middle of the card's spare line.
+			float ty = y + 5.5f + (2 - lines.size()) * lh / 2f;
+			String name = JacScreen.fit(f.name, Theme.LABEL, JacText.Weight.SEMIBOLD, cw - 50);
+			JacText.draw(g, name, cx + 9, ty, Colors.fade(Theme.TEXT, a), Theme.LABEL, JacText.Weight.SEMIBOLD);
+			if (f.isExperimental()) {
+				float bxl = cx + 9 + JacText.width(name, Theme.LABEL, JacText.Weight.SEMIBOLD) + 4;
+				float bwl = JacText.width("Labs", Theme.SMALL - 0.5f, JacText.Weight.SEMIBOLD) + 8;
+				Draw.rect(g, bxl, ty - 0.5f, bwl, 9, 4.5f, Colors.fade(0x40A78BFA, a));
+				JacText.draw(g, "Labs", bxl + 4, ty + 1.5f, Colors.fade(0xFFC4B5FD, a), Theme.SMALL - 0.5f, JacText.Weight.SEMIBOLD);
+			}
+			for (int l = 0; l < lines.size(); l++) {
+				JacText.draw(g, lines.get(l), cx + 9, ty + 9.5f + l * lh, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL, JacText.Weight.REGULAR);
+			}
 			drawSwitch(g, f, cx + cw - 9 - 20, y + (CARD_H - 11) / 2f, a);
 		}
 		if (themeHit) {
 			float y = LIST_TOP + shown.size() * (CARD_H + CARD_GAP) - scroll + slide;
 			boolean hover = inView && mx >= cx && mx < cx + cw && my >= y && my < y + CARD_H;
 			Draw.rect(g, cx, y, cw, CARD_H, radius, Colors.fade(hover ? 0x1CFFFFFF : 0x10FFFFFF, a));
-			JacText.draw(g, "Theme", cx + 9, y + 5.5f, Colors.fade(Theme.TEXT, a), Theme.LABEL, JacText.Weight.SEMIBOLD);
-			JacText.draw(g, "Accent, panels, blur, font and motion", cx + 9, y + 15f, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL, JacText.Weight.REGULAR);
+			float ty = y + 5.5f + JacText.lineHeight(Theme.SMALL) / 2f;
+			JacText.draw(g, "Theme", cx + 9, ty, Colors.fade(Theme.TEXT, a), Theme.LABEL, JacText.Weight.SEMIBOLD);
+			JacText.draw(g, "Accent, panels, blur, font and motion", cx + 9, ty + 9.5f, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL, JacText.Weight.REGULAR);
 			JacText.icon(g, Icons.CHEVRON_RIGHT, cx + cw - 9 - 8, y + (CARD_H - 8) / 2f, 8f, Colors.fade(Theme.TEXT_DIM, a));
 		}
 		g.disableScissor();
+		if (contentH > viewH) {
+			// A thin bar, so a card cut off at the bottom reads as "more below".
+			float barH = Math.max(16f, viewH * viewH / contentH);
+			float barY = LIST_TOP + (viewH - barH) * (scroll / Math.max(1f, contentH - viewH));
+			Draw.rect(g, SET_X - 5, barY, 2f, barH, 1f, Colors.fade(0x30FFFFFF, a));
+		}
 		if (shown.isEmpty() && !themeHit && !query.isBlank()) {
 			JacText.drawCentered(g, "Nothing matches \"" + fitTail(query, 100) + "\"", LIST_X + LIST_W / 2f, LIST_TOP + 20,
 				Colors.fade(Theme.TEXT_DIM, a), Theme.LABEL, JacText.Weight.REGULAR);
 		}
+	}
+
+	/** A card's description in at most two lines, the second cut with an ellipsis; remembered per text and width. */
+	private List<String> descLines(String text, float max) {
+		return descCache.computeIfAbsent(text + "\u0000" + max, k -> {
+			List<String> wrapped = JacScreen.wrap(text, Theme.SMALL, JacText.Weight.REGULAR, max);
+			if (wrapped.size() <= 2) {
+				return wrapped;
+			}
+			return List.of(wrapped.getFirst(), fitEnd(String.join(" ", wrapped.subList(1, wrapped.size())), max));
+		});
 	}
 
 	private void drawSwitch(GuiGraphicsExtractor g, Feature f, float x, float y, float alpha) {
@@ -586,10 +659,14 @@ public final class ClickGuiScreen extends Screen {
 		f.drawPreview(g, px, 14 + slide, 46, 46);
 		float tx = px + 46 + 10;
 		JacText.draw(g, f.name, tx, 25 + slide, Colors.fade(Theme.TEXT, a), Theme.TITLE - 1.5f, JacText.Weight.SEMIBOLD);
-		JacText.draw(g, fitEnd(f.description, W - tx - SET_PAD), tx, 37 + slide, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL,
-			JacText.Weight.REGULAR);
+		List<String> desc = descLines(f.description, W - tx - SET_PAD);
+		float dy = 37 + slide;
+		for (String line : desc) {
+			JacText.draw(g, line, tx, dy, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL, JacText.Weight.REGULAR);
+			dy += JacText.lineHeight(Theme.SMALL);
+		}
 		if (f instanceof HudFeature) {
-			JacText.draw(g, "Drag it in Edit HUD layout", tx, 46 + slide, Colors.fade(Colors.withAlpha(JacConfig.accent(), 0xE0), a), Theme.SMALL,
+			JacText.draw(g, "Drag it in Edit HUD layout", tx, dy + 2f, Colors.fade(Colors.withAlpha(JacConfig.accent(), 0xE0), a), Theme.SMALL,
 				JacText.Weight.REGULAR);
 		}
 
@@ -839,7 +916,7 @@ public final class ClickGuiScreen extends Screen {
 		List<Object> items = navItems();
 		for (int i = 0; i < items.size(); i++) {
 			float y = navY(i);
-			if (button == 0 && mx >= 10 && mx < SIDEBAR - 10 && my >= y && my < y + 17) {
+			if (button == 0 && mx >= 10 && mx < SIDEBAR - 10 && my >= y && my < y + navRowH()) {
 				Object item = items.get(i);
 				showPage(item instanceof Category c ? c : null, item instanceof Category ? THEME : pageOf(item));
 				return true;

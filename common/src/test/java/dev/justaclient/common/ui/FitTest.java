@@ -53,4 +53,15 @@ class FitTest {
 		assertEquals(0.5f / 0.5f * 0.6f, Fit.sidePanelScale(120, 80, 30, 200, 0.6f), 1e-6);
 		assertEquals(0.75f, Fit.sidePanelScale(100, 200, 500, 150, 0.6f), 1e-6, "too tall for the space below");
 	}
+
+	@Test
+	void menusWidenToTheWindowShapeWithoutShrinking() {
+		// 16:9 at GUI scale 4: a 390-tall panel can be 700 wide at the same scale, capped at 640.
+		assertEquals(640f, Fit.menuWidth(464, 254, 390, 500, 640), 1e-3);
+		// 4:3 (1280x960 at scale 4): 304/224 * 390 = 529.
+		assertEquals(304f / 224f * 390f, Fit.menuWidth(304, 224, 390, 500, 640), 1e-3);
+		// A tall narrow space never goes below the minimum.
+		assertEquals(500f, Fit.menuWidth(300, 600, 390, 500, 640));
+		assertEquals(500f, Fit.menuWidth(0, 0, 390, 500, 640));
+	}
 }
