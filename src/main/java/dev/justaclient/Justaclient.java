@@ -75,6 +75,7 @@ public final class Justaclient implements ClientModInitializer {
 		Profiles.load();
 		Features.get(dev.justaclient.feature.impl.ProfileBackupFeature.class).launched();
 		dev.justaclient.debug.SelfTest.maybeRunAtStartup();
+		dev.justaclient.debug.UiTour.init();
 		HudRenderer.init();
 		HotbarFeature.init();
 		BlockHighlightFeature.init();
@@ -143,6 +144,7 @@ public final class Justaclient implements ClientModInitializer {
 			PickupFeed.tick(client);
 			LifetimeStats.tick();
 			Features.tick(client);
+			dev.justaclient.debug.UiTour.tick(client);
 			while (OPEN_MENU.consumeClick()) {
 				if (client.screen == null) {
 					client.setScreen(ClickGuiScreen.open(null));

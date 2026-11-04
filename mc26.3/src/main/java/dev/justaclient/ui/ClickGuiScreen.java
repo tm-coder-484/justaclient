@@ -130,6 +130,29 @@ public final class ClickGuiScreen extends Screen {
 		return JacConfig.get().style.layout == dev.justaclient.config.StyleTokens.Layout.RING ? new RingMenuScreen(parent) : new ClickGuiScreen(parent);
 	}
 
+	/** For the UI tour: a page by name (theme, performance, stats, notes, feedback, hub). */
+	public static int tourPage(String name) {
+		return switch (name) {
+			case "performance" -> PERF;
+			case "stats" -> STATS;
+			case "notes" -> NOTES;
+			case "feedback" -> FEEDBACK;
+			case "hub" -> HUB;
+			default -> THEME;
+		};
+	}
+
+	/** For the UI tour: the panel on a page. */
+	public static ClickGuiScreen tourAt(@Nullable Screen parent, int page) {
+		return at(parent, null, page);
+	}
+
+	/** For the UI tour: the panel on a category, with its first feature's settings showing. */
+	public static ClickGuiScreen tourCategory(@Nullable Screen parent, Category category) {
+		lastFeature = null;
+		return at(parent, category, THEME);
+	}
+
 	/** Opens the classic panel on a category, or on a page ({@link #THEME}, {@link #HUB} and so on) when {@code category} is null. */
 	static ClickGuiScreen at(@Nullable Screen parent, @Nullable Category category, int page) {
 		lastCategory = category;
@@ -1009,6 +1032,9 @@ public final class ClickGuiScreen extends Screen {
 		}
 		if (isStatsPage() && mx >= LIST_X && StatsPage.scroll(scrollY)) {
 			return true;
+		}
+		if (isHubPage()) {
+			return mx >= LIST_X && HubPage.scroll(mx, my, scrollY) || super.mouseScrolled(x, y, scrollX, scrollY);
 		}
 		if (mx >= LIST_X && mx < SET_X && !isThemePage()) {
 			listScrollTarget -= (float) scrollY * 24f;

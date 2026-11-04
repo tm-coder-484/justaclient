@@ -52,8 +52,17 @@ public final class InvItems {
 
 	/** "Splash Potion of Swiftness II", "Potion of Night Vision (long)". The game gives long and strong ones the same name. */
 	public static String name(BrewGraph.State state) {
-		String base = stack(state).getHoverName().getString();
 		String path = state.potion().substring(state.potion().indexOf(':') + 1);
+		String base;
+		try {
+			base = stack(state).getHoverName().getString();
+		} catch (RuntimeException e) {
+			// Item stacks can't be built before a world has bound the item components (e.g. the potion guide opened from
+			// the title screen): name it from the language file instead.
+			String item = state.item().substring(state.item().indexOf(':') + 1);
+			String effect = path.startsWith("strong_") ? path.substring(7) : path.startsWith("long_") ? path.substring(5) : path;
+			base = net.minecraft.network.chat.Component.translatable("item.minecraft." + item + ".effect." + effect).getString();
+		}
 		if (path.startsWith("strong_")) {
 			return base + " II";
 		}
@@ -72,7 +81,12 @@ public final class InvItems {
 	}
 
 	public static String itemName(String itemId) {
-		return stack(itemId).getHoverName().getString();
+		try {
+			return stack(itemId).getHoverName().getString();
+		} catch (RuntimeException e) {
+			// No world yet to bind item components: the plain translated name.
+			return net.minecraft.network.chat.Component.translatable(item(itemId).getDescriptionId()).getString();
+		}
 	}
 
 	/** Draws an item at {@code size} pixels (16 is the game's own size). */

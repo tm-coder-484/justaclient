@@ -15,14 +15,23 @@ public final class Toggle extends Widget {
 	private static final float TRACK_W = 22f;
 	private static final float TRACK_H = 12f;
 
-	private final String label;
+	private final java.util.List<String> lines;
 	private final Supplier<Boolean> getter;
 	private final Consumer<Boolean> setter;
 	private final Spring knob;
 
 	public Toggle(float x, float y, float width, String label, Supplier<Boolean> getter, Consumer<Boolean> setter) {
 		super(x, y, width, 14f);
-		this.label = label;
+		// A label too long for one line beside the switch wraps to a second line instead of running under it.
+		java.util.List<String> wrapped = dev.justaclient.ui.JacScreen.wrap(label, Theme.LABEL, JacText.Weight.REGULAR, width - TRACK_W - 8f);
+		if (wrapped.size() > 2) {
+			wrapped = java.util.List.of(wrapped.getFirst(), dev.justaclient.ui.JacScreen.fit(String.join(" ", wrapped.subList(1, wrapped.size())),
+				Theme.LABEL, JacText.Weight.REGULAR, width - TRACK_W - 8f));
+		}
+		this.lines = wrapped;
+		if (lines.size() > 1) {
+			height = lines.size() * (JacText.lineHeight(Theme.LABEL) + 1f) + 2f;
+		}
 		this.getter = getter;
 		this.setter = setter;
 		this.knob = Spring.ui(getter.get() ? 1f : 0f);
@@ -32,7 +41,12 @@ public final class Toggle extends Widget {
 	protected void draw(GuiGraphics g, double mouseX, double mouseY, float alpha) {
 		knob.setTarget(getter.get() ? 1f : 0f);
 		float t = knob.update();
-		JacText.draw(g, label, x, y + (height - JacText.lineHeight(Theme.LABEL)) / 2f, Colors.fade(Theme.TEXT, alpha), Theme.LABEL, JacText.Weight.REGULAR);
+		float lh = JacText.lineHeight(Theme.LABEL) + 1f;
+		float ly = y + (height - lines.size() * lh + 1f) / 2f;
+		for (String line : lines) {
+			JacText.draw(g, line, x, ly, Colors.fade(Theme.TEXT, alpha), Theme.LABEL, JacText.Weight.REGULAR);
+			ly += lh;
+		}
 		float tx = x + width - TRACK_W;
 		float ty = y + (height - TRACK_H) / 2f;
 		int off = Colors.lerp(Theme.CONTROL, Theme.CONTROL_HOVER, hover.get());

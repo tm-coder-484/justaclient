@@ -23,10 +23,10 @@ public final class KeyBinder extends Widget {
 
 	@Override
 	protected void draw(GuiGraphicsExtractor g, double mouseX, double mouseY, float alpha) {
-		JacText.draw(g, setting.name, x, y + (height - JacText.lineHeight(Theme.LABEL)) / 2f, Colors.fade(Theme.TEXT, alpha), Theme.LABEL,
-			JacText.Weight.REGULAR);
 		String text = listening ? "Press a key" : setting.keyName();
 		float chipW = Math.max(34f, JacText.width(text, Theme.SMALL, JacText.Weight.SEMIBOLD) + 12f);
+		JacText.draw(g, dev.justaclient.ui.JacScreen.fit(setting.name, Theme.LABEL, JacText.Weight.REGULAR, width - chipW - 6f), x,
+			y + (height - JacText.lineHeight(Theme.LABEL)) / 2f, Colors.fade(Theme.TEXT, alpha), Theme.LABEL, JacText.Weight.REGULAR);
 		float cx = x + width - chipW;
 		float cy = y + (height - CHIP_H) / 2f;
 		float radius = Math.min(4f, JacConfig.get().style.cornerRadius);
