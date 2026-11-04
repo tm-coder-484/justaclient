@@ -57,6 +57,16 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 
 ## What is in this build
 
+### Fixes (v0.12.3)
+
+- **Mod settings in the Mods panel**: nearly every mod showed "No settings". Mods hand their settings screen over
+  through Mod Menu's API, and without Mod Menu installed those classes don't exist, so the lookup failed quietly. The
+  client now puts a small stand-in for that API on the class path at launch when Mod Menu isn't installed (with Mod Menu
+  installed, Mod Menu's own classes are used). Mods that keep their options inside Sodium's video settings (Sodium Extra
+  and other Sodium add-ons) open Sodium's screen on their own page.
+- Closing a mod's settings screen goes back to the Mods panel. Screens that close to nothing used to land on the
+  vanilla title screen.
+
 ### M12: spatial menus and the Modrinth browser (v0.12.0, third person and the tile grid in v0.12.1)
 
 Both are off by default and have their own switches, in both the 1.21.11 and 26.3 jars.
