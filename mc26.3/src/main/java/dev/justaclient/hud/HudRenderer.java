@@ -119,7 +119,7 @@ public final class HudRenderer {
 
 	/** Draws one widget at its saved position. The caller has already run {@link HudFeature#layout}. */
 	public static void draw(GuiGraphicsExtractor g, HudFeature hud, boolean preview) {
-		float scale = hud.scale.f();
+		float scale = hud.drawScale();
 		g.pose().pushMatrix();
 		g.pose().translate(hud.screenX(g.guiWidth()), hud.screenY(g.guiHeight()));
 		g.pose().scale(scale, scale);

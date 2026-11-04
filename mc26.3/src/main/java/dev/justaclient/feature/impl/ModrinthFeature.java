@@ -7,6 +7,7 @@ import dev.justaclient.feature.Feature;
 import dev.justaclient.feature.Features;
 import dev.justaclient.feature.setting.ActionSetting;
 import dev.justaclient.feature.setting.BoolSetting;
+import dev.justaclient.feature.setting.ChoiceSetting;
 import dev.justaclient.render.Icons;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
@@ -17,6 +18,24 @@ import net.minecraft.client.Minecraft;
  * checked against Modrinth's SHA-512 before it is saved.
  */
 public final class ModrinthFeature extends Feature {
+	/** How search results are laid out: big icon tiles with just the name, or rows with author and downloads. */
+	public enum Layout implements ChoiceSetting.Named {
+		TILES("Tiles"),
+		LIST("List");
+
+		private final String label;
+
+		Layout(String label) {
+			this.label = label;
+		}
+
+		@Override
+		public String label() {
+			return label;
+		}
+	}
+
+	public final ChoiceSetting<Layout> layout = choice("layout", "Results as", Layout.TILES);
 	public final BoolSetting betas = bool("betas", "Offer beta and alpha versions when there is no release", true);
 	public final BoolSetting dependencies = bool("dependencies", "Also install mods a mod needs", true);
 	private final ActionSetting open = add(new ActionSetting("open", "Browse Modrinth...", () -> openScreen()));

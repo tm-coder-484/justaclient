@@ -69,12 +69,20 @@ public abstract class HudFeature extends Feature {
 		return height;
 	}
 
+	/**
+	 * The scale the widget is drawn at: its own Scale setting times {@link HudFit#factor()}, which shrinks every widget a
+	 * little on a small GUI (a big GUI scale or a small window) so the default layout still fits without overlapping.
+	 */
+	public float drawScale() {
+		return scale.f() * HudFit.factor();
+	}
+
 	public float scaledWidth() {
-		return width * scale.f();
+		return width * drawScale();
 	}
 
 	public float scaledHeight() {
-		return height * scale.f();
+		return height * drawScale();
 	}
 
 	public float screenX(float screenWidth) {

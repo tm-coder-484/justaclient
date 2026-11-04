@@ -45,8 +45,13 @@ public final class CrashHelperScreen extends Screen {
 		this.crash = crash;
 	}
 
+	private final UiFit.Canvas canvas = new UiFit.Canvas();
+	/** The card height the canvas was last fitted for. */
+	private float fittedFor = 300f;
+
 	@Override
 	protected void init() {
+		canvas.fit(this, W + 24f, fittedFor + 24f);
 		buttons.clear();
 		float bw = (W - PAD * 2 - 12) / 3f;
 		buttons.add(new Button(0, 0, bw, 18, Icons.BOX, "Diagnostic zip", true, this::zip));
@@ -105,7 +110,25 @@ public final class CrashHelperScreen extends Screen {
 	}
 
 	@Override
+	public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+		boolean pushed = canvas.push(g);
+		super.extractBackground(g, canvas.in(mouseX), canvas.in(mouseY), partialTick);
+		canvas.pop(g, pushed);
+	}
+
+	@Override
 	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+		if (Math.abs(cardH - fittedFor) > 0.5f && cardH > 0) {
+			// The card's height is known once it has been laid out: fit the canvas to it so a long report never runs off.
+			fittedFor = cardH;
+			canvas.fit(this, W + 24f, fittedFor + 24f);
+		}
+		boolean pushed = canvas.push(g);
+		drawCard(g, canvas.in(mouseX), canvas.in(mouseY), partialTick);
+		canvas.pop(g, pushed);
+	}
+
+	private void drawCard(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
 		super.extractRenderState(g, mouseX, mouseY, partialTick);
 		float t = in.animateTo(1f).get();
 		float inner = W - PAD * 2;
@@ -180,6 +203,7 @@ public final class CrashHelperScreen extends Screen {
 
 	@Override
 	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+		event = canvas.in(event);
 		for (Button b : buttons) {
 			if (b.mouseClicked(event.x(), event.y(), event.button() - 1)) {
 				return true;

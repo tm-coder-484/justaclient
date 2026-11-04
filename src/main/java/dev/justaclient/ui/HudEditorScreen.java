@@ -506,6 +506,8 @@ public final class HudEditorScreen extends Screen {
 			return;
 		}
 		float want = (Math.abs(mx - fixedX) / baseW + Math.abs(my - fixedY) / baseH) / 2f;
+		// The corner follows the mouse in drawn size; the Scale setting leaves out the small-screen fit.
+		want /= dev.justaclient.hud.HudFit.factor();
 		double snapped = Math.round(want / 0.05) * 0.05;
 		hud.scale.set(snapped);
 		float w = hud.scaledWidth();
@@ -536,7 +538,7 @@ public final class HudEditorScreen extends Screen {
 		if (setting == null) {
 			return;
 		}
-		float scale = hud.scale.f();
+		float scale = hud.drawScale();
 		float now = horizontal ? hud.scaledWidth() : hud.scaledHeight();
 		float want = horizontal ? Math.abs(mx - fixedX) : Math.abs(my - fixedY);
 		setting.set(setting.get() + (want - now) / scale);

@@ -65,8 +65,14 @@ public final class Modrinth {
 		}
 	}
 
+	/** One search result. {@code iconUrl} is empty when the project has no icon. */
 	public record Hit(String id, String slug, String title, String description, String author, long downloads, long follows,
-		List<String> categories, String type) {
+		List<String> categories, String type, String iconUrl) {
+		public Hit(String id, String slug, String title, String description, String author, long downloads, long follows, List<String> categories,
+			String type) {
+			this(id, slug, title, description, author, downloads, follows, categories, type, "");
+		}
+
 		public String url() {
 			return SITE + "/" + type + "/" + slug;
 		}
@@ -181,7 +187,7 @@ public final class Modrinth {
 		for (JsonElement e : arr(o, "hits")) {
 			JsonObject h = e.getAsJsonObject();
 			hits.add(new Hit(str(h, "project_id"), str(h, "slug"), str(h, "title"), str(h, "description"), str(h, "author"), num(h, "downloads"),
-				num(h, "follows"), strings(h, "categories"), str(h, "project_type")));
+				num(h, "follows"), strings(h, "categories"), str(h, "project_type"), str(h, "icon_url")));
 		}
 		return new Page(hits, (int) num(o, "offset"), (int) num(o, "total_hits"));
 	}

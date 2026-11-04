@@ -62,6 +62,15 @@ dependencies {
 	localRuntime "io.github.douira:glsl-transformer:3.0.0-pre3"
 	localRuntime "org.antlr:antlr4-runtime:4.13.1"
 
+	// WebP decoding for Modrinth project icons (pure Java, BSD licence), bundled inside the jar.
+	implementation "com.twelvemonkeys.imageio:imageio-webp:${project.twelvemonkeys_version}"
+	include "com.twelvemonkeys.imageio:imageio-webp:${project.twelvemonkeys_version}"
+	include "com.twelvemonkeys.imageio:imageio-core:${project.twelvemonkeys_version}"
+	include "com.twelvemonkeys.imageio:imageio-metadata:${project.twelvemonkeys_version}"
+	include "com.twelvemonkeys.common:common-lang:${project.twelvemonkeys_version}"
+	include "com.twelvemonkeys.common:common-io:${project.twelvemonkeys_version}"
+	include "com.twelvemonkeys.common:common-image:${project.twelvemonkeys_version}"
+
 	testImplementation platform("org.junit:junit-bom:${project.junit_version}")
 	testImplementation "org.junit.jupiter:junit-jupiter"
 	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
