@@ -57,6 +57,27 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 
 ## What is in this build
 
+### v0.12.2: fits GUI scale 4 and small windows
+
+Everything was checked at GUI scale 2, 3 and 4 on a 1080p window and at the smallest size the game allows (320 by 240
+GUI units, e.g. 1280x960 at scale 4), on both 1.21.11 and 26.3.
+
+- **Client screens** (Mods, Servers, Key binds, Screenshots, Modrinth, Storage, Kits and the rest), the title screen
+  and the crash helper keep their layout on a small window and are drawn a little smaller instead of overlapping or
+  running off the edge. At GUI scale 4 on 1080p they are not shrunk at all.
+- **HUD** widgets shrink a little on small GUIs (about 80% at GUI scale 4 on 1080p, never below 60%) so the default
+  layout no longer piles up. It is a switch on the HUD editor feature: *Shrink widgets on small screens and big GUI
+  scales*. Your own Scale setting for each widget still applies on top.
+- **Command Centre** tiles scroll when there are more than fit, instead of running out of the menu.
+- **Setting names** too long for one line wrap beside their switch, and slider and key names shorten with "..."
+  rather than running under the value.
+- **Container panels** (furnace info, brewing guide, anvil and crafting helpers) shrink to fit beside the container
+  on a narrow window instead of running off the screen.
+- **Title screen**: the account card moves to the bottom right when the tip line needs the space.
+- For developers: `-Djustaclient.uiTour=<folder>` opens every client screen at each GUI scale
+  (`-Djustaclient.uiTourScales=2,3,4`) and saves a screenshot of each, then quits. Add `--quickPlaySingleplayer <world>`
+  for the in-world screens.
+
 ### M12: spatial menus and the Modrinth browser (v0.12.0, third person and the tile grid in v0.12.1)
 
 Both are off by default and have their own switches, in both the 1.21.11 and 26.3 jars.
