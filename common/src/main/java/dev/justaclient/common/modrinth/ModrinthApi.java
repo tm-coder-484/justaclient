@@ -33,6 +33,11 @@ public final class ModrinthApi {
 		this.userAgent = userAgent;
 	}
 
+	/** The User-Agent sent with every request, also used for icon downloads. */
+	public String userAgent() {
+		return userAgent;
+	}
+
 	public CompletableFuture<Modrinth.Page> search(String query, Modrinth.Kind kind, String gameVersion, String loader, Modrinth.Sort sort,
 		int offset, int limit) {
 		return get(Modrinth.searchUrl(query, kind, gameVersion, loader, sort, offset, limit)).thenApply(Modrinth::parseSearch);
