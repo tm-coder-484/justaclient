@@ -22,6 +22,13 @@ import org.jspecify.annotations.Nullable;
 public abstract class JacScreen extends Screen {
 	protected final @Nullable Screen parent;
 	protected final Animation in = new Animation(Easing.CUBIC_OUT, 220, 0f);
+	/**
+	 * How much the screen is drawn scaled down to fit the window: 1 when the window has room for {@link #minWidth()} by
+	 * {@link #minHeight()}, less on a small window or a big GUI scale. {@code width} and {@code height} are the screen's own
+	 * (scaled up) canvas, so the screens lay themselves out as if the window were big enough.
+	 */
+	protected float uiScale = 1f;
+	private final UiFit.Canvas canvas = new UiFit.Canvas();
 
 	protected JacScreen(String title, @Nullable Screen parent) {
 		super(Component.literal(title));
@@ -59,37 +66,63 @@ public abstract class JacScreen extends Screen {
 	protected void setup() {
 	}
 
+	/** The smallest canvas, in GUI units, the layout is made for. A smaller window draws the screen scaled down to fit. */
+	protected float minWidth() {
+		return 440f;
+	}
+
+	protected float minHeight() {
+		return 260f;
+	}
+
 	@Override
 	protected final void init() {
+		uiScale = canvas.fit(this, minWidth(), minHeight());
 		setup();
+	}
+
+	/** A mouse position from the window's GUI space in the screen's canvas. */
+	protected final double canvas(double v) {
+		return canvas.in(v);
+	}
+
+	@Override
+	public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+		boolean pushed = canvas.push(g);
+		super.renderBackground(g, canvas.in(mouseX), canvas.in(mouseY), partialTick);
+		canvas.pop(g, pushed);
 	}
 
 	@Override
 	public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-		super.render(g, mouseX, mouseY, partialTick);
-		draw(g, mouseX, mouseY, in.animateTo(1f).get());
+		int mx = canvas.in(mouseX);
+		int my = canvas.in(mouseY);
+		boolean pushed = canvas.push(g);
+		super.render(g, mx, my, partialTick);
+		draw(g, mx, my, in.animateTo(1f).get());
+		canvas.pop(g, pushed);
 	}
 
 	@Override
 	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-		return click(event.x(), event.y(), event.button(), doubleClick) || super.mouseClicked(event, doubleClick);
+		return click(canvas(event.x()), canvas(event.y()), event.button(), doubleClick) || super.mouseClicked(event, doubleClick);
 	}
 
 	@Override
 	public boolean mouseReleased(MouseButtonEvent event) {
-		release(event.x(), event.y(), event.button());
+		release(canvas(event.x()), canvas(event.y()), event.button());
 		return super.mouseReleased(event);
 	}
 
 	@Override
 	public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
-		drag(event.x(), event.y(), event.button());
+		drag(canvas(event.x()), canvas(event.y()), event.button());
 		return true;
 	}
 
 	@Override
 	public boolean mouseScrolled(double x, double y, double scrollX, double scrollY) {
-		return scroll(x, y, scrollY) || super.mouseScrolled(x, y, scrollX, scrollY);
+		return scroll(canvas(x), canvas(y), scrollY) || super.mouseScrolled(x, y, scrollX, scrollY);
 	}
 
 	@Override

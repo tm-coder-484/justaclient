@@ -68,6 +68,8 @@ public final class JacTitleScreen extends Screen {
 	/** On short windows the account card moves to the bottom right, above the status line. */
 	private boolean accountRight;
 
+	private final UiFit.Canvas canvas = new UiFit.Canvas();
+
 	public JacTitleScreen() {
 		super(Component.translatable("narrator.screen.title"));
 	}
@@ -98,10 +100,16 @@ public final class JacTitleScreen extends Screen {
 			hover.add(new Animation(Easing.CUBIC_OUT, 120, 0f));
 		}
 		skin = minecraft.getSkinManager().createLookup(minecraft.getGameProfile(), false);
+		// A short window (GUI scale 4, or a small window) draws the whole screen a little smaller rather than letting the
+		// menu run into the links under it.
+		canvas.fit(this, 400f, 56f + menuHeight() + 70f);
 		menuX = Math.max(16f, width * 0.075f);
 		// Sit a third of the way down, but move up on short windows so the menu and the links below it still fit.
 		menuY = Math.max(56f, Math.min(height * 0.34f, height - menuHeight() - 70f));
-		accountRight = menuY + menuHeight() + 22f > height - 46f;
+		// The account card sits under the links on a tall window; when the links (and the tip line) leave no room, it moves
+		// to the bottom right.
+		float under = menuY + menuHeight() + SMALL_LINKS_GAP + (Features.get(TitleScreenFeature.class).showsTips() ? 30f : 14f);
+		accountRight = under > height - 46f;
 	}
 
 	private float menuHeight() {
@@ -136,6 +144,19 @@ public final class JacTitleScreen extends Screen {
 
 	@Override
 	public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+		boolean pushed = canvas.push(g);
+		drawBackground(g, canvas.in(mouseX), canvas.in(mouseY), partialTick);
+		canvas.pop(g, pushed);
+	}
+
+	@Override
+	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+		boolean pushed = canvas.push(g);
+		drawScreen(g, canvas.in(mouseX), canvas.in(mouseY), partialTick);
+		canvas.pop(g, pushed);
+	}
+
+	private void drawBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
 		TitleScreenFeature feature = Features.get(TitleScreenFeature.class);
 		TitleScreenFeature.Background bg = feature.background();
 		if (bg == TitleScreenFeature.Background.IMAGE) {
@@ -189,8 +210,7 @@ public final class JacTitleScreen extends Screen {
 		Draw.shadow(g, cx - r * 0.3f, cy - r * 0.3f, r * 0.6f, r * 0.6f, r * 0.3f, r, color);
 	}
 
-	@Override
-	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+	private void drawScreen(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
 		super.extractRenderState(g, mouseX, mouseY, partialTick);
 		float a = intro.animateTo(1f).get();
 		float slide = (1f - a) * 10f;
@@ -358,6 +378,7 @@ public final class JacTitleScreen extends Screen {
 
 	@Override
 	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+		event = canvas.in(event);
 		if (event.button() != InputConstants.MOUSE_BUTTON_LEFT) {
 			return super.mouseClicked(event, doubleClick);
 		}
@@ -423,7 +444,7 @@ public final class JacTitleScreen extends Screen {
 
 	@Override
 	public void mouseMoved(double mouseX, double mouseY) {
-		if (rowAt(mouseX, mouseY) >= 0) {
+		if (rowAt(canvas.in(mouseX), canvas.in(mouseY)) >= 0) {
 			keyboardRow = -1;
 		}
 	}

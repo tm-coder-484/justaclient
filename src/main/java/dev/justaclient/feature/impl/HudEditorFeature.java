@@ -17,6 +17,7 @@ public final class HudEditorFeature extends Feature {
 	private final BoolSetting autoAnchor = bool("auto_anchor", "Anchor to the nearest corner when dropped", true);
 	private final BoolSetting handles = bool("handles", "Resize from the corners", true);
 	private final BoolSetting placeNew = bool("place_new", "Put new widgets in a free spot", true);
+	private final BoolSetting fitSmall = bool("fit_small", "Shrink widgets on small screens and big GUI scales", true);
 	private final KeySetting nextLayout = add(new KeySetting("next_layout", "Next layout key", KeySetting.NONE));
 	private boolean wasDown;
 
@@ -43,6 +44,11 @@ public final class HudEditorFeature extends Feature {
 
 	public boolean resizeHandles() {
 		return isEnabled() && handles.on();
+	}
+
+	/** Whether {@link dev.justaclient.hud.HudFit} may shrink the HUD on a small GUI. Works with the editor feature off too. */
+	public boolean fitsSmallScreens() {
+		return fitSmall.on();
 	}
 
 	public boolean placesNew() {

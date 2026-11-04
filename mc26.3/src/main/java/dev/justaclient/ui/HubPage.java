@@ -42,6 +42,11 @@ public final class HubPage {
 	private static float originX;
 	private static float originY;
 	private static int columns = 1;
+	private static final float GAP = 8f;
+	private static final dev.justaclient.ui.widget.Scroller SCROLL = new dev.justaclient.ui.widget.Scroller();
+	/** The visible band of the tile grid, for clicks and the scroll wheel. */
+	private static float viewTop;
+	private static float viewBottom;
 
 	static {
 		TILES.add(new Tile(Icons.PACKAGE, "Mods", "Details, settings and on/off for every mod", ModsPanelFeature.class, ModsScreen::new, () -> true));
@@ -92,21 +97,30 @@ public final class HubPage {
 		JacText.draw(g, "Command Centre", x, y, Colors.fade(Theme.TEXT, a), Theme.TITLE, JacText.Weight.SEMIBOLD);
 		JacText.draw(g, "The client's full screens, one click away", x, y + 13, Colors.fade(Theme.TEXT_DIM, a), Theme.SMALL, JacText.Weight.REGULAR);
 		columns = w >= 300 ? 3 : 2;
-		float gap = 8;
-		tileW = (w - gap * (columns - 1)) / columns;
-		tileH = 58;
+		tileW = (w - GAP * (columns - 1)) / columns;
+		tileH = 54;
+		int rows = (TILES.size() + columns - 1) / columns;
+		viewTop = y + 30;
+		viewBottom = y + h - 8;
+		// More tiles than room (a short window, or screens added later): the grid scrolls instead of running off the panel.
+		SCROLL.setMax(rows * (tileH + GAP) - GAP - (viewBottom - viewTop));
+		float scroll = SCROLL.get();
 		originX = x;
-		originY = y + 30;
+		originY = viewTop - scroll;
 		while (HOVER.size() < TILES.size()) {
 			HOVER.add(new Animation(Easing.CUBIC_OUT, 140, 0f));
 		}
 		int accent = JacConfig.accent();
+		g.enableScissor((int) Math.floor(x - 2), (int) Math.floor(viewTop - 2), (int) Math.ceil(x + w + 2), (int) Math.ceil(viewBottom));
 		for (int i = 0; i < TILES.size(); i++) {
 			Tile tile = TILES.get(i);
-			float tx = originX + (i % columns) * (tileW + gap);
-			float ty = originY + (i / columns) * (tileH + gap);
+			float tx = originX + (i % columns) * (tileW + GAP);
+			float ty = originY + (i / columns) * (tileH + GAP);
+			if (ty > viewBottom || ty + tileH < viewTop - 2) {
+				continue;
+			}
 			boolean on = on(tile);
-			boolean hot = on && mx >= tx && mx < tx + tileW && my >= ty && my < ty + tileH;
+			boolean hot = on && my >= viewTop && my < viewBottom && mx >= tx && mx < tx + tileW && my >= ty && my < ty + tileH;
 			float hv = HOVER.get(i).animateTo(hot ? 1f : 0f).get();
 			float fade = on ? 1f : 0.45f;
 			Draw.rect(g, tx, ty - hv * 1.5f, tileW, tileH, 8f, Colors.fade(Colors.lerp(Theme.CONTROL, Theme.CONTROL_HOVER, hv), a));
@@ -116,22 +130,43 @@ public final class HubPage {
 			float iy = ty - hv * 1.5f;
 			Draw.rect(g, tx + 9, iy + 9, 18, 18, 5f, Colors.fade(Colors.withAlpha(accent, 0x30), a * fade));
 			JacText.icon(g, tile.icon, tx + 13, iy + 13, 10f, Colors.fade(accent, a * fade));
-			JacText.draw(g, tile.title, tx + 33, iy + 13, Colors.fade(Theme.TEXT, a * fade), Theme.LABEL + 1f, JacText.Weight.SEMIBOLD);
+			JacText.draw(g, JacScreen.fit(tile.title, Theme.LABEL + 1f, JacText.Weight.SEMIBOLD, tileW - 40), tx + 33, iy + 13,
+				Colors.fade(Theme.TEXT, a * fade), Theme.LABEL + 1f, JacText.Weight.SEMIBOLD);
 			String blurb = on ? tile.blurb : tile.available.get() ? "Off: turn it on under " + Features.get(tile.feature).category.label
 				: "Not available here";
 			List<String> lines = JacScreen.wrap(blurb, Theme.SMALL, JacText.Weight.REGULAR, tileW - 18);
-			for (int l = 0; l < Math.min(2, lines.size()); l++) {
-				JacText.draw(g, lines.get(l), tx + 9, iy + 33 + l * 8.5f, Colors.fade(Theme.TEXT_DIM, a * fade), Theme.SMALL, JacText.Weight.REGULAR);
+			if (lines.size() > 2) {
+				lines = List.of(lines.get(0), JacScreen.fit(lines.get(1) + " " + lines.get(2), Theme.SMALL, JacText.Weight.REGULAR, tileW - 18));
+			}
+			for (int l = 0; l < lines.size(); l++) {
+				JacText.draw(g, lines.get(l), tx + 9, iy + 32 + l * 8.5f, Colors.fade(Theme.TEXT_DIM, a * fade), Theme.SMALL, JacText.Weight.REGULAR);
 			}
 		}
+		g.disableScissor();
+		if (SCROLL.max() > 0) {
+			// A thin bar on the right shows there is more below.
+			float trackH = viewBottom - viewTop;
+			float barH = Math.max(14, trackH * trackH / (trackH + SCROLL.max()));
+			float barY = viewTop + (trackH - barH) * (scroll / SCROLL.max());
+			Draw.rect(g, x + w + 4, barY, 2, barH, 1, Colors.fade(Theme.TEXT_DIM & 0x60FFFFFF, a));
+		}
+	}
+
+	/** The scroll wheel over the tiles. Returns true if it scrolled. */
+	public static boolean scroll(double mx, double my, double amount) {
+		if (SCROLL.max() <= 0 || my < viewTop || my >= viewBottom) {
+			return false;
+		}
+		SCROLL.scroll(amount, 30f);
+		return true;
 	}
 
 	/** The screen to open for a click, or null. */
 	public static @Nullable Screen click(double mx, double my, Screen parent) {
 		for (int i = 0; i < TILES.size(); i++) {
-			float tx = originX + (i % columns) * (tileW + 8);
-			float ty = originY + (i / columns) * (tileH + 8);
-			if (mx >= tx && mx < tx + tileW && my >= ty && my < ty + tileH) {
+			float tx = originX + (i % columns) * (tileW + GAP);
+			float ty = originY + (i / columns) * (tileH + GAP);
+			if (my >= viewTop && my < viewBottom && mx >= tx && mx < tx + tileW && my >= ty && my < ty + tileH) {
 				Tile tile = TILES.get(i);
 				return on(tile) ? tile.open.apply(parent) : null;
 			}

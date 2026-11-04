@@ -65,11 +65,27 @@ public final class ContainerOverlays {
 		}
 	}
 
-	private record Placed(Overlay overlay, float x, float y, float w, float h) {
+	/**
+	 * A panel placed beside the container: {@code w} by {@code h} is its own size, drawn at {@code scale} (below 1 when the
+	 * window is too small for it beside the container, e.g. at GUI scale 4) with its top-left kept at {@code x}, {@code y}.
+	 */
+	private record Placed(Overlay overlay, float x, float y, float w, float h, float scale) {
 		boolean contains(double mx, double my) {
-			return mx >= x && mx < x + w && my >= y && my < y + h;
+			return mx >= x && mx < x + w * scale && my >= y && my < y + h * scale;
+		}
+
+		/** A mouse position on screen, in the panel's own (unscaled) coordinates. */
+		double localX(double mx) {
+			return x + (mx - x) / scale;
+		}
+
+		double localY(double my) {
+			return y + (my - y) / scale;
 		}
 	}
+
+	/** Panels shrink to fit beside the container down to this, then get narrower instead. */
+	private static final float MIN_SCALE = 0.6f;
 
 	private static final List<Overlay> OVERLAYS = new ArrayList<>();
 	private static final List<Placed> placed = new ArrayList<>();
@@ -122,19 +138,25 @@ public final class ContainerOverlays {
 			float roomLeft = box.left - GAP - 2 - bookWidth;
 			boolean fitsRight = w <= roomRight && (rightY + h <= screen.height - 2 || rightY == box.top);
 			boolean fitsLeft = w <= roomLeft && (leftY + h <= screen.height - 2 || leftY == box.top);
-			// On a narrow window neither side may have room: use the wider side and narrow the panel to fit.
+			// On a narrow window neither side may have room: use the wider side and shrink the panel to fit.
 			boolean right = fitsRight || !fitsLeft && roomRight >= roomLeft;
-			if (bookWidth > 0 && !fitsRight && !fitsLeft && Math.max(roomRight, roomLeft) < 80) {
+			if (bookWidth > 0 && !fitsRight && !fitsLeft && Math.max(roomRight, roomLeft) < 80 * MIN_SCALE) {
 				// The open recipe book takes the room: leave the panel out rather than cover the book.
 				continue;
 			}
-			float pw = Math.max(80, Math.min(w, right ? roomRight : roomLeft));
+			float room = right ? roomRight : roomLeft;
+			float top = right ? rightY : leftY;
+			// The first panel in a column is also kept on screen top to bottom; later ones stack below as before.
+			float scale = dev.justaclient.common.ui.Fit.sidePanelScale(w, h, room, top == box.top ? screen.height - 2 - top : Float.MAX_VALUE,
+				MIN_SCALE);
+			// Still too wide at the smallest scale: narrow it as before.
+			float pw = w * scale <= room ? w : Math.max(80, room / scale);
 			if (right) {
-				placed.add(new Placed(overlay, rightX, rightY, pw, h));
-				rightY += h + GAP;
+				placed.add(new Placed(overlay, rightX, rightY, pw, h, scale));
+				rightY += h * scale + GAP;
 			} else {
-				placed.add(new Placed(overlay, Math.max(2, box.left - GAP - bookWidth - pw), leftY, pw, h));
-				leftY += h + GAP;
+				placed.add(new Placed(overlay, Math.max(2, box.left - GAP - bookWidth - pw * scale), leftY, pw, h, scale));
+				leftY += h * scale + GAP;
 			}
 		}
 	}
@@ -146,8 +168,18 @@ public final class ContainerOverlays {
 			p.overlay.decorate(box, g, mx, my);
 		}
 		for (Placed p : placed) {
+			boolean scaled = p.scale < 1f;
+			if (scaled) {
+				g.pose().pushMatrix();
+				g.pose().translate(p.x, p.y);
+				g.pose().scale(p.scale, p.scale);
+				g.pose().translate(-p.x, -p.y);
+			}
 			Draw.hudPanel(g, p.x, p.y, p.w, p.h);
-			p.overlay.draw(box, g, p.x, p.y, p.w, p.h, mx, my);
+			p.overlay.draw(box, g, p.x, p.y, p.w, p.h, p.localX(mx), p.localY(my));
+			if (scaled) {
+				g.pose().popMatrix();
+			}
 		}
 		drawOffer(box, g, mx, my);
 	}
@@ -194,7 +226,7 @@ public final class ContainerOverlays {
 		}
 		for (Placed p : placed) {
 			if (p.contains(mx, my)) {
-				p.overlay.click(box, p.x, p.y, p.w, p.h, mx, my, button);
+				p.overlay.click(box, p.x, p.y, p.w, p.h, p.localX(mx), p.localY(my), button);
 				// The click lands on the panel, never on the slots or the world behind it.
 				return true;
 			}
@@ -206,7 +238,7 @@ public final class ContainerOverlays {
 		Box box = box(screen);
 		for (Placed p : placed) {
 			if (p.contains(mx, my)) {
-				return p.overlay.scroll(box, p.x, p.y, p.w, p.h, mx, my, amount) || true;
+				return p.overlay.scroll(box, p.x, p.y, p.w, p.h, p.localX(mx), p.localY(my), amount) || true;
 			}
 		}
 		return false;
