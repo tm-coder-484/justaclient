@@ -57,6 +57,14 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `bu
 
 ## What is in this build
 
+### v0.12.5: roomier menu at GUI scale 4
+
+- **Click GUI** grows taller to fit every sidebar row, so highlights no longer run into the row below, and wider when
+  the window's shape leaves room. The extra width goes to the feature list and the settings.
+- **Feature cards** show up to two lines of description instead of cutting it off, and the settings header does too.
+- **Feature list** has a scrollbar when there is more below.
+- **Ring menu** draws a little smaller on small GUIs so its panels have room to breathe.
+
 ### v0.12.4: Modrinth icons and a Tiles view
 
 - **Project icons** in the Modrinth browser: every result, the list rows and the details header show the project's

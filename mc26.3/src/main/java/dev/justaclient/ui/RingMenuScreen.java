@@ -129,6 +129,17 @@ public final class RingMenuScreen extends JacScreen {
 		stripY = height - 22;
 	}
 
+	/** Twelve panels round the ring need more room than a plain screen, so small GUIs draw the ring a little smaller. */
+	@Override
+	protected float minWidth() {
+		return 560f;
+	}
+
+	@Override
+	protected float minHeight() {
+		return 330f;
+	}
+
 	@Override
 	protected void draw(GuiGraphicsExtractor g, int mx, int my, float t) {
 		layout();

@@ -51,4 +51,15 @@ public final class Fit {
 		}
 		return Math.max(min, Math.min(1f, s));
 	}
+
+	/**
+	 * The width for a menu panel {@code h} tall in a space of {@code availW} by {@code availH}: as wide as the space's shape
+	 * allows without shrinking the panel any further, kept between {@code minW} and {@code maxW}.
+	 */
+	public static float menuWidth(float availW, float availH, float h, float minW, float maxW) {
+		if (availW <= 0 || availH <= 0 || h <= 0) {
+			return minW;
+		}
+		return Math.max(minW, Math.min(maxW, availW / availH * h));
+	}
 }
