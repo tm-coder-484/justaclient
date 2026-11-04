@@ -33,6 +33,11 @@ public final class ModrinthApi {
 		this.userAgent = userAgent;
 	}
 
+	/** The User-Agent sent with every request, also used for icon downloads. */
+	public String userAgent() {
+		return userAgent;
+	}
+
 	public CompletableFuture<Modrinth.Page> search(String query, Modrinth.Kind kind, String gameVersion, String loader, Modrinth.Sort sort,
 		int offset, int limit) {
 		return get(Modrinth.searchUrl(query, kind, gameVersion, loader, sort, offset, limit)).thenApply(Modrinth::parseSearch);
@@ -91,7 +96,12 @@ public final class ModrinthApi {
 	 * {@code progress} gets 0 to 1 as bytes arrive (on the download thread).
 	 */
 	public CompletableFuture<Installed> download(Modrinth.FileRef file, Path folder, String name, DoubleConsumer progress) {
-		URI uri = URI.create(file.url());
+		URI uri;
+		try {
+			uri = URI.create(file.url());
+		} catch (IllegalArgumentException e) {
+			return CompletableFuture.failedFuture(new IllegalStateException("Modrinth gave a bad download address"));
+		}
 		if (!"https".equals(uri.getScheme()) || uri.getHost() == null || !(uri.getHost().equals("cdn.modrinth.com") || uri.getHost().endsWith(".modrinth.com"))) {
 			return CompletableFuture.failedFuture(new IllegalStateException("Not a Modrinth download: " + uri.getHost()));
 		}
@@ -119,8 +129,13 @@ public final class ModrinthApi {
 					throw new IllegalStateException("Bad file name");
 				}
 				Path part = folder.resolve(name + ".part");
-				Files.write(part, data);
-				Files.move(part, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+				try {
+					Files.write(part, data);
+					Files.move(part, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+				} finally {
+					// A half-written file (disk full, file in use) is not left behind.
+					Files.deleteIfExists(part);
+				}
 				return new Installed(target, true);
 			} catch (IOException e) {
 				throw new IllegalStateException("Could not save the file: " + e.getMessage(), e);

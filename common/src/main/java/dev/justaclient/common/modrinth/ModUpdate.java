@@ -7,6 +7,7 @@ import dev.justaclient.common.mods.ToggleResult;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -41,7 +42,8 @@ public final class ModUpdate {
 
 	/** Switches {@code old} off now that {@code newJar} is installed; {@code old} null means there was nothing to switch off. */
 	public static Result retireOld(@Nullable ManagedMod old, Path newJar) {
-		if (old == null) {
+		if (old == null || !old.status().activeNextLaunch()) {
+			// Nothing to switch off. Toggling a mod that is already off would switch it back on.
 			return new Result(true, newJar, true, "");
 		}
 		ToggleResult r = ModManager.toggle(old);
@@ -53,14 +55,42 @@ public final class ModUpdate {
 			}
 		}
 		String why = r.error() == null || r.error().isBlank() ? "it could not be renamed" : r.error();
+		return setAside(newJar, "The old version could not be turned off (" + why + ")");
+	}
+
+	/**
+	 * The mod, other than {@code newJar} itself, that will also load on the next start under {@code id}. Fabric refuses to
+	 * start with two mods of the same id, so this catches an old copy Modrinth did not recognise (renamed, from another
+	 * site) or one loaded from outside the mods folder.
+	 */
+	public static @Nullable ManagedMod clash(String id, Path newJar, List<ManagedMod> all) {
+		Path fresh = ModFiles.normalize(newJar);
+		for (ManagedMod m : all) {
+			if (!m.id().equals(id) || !m.status().activeNextLaunch()) {
+				continue;
+			}
+			boolean same = (m.file() != null && ModFiles.normalize(m.file()).equals(fresh))
+				|| (m.loadedJar() != null && ModFiles.normalize(m.loadedJar()).equals(fresh));
+			if (!same) {
+				return m;
+			}
+		}
+		return null;
+	}
+
+	/** Renames the new jar to .disabled so it does not load beside {@code other}, which has the same id. */
+	public static Result keepOne(ManagedMod other, Path newJar) {
+		String where = other.fileName().isEmpty() ? other.name() : other.fileName();
+		return setAside(newJar, "Another copy of " + other.name() + " (" + where + ") would also load");
+	}
+
+	private static Result setAside(Path newJar, String why) {
 		Path aside = ModFiles.disabledPath(newJar);
 		try {
 			Files.move(newJar, aside);
-			return new Result(false, aside, false, ". The old version could not be turned off (" + why
-				+ "), so the new one is left off to keep two versions from loading. Sort it out in the Mods panel");
+			return new Result(false, aside, false, ". " + why + ", so the new one is left off to keep two versions from loading. Sort it out in the Mods panel");
 		} catch (IOException e) {
-			return new Result(false, newJar, true, ". The old version could not be turned off (" + why
-				+ ") and the new one could not be set aside, so both would load. Turn one off in the Mods panel");
+			return new Result(false, newJar, true, ". " + why + " and the new one could not be set aside, so both would load. Turn one off in the Mods panel");
 		}
 	}
 }

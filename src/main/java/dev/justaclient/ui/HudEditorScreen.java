@@ -3,6 +3,7 @@ package dev.justaclient.ui;
 import dev.justaclient.anim.Animation;
 import dev.justaclient.anim.Colors;
 import dev.justaclient.anim.Easing;
+import dev.justaclient.common.hud.HudSnap;
 import dev.justaclient.config.JacConfig;
 import dev.justaclient.feature.Features;
 import dev.justaclient.feature.impl.HudEditorFeature;
@@ -505,6 +506,8 @@ public final class HudEditorScreen extends Screen {
 			return;
 		}
 		float want = (Math.abs(mx - fixedX) / baseW + Math.abs(my - fixedY) / baseH) / 2f;
+		// The corner follows the mouse in drawn size; the Scale setting leaves out the small-screen fit.
+		want /= dev.justaclient.hud.HudFit.factor();
 		double snapped = Math.round(want / 0.05) * 0.05;
 		hud.scale.set(snapped);
 		float w = hud.scaledWidth();
@@ -535,7 +538,7 @@ public final class HudEditorScreen extends Screen {
 		if (setting == null) {
 			return;
 		}
-		float scale = hud.scale.f();
+		float scale = hud.drawScale();
 		float now = horizontal ? hud.scaledWidth() : hud.scaledHeight();
 		float want = horizontal ? Math.abs(mx - fixedX) : Math.abs(my - fixedY);
 		setting.set(setting.get() + (want - now) / scale);
@@ -548,41 +551,16 @@ public final class HudEditorScreen extends Screen {
 
 	/** Returns the snapped position and the guide line to draw (NaN for none) along one axis. */
 	private float[] snap(float pos, float size, float screen, boolean horizontal, HudFeature self) {
-		float best = Float.MAX_VALUE;
-		float result = pos;
-		float guide = Float.NaN;
-		List<float[]> candidates = new ArrayList<>();
-		// {position for the widget's start, guide line}
-		candidates.add(new float[] {HudFeature.MARGIN, HudFeature.MARGIN});
-		candidates.add(new float[] {screen - HudFeature.MARGIN - size, screen - HudFeature.MARGIN});
-		if (editor().snapsToCentres()) {
-			candidates.add(new float[] {(screen - size) / 2f, screen / 2f});
-		}
-		float gap = editor().gap();
+		List<HudSnap.Span> others = new ArrayList<>();
 		for (HudFeature other : widgets()) {
 			if (other == self) {
 				continue;
 			}
 			layout(other);
-			float o = horizontal ? other.screenX(width) : other.screenY(height);
-			float os = horizontal ? other.scaledWidth() : other.scaledHeight();
-			candidates.add(new float[] {o, o});
-			candidates.add(new float[] {o + os - size, o + os});
-			candidates.add(new float[] {o + os + gap, o + os + gap / 2f});
-			candidates.add(new float[] {o - size - gap, o - gap / 2f});
-			if (editor().snapsToCentres()) {
-				candidates.add(new float[] {o + os / 2f - size / 2f, o + os / 2f});
-			}
+			others.add(new HudSnap.Span(horizontal ? other.screenX(width) : other.screenY(height),
+				horizontal ? other.scaledWidth() : other.scaledHeight()));
 		}
-		for (float[] c : candidates) {
-			float d = Math.abs(pos - c[0]);
-			if (d < SNAP && d < best) {
-				best = d;
-				result = c[0];
-				guide = c[1];
-			}
-		}
-		return new float[] {result, guide};
+		return HudSnap.snap(pos, size, screen, HudFeature.MARGIN, editor().gap(), editor().snapsToCentres(), others, SNAP);
 	}
 
 	@Override

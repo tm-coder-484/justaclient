@@ -47,7 +47,12 @@ final class WindowsSource implements MediaSource {
 		try {
 			if (dir == null) {
 				dir = Files.createTempDirectory("justaclient-media");
+				// deleteOnExit only removes an empty folder, so its files are listed too (deleted first, as they are
+				// registered after it): the script, the command file and the four album art slots the script cycles.
 				dir.toFile().deleteOnExit();
+				for (String f : List.of("now_playing.ps1", "command.txt", "art0.img", "art1.img", "art2.img", "art3.img")) {
+					dir.resolve(f).toFile().deleteOnExit();
+				}
 			}
 			Path script = dir.resolve("now_playing.ps1");
 			try (InputStream in = WindowsSource.class.getResourceAsStream("/assets/justaclient/media/now_playing.ps1")) {

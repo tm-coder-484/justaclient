@@ -76,6 +76,8 @@ public final class LifetimeStats {
 			}
 		} catch (IOException | RuntimeException e) {
 			Justaclient.LOGGER.warn("Could not read {}, starting fresh", FILE, e);
+			// Kept aside, or the next save (within a minute) would write zeros over every stat in it.
+			dev.justaclient.world.WorldStore.keepAside(FILE);
 		}
 	}
 

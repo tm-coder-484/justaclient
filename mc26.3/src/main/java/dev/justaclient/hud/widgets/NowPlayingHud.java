@@ -863,7 +863,7 @@ public final class NowPlayingHud extends HudFeature {
 		if (!hud.hasContent()) {
 			return false;
 		}
-		float scale = hud.scale.f();
+		float scale = hud.drawScale();
 		return hud.click((x - hud.screenX(screenWidth)) / scale, (y - hud.screenY(screenHeight)) / scale);
 	}
 

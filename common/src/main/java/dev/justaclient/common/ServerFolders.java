@@ -54,7 +54,7 @@ public final class ServerFolders {
 				}
 			} catch (IOException | JsonParseException | IllegalStateException e) {
 				try {
-					Files.move(file, file.resolveSibling(file.getFileName() + ".broken"), StandardCopyOption.REPLACE_EXISTING);
+					Files.move(file, file.resolveSibling(file.getFileName() + "." + System.currentTimeMillis() + ".broken"));
 				} catch (IOException ignored) {
 					// Nothing more to do.
 				}

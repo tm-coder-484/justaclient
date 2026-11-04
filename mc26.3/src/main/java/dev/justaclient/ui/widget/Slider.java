@@ -47,8 +47,10 @@ public final class Slider extends Widget {
 	protected void draw(GuiGraphicsExtractor g, double mouseX, double mouseY, float alpha) {
 		fill.setTarget(fraction());
 		float t = Mth.clamp(fill.update(), 0f, 1f);
-		JacText.draw(g, label, x, y, Colors.fade(Theme.TEXT, alpha), Theme.LABEL, JacText.Weight.REGULAR);
 		String value = format.apply(getter.getAsDouble());
+		float valueW = JacText.width(value, Theme.LABEL, JacText.Weight.SEMIBOLD);
+		JacText.draw(g, dev.justaclient.ui.JacScreen.fit(label, Theme.LABEL, JacText.Weight.REGULAR, width - valueW - 6f), x, y,
+			Colors.fade(Theme.TEXT, alpha), Theme.LABEL, JacText.Weight.REGULAR);
 		JacText.draw(g, value, x + width - JacText.width(value, Theme.LABEL, JacText.Weight.SEMIBOLD), y,
 			Colors.fade(Theme.TEXT, alpha), Theme.LABEL, JacText.Weight.SEMIBOLD);
 		float ty = y + 16f;

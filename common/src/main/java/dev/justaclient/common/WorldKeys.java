@@ -11,6 +11,10 @@ public final class WorldKeys {
 		String safe = key.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9._-]+", "_").replaceAll("_+", "_");
 		if (safe.length() > 80) {
 			safe = safe.substring(0, 80) + "_" + Integer.toHexString(key.hashCode());
+		} else if (!key.chars().allMatch(c -> c < 128)) {
+			// Names in other scripts (世界, Мир) would all become "sp_" and share one folder; a hash keeps them apart.
+			// Plain-ASCII keys keep the folder they always had.
+			safe = safe + "_" + Integer.toHexString(key.hashCode());
 		}
 		return safe.isEmpty() ? "world" : safe;
 	}

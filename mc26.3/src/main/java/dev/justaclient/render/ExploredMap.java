@@ -62,6 +62,11 @@ public final class ExploredMap {
 	private static final LinkedHashMap<Long, Region> regions = new LinkedHashMap<>(16, 0.75f, true);
 	/** Regions with no file on disk yet, so lookups do not keep checking. */
 	private static final Set<Long> missing = new HashSet<>();
+	/**
+	 * Region files handed to {@link #IO} but not written yet. A region needed again before its write lands (relogging,
+	 * a quick trip through a portal and back) is read from here, not from the older file or no file on disk.
+	 */
+	private static final Map<Path, byte[]> PENDING = new java.util.concurrent.ConcurrentHashMap<>();
 	private static final ArrayDeque<Long> queue = new ArrayDeque<>();
 	private static final Set<Long> queued = new HashSet<>();
 	private static @Nullable String key;
@@ -161,7 +166,9 @@ public final class ExploredMap {
 	}
 
 	private static String safe(String s) {
-		return s.replaceAll("[^A-Za-z0-9._-]", "_");
+		String safe = s.replaceAll("[^A-Za-z0-9._-]", "_");
+		// Names in other scripts (世界, Мир) would all become underscores and share one map; a hash keeps them apart.
+		return s.chars().allMatch(c -> c < 128) ? safe : safe + "_" + Integer.toHexString(s.hashCode());
 	}
 
 	private static void record(ClientLevel level, BlockPos.MutableBlockPos pos, int floorFrom, int cx, int cz) {
@@ -247,6 +254,12 @@ public final class ExploredMap {
 	}
 
 	private static @Nullable Region load(Path file) {
+		byte[] pending = PENDING.get(file);
+		if (pending != null) {
+			Region r = new Region();
+			ByteBuffer.wrap(pending).asIntBuffer().get(r.pixels);
+			return r;
+		}
 		if (!Files.isRegularFile(file)) {
 			return null;
 		}
@@ -285,6 +298,7 @@ public final class ExploredMap {
 		buffer.asIntBuffer().put(region.pixels);
 		byte[] bytes = buffer.array();
 		Path file = d.resolve(fileName((int) (k >> 32), (int) k));
+		PENDING.put(file, bytes);
 		try {
 			IO.execute(() -> write(file, bytes));
 		} catch (RuntimeException e) {
@@ -305,6 +319,9 @@ public final class ExploredMap {
 			Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
 		} catch (IOException e) {
 			Justaclient.LOGGER.warn("Could not save map region {}", file, e);
+		} finally {
+			// Only this write's bytes: a newer save of the same region stays pending.
+			PENDING.remove(file, bytes);
 		}
 	}
 

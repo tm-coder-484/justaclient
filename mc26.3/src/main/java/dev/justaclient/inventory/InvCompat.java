@@ -32,6 +32,7 @@ public final class InvCompat {
 	}
 
 	private static BrewGraph graph;
+	private static final BrewGraph NO_WORLD = new BrewGraph(List.of());
 
 	private InvCompat() {
 	}
@@ -112,6 +113,11 @@ public final class InvCompat {
 
 	/** The game's brewing recipes, read once from its own data. */
 	public static BrewGraph brewing() {
+		if (net.minecraft.client.Minecraft.getInstance().level == null) {
+			// Potions and their item stacks need a world's registries (opening the guide from the title screen crashed);
+			// like 1.21.11, the guide asks you to join a world first.
+			return NO_WORLD;
+		}
 		if (graph == null) {
 			graph = build();
 		}

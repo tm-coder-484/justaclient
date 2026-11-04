@@ -109,27 +109,65 @@ public final class Conversations {
 		Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
 	}
 
+	/**
+	 * Replaces what is in memory with the saved history. A file that cannot be read is moved aside as {@code .broken}
+	 * so the next save does not write over it.
+	 */
 	public void load(Path file) {
 		clear();
-		if (!Files.isRegularFile(file)) {
-			return;
-		}
-		try {
-			Saved s = GSON.fromJson(Files.readString(file), new TypeToken<Saved>() { }.getType());
-			if (s != null && s.byFriend() != null) {
-				s.byFriend().forEach((k, v) -> {
-					if (v != null) {
-						List<Message> list = new ArrayList<>();
-						v.stream().filter(m -> m != null && m.id != null && m.text != null).forEach(list::add);
-						byFriend.put(key(k), list);
-					}
-				});
+		if (Files.isRegularFile(file)) {
+			try {
+				Saved s = GSON.fromJson(Files.readString(file), new TypeToken<Saved>() { }.getType());
+				if (s != null && s.byFriend() != null) {
+					s.byFriend().forEach((k, v) -> {
+						if (k != null && v != null) {
+							List<Message> list = new ArrayList<>();
+							v.stream().filter(m -> m != null && m.id != null && m.text != null).forEach(list::add);
+							byFriend.put(key(k), list);
+						}
+					});
+				}
+				if (s != null && s.unread() != null) {
+					s.unread().forEach((k, v) -> {
+						if (k != null && v != null && v > 0) {
+							unread.put(key(k), v);
+						}
+					});
+				}
+			} catch (IOException | JsonParseException | IllegalStateException e) {
+				clear();
+				try {
+					Files.move(file, file.resolveSibling(file.getFileName() + "." + System.currentTimeMillis() + ".broken"));
+				} catch (IOException ignored) {
+					// Could not be moved; the next save replaces it.
+				}
 			}
-			if (s != null && s.unread() != null) {
-				unread.putAll(s.unread());
-			}
-		} catch (IOException | JsonParseException | IllegalStateException e) {
-			clear();
 		}
+	}
+
+	/** Reads the saved history and keeps the messages already in memory too (those that came in while history was off). */
+	public void loadKeeping(Path file) {
+		Map<String, List<Message>> current = new LinkedHashMap<>(byFriend);
+		Map<String, Integer> currentUnread = new LinkedHashMap<>(unread);
+		load(file);
+		current.forEach((friend, list) -> {
+			List<Message> merged = byFriend.computeIfAbsent(friend, k -> new ArrayList<>());
+			int added = 0;
+			for (Message m : list) {
+				if (merged.stream().noneMatch(x -> x.id.equals(m.id) && x.mine == m.mine)) {
+					merged.add(m);
+					added += m.mine ? 0 : 1;
+				}
+			}
+			merged.sort(java.util.Comparator.comparingLong(m -> m.at));
+			while (merged.size() > MAX) {
+				merged.removeFirst();
+			}
+			// Unread only for messages that were not in the file already, and only those not read yet.
+			int still = Math.min(added, currentUnread.getOrDefault(friend, 0));
+			if (still > 0) {
+				unread.merge(friend, still, Integer::sum);
+			}
+		});
 	}
 }

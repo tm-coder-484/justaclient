@@ -37,9 +37,12 @@ public final class RelayClient {
 	private volatile @Nullable WebSocket socket;
 	private volatile @Nullable String error;
 	private volatile String url = "";
-	private int failures;
-	private long retryAt;
+	private volatile int failures;
+	private volatile long retryAt;
 	private long lastPing;
+	/** When the relay last sent anything; it answers every ping, so a long silence means the connection is dead. */
+	private volatile long lastInbound;
+	private static final long SILENCE_MS = 75_000;
 	private volatile boolean verified;
 	private static final int MAX_PENDING = 64;
 	/** The write queue of the current socket; a new socket starts a new one, so a stuck write cannot hold it up. */
@@ -76,6 +79,12 @@ public final class RelayClient {
 			connect();
 		}
 		WebSocket ws = socket;
+		// A half-open connection (Wi-Fi change, sleep) never errors on its own; sending keeps "working" into the OS buffer.
+		if ((state == State.SIGNING_IN || state == State.ONLINE) && ws != null && now - lastInbound > SILENCE_MS) {
+			failed("the relay stopped answering");
+			ws.abort();
+			return;
+		}
 		if (state == State.ONLINE && ws != null && now - lastPing > 30_000) {
 			lastPing = now;
 			send(RelayProtocol.ping());
@@ -172,6 +181,7 @@ public final class RelayClient {
 	/** Self-test only: use {@code ws} as if it had just signed in. */
 	public void testAttach(WebSocket ws) {
 		newQueue();
+		lastInbound = System.currentTimeMillis();
 		socket = ws;
 		state = State.ONLINE;
 	}
@@ -204,6 +214,7 @@ public final class RelayClient {
 		public void onOpen(WebSocket ws) {
 			// The challenge can arrive before buildAsync completes, so the socket is known from here.
 			newQueue();
+			lastInbound = System.currentTimeMillis();
 			socket = ws;
 			state = State.SIGNING_IN;
 			ws.request(1);
@@ -211,6 +222,7 @@ public final class RelayClient {
 
 		@Override
 		public CompletionStage<?> onText(WebSocket ws, CharSequence data, boolean last) {
+			lastInbound = System.currentTimeMillis();
 			partial.append(data);
 			if (last) {
 				String frame = partial.toString();
@@ -248,7 +260,8 @@ public final class RelayClient {
 
 		@Override
 		public void onError(WebSocket ws, Throwable e) {
-			if (socket == ws || socket == null) {
+			// Only the current socket: a late error from an old one must not knock out a connect already under way.
+			if (socket == ws) {
 				failed("connection lost");
 			}
 		}

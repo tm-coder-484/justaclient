@@ -1249,9 +1249,14 @@ public final class SelfTest {
 				back.with("bob").size() + "");
 			Files.writeString(tmp, "{broken");
 			back.load(tmp);
-			check("messages: a broken history file loads as empty", back.with("bob").isEmpty(), "kept data");
+			check("messages: a broken history file loads as empty and is kept aside", back.with("bob").isEmpty() && !Files.exists(tmp), "kept data");
 		} finally {
 			Files.deleteIfExists(tmp);
+			try (Stream<Path> files = Files.list(tmp.getParent())) {
+				for (Path f : files.filter(f -> f.getFileName().toString().startsWith(tmp.getFileName() + ".")).toList()) {
+					Files.deleteIfExists(f);
+				}
+			}
 		}
 		for (int i = 0; i < dev.justaclient.common.relay.Conversations.MAX + 20; i++) {
 			c.add("Cara", new dev.justaclient.common.relay.Conversations.Message("m" + i, true, "n", i, "delivered"));

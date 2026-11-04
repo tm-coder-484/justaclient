@@ -1,0 +1,43 @@
+name: Release
+
+# Push a tag such as 0.12.3-1.21.11 and this builds both jars (1.21.11 and 26.3) from that commit and publishes a
+# GitHub release with them. Release notes come from docs/releases/<tag>.md when that file exists.
+on:
+  push:
+    tags: ['*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            25
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build 1.21.11
+        run: JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build
+      - name: Build 26.3
+        run: JAVA_HOME="$JAVA_HOME_25_X64" ./gradlew -p mc26.3 build
+      - name: Release notes
+        run: |
+          if [ -f "docs/releases/${GITHUB_REF_NAME}.md" ]; then
+            cp "docs/releases/${GITHUB_REF_NAME}.md" notes.md
+          else
+            echo "Justaclient ${GITHUB_REF_NAME}" > notes.md
+          fi
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body_path: notes.md
+          files: |
+            build/libs/justaclient-*+1.21.11.jar
+            mc26.3/build/libs/justaclient-*+26.3.jar
+          fail_on_unmatched_files: true

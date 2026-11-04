@@ -43,7 +43,8 @@ public final class HudRenderer {
 		});
 		HudElementRegistry.attachElementAfter(VanillaHudElements.CHAT, Justaclient.id("trinket"), (g, delta) -> {
 			TrinketFeature trinket = Features.get(TrinketFeature.class);
-			if (trinket.isEnabled() && !editing) {
+			// F1 hides it, as on 1.21.11, so it never ends up in a clean screenshot.
+			if (trinket.isEnabled() && !editing && !Minecraft.getInstance().gui.hud.isHidden()) {
 				trinket.cost.begin();
 				trinket.render(g);
 				trinket.cost.end();
@@ -118,7 +119,7 @@ public final class HudRenderer {
 
 	/** Draws one widget at its saved position. The caller has already run {@link HudFeature#layout}. */
 	public static void draw(GuiGraphicsExtractor g, HudFeature hud, boolean preview) {
-		float scale = hud.scale.f();
+		float scale = hud.drawScale();
 		g.pose().pushMatrix();
 		g.pose().translate(hud.screenX(g.guiWidth()), hud.screenY(g.guiHeight()));
 		g.pose().scale(scale, scale);

@@ -55,6 +55,11 @@ public final class KeybindKeeper {
 			return;
 		}
 		try {
+			// A file edited by hand may not end in a newline; the first restored line must not join its last line.
+			byte[] now = Files.readAllBytes(optionsFile);
+			if (now.length > 0 && now[now.length - 1] != '\n') {
+				missing.addFirst("");
+			}
 			Files.write(optionsFile, missing, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
 		} catch (IOException | RuntimeException e) {
 			// Best effort.
