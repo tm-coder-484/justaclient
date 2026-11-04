@@ -17,6 +17,9 @@
 	"entrypoints": {
 		"client": [
 			"dev.justaclient.Justaclient"
+		],
+		"preLaunch": [
+			"dev.justaclient.mods.ModMenuStubs"
 		]
 	},
 	"mixins": [
