@@ -1,0 +1,34 @@
+{
+  "ambient.fireflies": {
+    "sounds": [
+      {
+        "name": "justaclient:ambient/fireflies_0",
+        "stream": false
+      },
+      {
+        "name": "justaclient:ambient/fireflies_1",
+        "stream": false
+      },
+      {
+        "name": "justaclient:ambient/fireflies_2",
+        "stream": false
+      }
+    ]
+  },
+  "ambient.dry_grass": {
+    "sounds": [
+      {
+        "name": "justaclient:ambient/dry_grass_0",
+        "stream": false
+      },
+      {
+        "name": "justaclient:ambient/dry_grass_1",
+        "stream": false
+      },
+      {
+        "name": "justaclient:ambient/dry_grass_2",
+        "stream": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,83 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+version = "${mod_version}+${minecraft_version}-neoforge"
+group = 'dev.justaclient'
+base { archivesName = 'justaclient' }
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+repositories {
+    mavenCentral()
+    maven { url = 'https://api.modrinth.com/maven' }
+}
+neoForge {
+    version = project.neo_version
+    runs {
+        client {
+            client()
+            if (project.hasProperty('jacSmokeWorld')) systemProperty 'justaclient.smokeWorld', 'true'
+            if (project.hasProperty('jacSelfTest')) systemProperty 'justaclient.selftest', 'true'
+            if (project.hasProperty('jacUiTour')) {
+                systemProperty 'justaclient.uiTour', project.property('jacUiTour').toString()
+                if (project.hasProperty('jacUiWait')) systemProperty 'justaclient.uiTourWait', project.property('jacUiWait').toString()
+                systemProperty 'justaclient.uiTourScales', project.findProperty('jacUiScales') ?: '2,4'
+                if (project.hasProperty('jacUiOnly')) systemProperty 'justaclient.uiTourOnly', project.property('jacUiOnly').toString()
+            }
+        }
+    }
+    mods {
+        justaclient { sourceSet(sourceSets.main) }
+    }
+    unitTest {
+        enable()
+        testedMod = mods.justaclient
+    }
+}
+sourceSets {
+    test.java {
+        srcDir('../common/src/test/java')
+        exclude '**/TestGame.java'
+    }
+    main.resources {
+        srcDir('../src/main/resources')
+        exclude 'fabric.mod.json'
+    }
+}
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.13.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    implementation 'org.jspecify:jspecify:1.0.0' 
+    implementation 'com.twelvemonkeys.imageio:imageio-webp:3.12.0'
+    jarJar('com.twelvemonkeys.imageio:imageio-webp:3.12.0')
+    jarJar('com.twelvemonkeys.imageio:imageio-core:3.12.0')
+    jarJar('com.twelvemonkeys.imageio:imageio-metadata:3.12.0')
+    jarJar('com.twelvemonkeys.common:common-lang:3.12.0')
+    jarJar('com.twelvemonkeys.common:common-io:3.12.0')
+    jarJar('com.twelvemonkeys.common:common-image:3.12.0')
+}
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('META-INF/neoforge.mods.toml') { expand version: project.version }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+    options.encoding = 'UTF-8'
+    options.compilerArgs += ['-Xmaxerrs', '1000']
+}
+jar { from('../LICENSE') }
+
+tasks.named('compileTestJava') { source file('src/test/java/dev/justaclient/TestGame.java') }
+test { useJUnitPlatform() }
+
+def sharedJava = objects.sourceDirectorySet('sharedJava', 'Shared plain Java')
+sharedJava.srcDir('../common/src/main/java')
+sharedJava.exclude('dev/justaclient/common/mods/ModManager.java',
+    'dev/justaclient/common/mods/DeferredRenames.java',
+    'dev/justaclient/common/mods/Relauncher.java',
+    'dev/justaclient/common/mods/JarMetadata.java')
+sourceSets.main.java.source(sharedJava)

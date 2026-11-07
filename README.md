@@ -1,9 +1,9 @@
 # Justaclient
 
-A visuals-only Fabric client for Minecraft Java **1.21.11** and **26.3**. Smooth animated UI, frosted-glass panels, crisp fonts and a
+A visuals-only client for Minecraft Java **1.21.11** and **26.3** on Fabric, and **1.21.1** on NeoForge (Create Aeronautics). Smooth animated UI, frosted-glass panels, crisp fonts and a
 look you can fully re-theme. No cheats: nothing that reveals hidden information or automates play.
 
-Requires **Fabric API** and **Sodium**.
+The Fabric builds require **Fabric API** and **Sodium**. The NeoForge build uses NeoForge directly.
 
 ![The Justaclient menu over the world, default dark glass look](docs/screenshots/menu.png)
 
@@ -19,6 +19,19 @@ Requires **Fabric API** and **Sodium**.
 
 macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `build` to build instead
 (`./start.sh 26.3 build`).
+
+### Minecraft 1.21.1 / NeoForge (Create Aeronautics)
+
+Use `justaclient-0.12.5+1.21.1-neoforge.jar` in a Minecraft **1.21.1** instance with
+**NeoForge 21.1.265 or newer** and **Java 21 or newer**. Install Create, Sable and
+Create Aeronautics separately when using that modpack; Justaclient does not require
+those mods for ordinary play. This build does not use Fabric API or Sinytra Connector.
+
+- Windows: `start.bat`, version **3**, then Play or Build.
+- Linux/macOS: `./start.sh 1.21.1` or `./start.sh 1.21.1 build`.
+- Direct build: `cd neoforge && ./gradlew build`; jar output is `neoforge/build/libs/`.
+- The development client loads additional mods from `neoforge/run/mods/`.
+- [Port details and validation](neoforge/PORTING.md).
 
 ## Install into your own launcher
 
@@ -122,7 +135,7 @@ Both are off by default and have their own switches, in both the 1.21.11 and 26.
   (off by default) goes to third person when a menu opens and back to first person when it closes, unless you changed
   the view yourself in between.
 - **Modrinth browser** (Tools, `/jmodrinth`, or **Browse Modrinth** in the Mods panel): search Modrinth for mods,
-  shaders, resource packs and data packs, filtered to this Minecraft version and Fabric. Install puts each file in the
+  shaders, resource packs and data packs, filtered to this Minecraft version and loader. Install puts each file in the
   right folder (`mods`, `shaderpacks`, `resourcepacks`, or a world's `datapacks`: it asks which world) after checking
   its hash, adds required dependencies, offers Iris when a shader pack needs it, can turn a new resource pack on
   straight away, and shows what is installed, loaded or has an update. Mods take effect after a restart, using the same
@@ -480,7 +493,7 @@ The world effects (sky, fog, trails, jump circles, hit sounds) start off; turn t
 
 | Path | What it holds |
 | --- | --- |
-| `common/src/main/java/` | Plain Java shared by both builds (frame stats, stopwatch, durations, world keys) |
+| `common/src/main/java/` | Plain Java shared by all three builds (frame stats, stopwatch, durations, world keys) |
 | `src/main/java/dev/justaclient/world/` | Per-world store (`config/justaclient/worlds/<world>/`) |
 | `src/main/java/dev/justaclient/render/` | Shape kit (`Draw`), blur (`BlurEngine`), pipelines, world effects (`WorldFx`) |
 | `src/main/java/dev/justaclient/render/text/` | MSDF font loader and text renderer (`JacText`) |

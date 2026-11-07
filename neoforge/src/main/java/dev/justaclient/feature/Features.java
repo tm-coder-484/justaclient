@@ -1,0 +1,273 @@
+package dev.justaclient.feature;
+
+import dev.justaclient.feature.impl.AmbientParticlesFeature;
+import dev.justaclient.feature.impl.GuiSoundsFeature;
+import dev.justaclient.feature.impl.ScreenBackgroundFeature;
+import dev.justaclient.feature.impl.ScreenStyleFeature;
+import dev.justaclient.feature.impl.SmoothScrollFeature;
+import dev.justaclient.feature.impl.AutoReconnectFeature;
+import dev.justaclient.feature.impl.BlockHighlightFeature;
+import dev.justaclient.feature.impl.BossBarFeature;
+import dev.justaclient.feature.impl.CameraFeature;
+import dev.justaclient.feature.impl.ColorGradingFeature;
+import dev.justaclient.feature.impl.CopyCoordinatesFeature;
+import dev.justaclient.feature.impl.CosmeticsFeature;
+import dev.justaclient.feature.impl.CrosshairFeature;
+import dev.justaclient.feature.impl.DiscordPresenceFeature;
+import dev.justaclient.feature.impl.FireOverlayFeature;
+import dev.justaclient.feature.impl.FogFeature;
+import dev.justaclient.feature.impl.FullbrightFeature;
+import dev.justaclient.feature.impl.WeaponCompareFeature;
+import dev.justaclient.feature.impl.ExitConfirmFeature;
+import dev.justaclient.feature.impl.HatsFeature;
+import dev.justaclient.feature.impl.SkinFeature;
+import dev.justaclient.feature.impl.HitBubblesFeature;
+import dev.justaclient.feature.impl.SlashTrailFeature;
+import dev.justaclient.feature.impl.EndCrystalFeature;
+import dev.justaclient.feature.impl.HitboxesFeature;
+import dev.justaclient.feature.impl.CleanWorldFeature;
+import dev.justaclient.feature.impl.WaterColorFeature;
+import dev.justaclient.feature.impl.LightColorFeature;
+import dev.justaclient.feature.impl.TimeFeature;
+import dev.justaclient.feature.impl.FriendsFeature;
+import dev.justaclient.feature.impl.GlintFeature;
+import dev.justaclient.feature.impl.HandFeature;
+import dev.justaclient.feature.impl.HandGlowFeature;
+import dev.justaclient.feature.impl.HitParticlesFeature;
+import dev.justaclient.feature.impl.HitSoundsFeature;
+import dev.justaclient.feature.impl.HotbarFeature;
+import dev.justaclient.feature.impl.ItemOverlayFeature;
+import dev.justaclient.feature.impl.JumpCirclesFeature;
+import dev.justaclient.feature.impl.KillEffectsFeature;
+import dev.justaclient.feature.impl.LoadingScreenFeature;
+import dev.justaclient.feature.impl.LowHealthFeature;
+import dev.justaclient.feature.impl.MotionBlurFeature;
+import dev.justaclient.feature.impl.NameProtectFeature;
+import dev.justaclient.feature.impl.OverlaysFeature;
+import dev.justaclient.feature.impl.ScoreboardFeature;
+import dev.justaclient.feature.impl.SkyFeature;
+import dev.justaclient.feature.impl.StreamModeFeature;
+import dev.justaclient.feature.impl.TargetMarkerFeature;
+import dev.justaclient.feature.impl.TitleScreenFeature;
+import dev.justaclient.feature.impl.ToggleSprintFeature;
+import dev.justaclient.feature.impl.TotemPopFeature;
+import dev.justaclient.feature.impl.TrailsFeature;
+import dev.justaclient.feature.impl.WaypointsFeature;
+import dev.justaclient.feature.impl.WeatherToastFeature;
+import dev.justaclient.feature.impl.BlockFoundFeature;
+import dev.justaclient.feature.impl.TiersFeature;
+import dev.justaclient.feature.impl.PerformanceModeFeature;
+import dev.justaclient.feature.impl.TrinketFeature;
+import dev.justaclient.feature.impl.WindowFeature;
+import dev.justaclient.feature.impl.ZoomFeature;
+import dev.justaclient.feature.impl.MacrosFeature;
+import dev.justaclient.feature.impl.CrashHelperFeature;
+import dev.justaclient.feature.impl.HudEditorFeature;
+import dev.justaclient.feature.impl.ProfileBackupFeature;
+import dev.justaclient.feature.impl.SessionHistoryFeature;
+import dev.justaclient.feature.impl.FeedbackFeature;
+import dev.justaclient.hud.widgets.TodoHud;
+import dev.justaclient.hud.HudFeature;
+import dev.justaclient.hud.Notifications;
+import dev.justaclient.hud.widgets.ArmorHud;
+import dev.justaclient.hud.widgets.CombatHud;
+import dev.justaclient.hud.widgets.SpeedHud;
+import dev.justaclient.hud.widgets.PerformanceHud;
+import dev.justaclient.hud.widgets.TimerHud;
+import dev.justaclient.hud.widgets.BiomeHud;
+import dev.justaclient.hud.widgets.DayCycleHud;
+import dev.justaclient.hud.widgets.HeldItemHud;
+import dev.justaclient.hud.widgets.DurabilityHud;
+import dev.justaclient.hud.widgets.ConsumablesHud;
+import dev.justaclient.hud.widgets.CooldownsHud;
+import dev.justaclient.hud.widgets.CoordinatesHud;
+import dev.justaclient.hud.widgets.GpsHud;
+import dev.justaclient.hud.widgets.NowPlayingHud;
+import dev.justaclient.hud.widgets.InventoryHud;
+import dev.justaclient.hud.widgets.KeybindsHud;
+import dev.justaclient.hud.widgets.MinimapHud;
+import dev.justaclient.hud.widgets.ModuleListHud;
+import dev.justaclient.hud.widgets.NotificationsHud;
+import dev.justaclient.hud.widgets.PlayerInfoHud;
+import dev.justaclient.hud.widgets.PotionsHud;
+import dev.justaclient.hud.widgets.SessionStatsHud;
+import dev.justaclient.hud.widgets.TargetHud;
+import dev.justaclient.hud.widgets.WatermarkHud;
+import dev.justaclient.profile.Profiles;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import net.minecraft.client.Minecraft;
+
+/** Every feature in the client, in the order the GUI lists them. */
+public final class Features {
+	private static final List<Feature> ALL = new ArrayList<>();
+	private static final Map<Class<?>, Feature> BY_TYPE = new HashMap<>();
+	private static final Map<Feature, Boolean> KEY_WAS_DOWN = new HashMap<>();
+
+	private Features() {
+	}
+
+	public static void init() {
+		register(new PlayerInfoHud());
+		register(new CoordinatesHud());
+		register(new ArmorHud());
+		register(new PotionsHud());
+		register(new CooldownsHud());
+		register(new NotificationsHud());
+		register(new TargetHud());
+		register(new WatermarkHud());
+		register(new ModuleListHud());
+		register(new KeybindsHud());
+		register(new InventoryHud());
+		register(new ConsumablesHud());
+		register(new CombatHud());
+		register(new SpeedHud());
+		register(new PerformanceHud());
+		register(new TimerHud());
+		register(new BiomeHud());
+		register(new DayCycleHud());
+		register(new HeldItemHud());
+		register(new DurabilityHud());
+		register(new TodoHud());
+		register(new HudEditorFeature());
+		register(new MinimapHud());
+		register(new GpsHud());
+		register(new NowPlayingHud());
+		register(new TrinketFeature());
+		register(new SessionStatsHud());
+		register(new LowHealthFeature());
+		register(new BossBarFeature());
+		register(new ScoreboardFeature());
+		register(new HotbarFeature());
+		register(new ItemOverlayFeature());
+		register(new CrosshairFeature());
+		register(new WeaponCompareFeature());
+		register(new HitParticlesFeature());
+		register(new HitBubblesFeature());
+		register(new HitSoundsFeature());
+		register(new KillEffectsFeature());
+		register(new TotemPopFeature());
+		register(new TargetMarkerFeature());
+		register(new EndCrystalFeature());
+		register(new HandFeature());
+		register(new HandGlowFeature());
+		register(new SlashTrailFeature());
+		register(new FireOverlayFeature());
+		register(new OverlaysFeature());
+		register(new BlockHighlightFeature());
+		register(new SkyFeature());
+		register(new FogFeature());
+		register(new TimeFeature());
+		register(new LightColorFeature());
+		register(new FullbrightFeature());
+		register(new WaterColorFeature());
+		register(new CleanWorldFeature());
+		register(new HitboxesFeature());
+		register(new TrailsFeature());
+		register(new JumpCirclesFeature());
+		register(new ColorGradingFeature());
+		register(new MotionBlurFeature());
+		register(new GlintFeature());
+		register(new AmbientParticlesFeature());
+		register(new dev.justaclient.feature.impl.BiomeEffectsFeature());
+		register(new dev.justaclient.feature.impl.SpatialMenusFeature());
+		register(new dev.justaclient.feature.impl.ModrinthFeature());
+		register(new CosmeticsFeature());
+		register(new HatsFeature());
+		register(new SkinFeature());
+		register(new dev.justaclient.feature.impl.CapeFeature());
+		register(new dev.justaclient.feature.impl.MessagingFeature());
+		register(new ZoomFeature());
+		register(new CameraFeature());
+		register(new CopyCoordinatesFeature());
+		register(new WaypointsFeature());
+		register(new FriendsFeature());
+		register(new StreamModeFeature());
+		register(new ToggleSprintFeature());
+		register(new MacrosFeature());
+		register(new SessionHistoryFeature());
+		register(new AutoReconnectFeature());
+		register(new ExitConfirmFeature());
+		register(new DiscordPresenceFeature());
+		register(new NameProtectFeature());
+		register(new ScreenStyleFeature());
+		register(new ScreenBackgroundFeature());
+		register(new SmoothScrollFeature());
+		register(new GuiSoundsFeature());
+		register(new dev.justaclient.feature.impl.ModsPanelFeature());
+		register(new dev.justaclient.feature.impl.ServersFeature());
+		register(new dev.justaclient.feature.impl.KeybindsFeature());
+		register(new dev.justaclient.feature.impl.ScreenshotsFeature());
+		register(new dev.justaclient.feature.impl.DevConsoleFeature());
+		register(new dev.justaclient.feature.impl.WorldArchiveFeature());
+		register(new dev.justaclient.feature.impl.LabsFeature());
+		register(new dev.justaclient.feature.impl.FurnaceInfoFeature());
+		register(new dev.justaclient.feature.impl.FoodInfoFeature());
+		register(new dev.justaclient.feature.impl.PotionGuideFeature());
+		register(new dev.justaclient.feature.impl.AnvilHelperFeature());
+		register(new dev.justaclient.feature.impl.CraftingHelperFeature());
+		register(new dev.justaclient.feature.impl.ChatTimestampsFeature());
+		register(new dev.justaclient.feature.impl.ChatHighlightsFeature());
+		register(new dev.justaclient.feature.impl.ChatHistoryFeature());
+		register(new dev.justaclient.feature.impl.ChatScrollMemoryFeature());
+		register(new dev.justaclient.feature.impl.SavedMessagesFeature());
+		register(new dev.justaclient.feature.impl.AutoGgFeature());
+		register(new dev.justaclient.feature.impl.StorageMemoryFeature());
+		register(new dev.justaclient.feature.impl.DeathRecapFeature());
+		register(new dev.justaclient.feature.impl.KitsFeature());
+		register(new TitleScreenFeature());
+		register(new LoadingScreenFeature());
+		register(new WeatherToastFeature());
+		register(new BlockFoundFeature());
+		register(new TiersFeature());
+		register(new PerformanceModeFeature());
+		register(new WindowFeature());
+		register(new ProfileBackupFeature());
+		register(new FeedbackFeature());
+		register(new CrashHelperFeature());
+	}
+
+	private static void register(Feature feature) {
+		ALL.add(feature);
+		BY_TYPE.put(feature.getClass(), feature);
+	}
+
+	public static List<Feature> all() {
+		return Collections.unmodifiableList(ALL);
+	}
+
+	public static List<Feature> in(Category category) {
+		return ALL.stream().filter(f -> f.category == category).toList();
+	}
+
+	public static List<HudFeature> hud() {
+		return ALL.stream().filter(f -> f instanceof HudFeature).map(f -> (HudFeature) f).toList();
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T extends Feature> T get(Class<T> type) {
+		return (T) BY_TYPE.get(type);
+	}
+
+	/** Runs feature ticks and toggle keys. Keys only fire in game, not while a menu is open. */
+	public static void tick(Minecraft client) {
+		for (Feature feature : ALL) {
+			boolean down = client.screen == null && feature.toggleKey.isDown();
+			boolean was = KEY_WAS_DOWN.getOrDefault(feature, false);
+			KEY_WAS_DOWN.put(feature, down);
+			if (down && !was) {
+				feature.toggle();
+				Notifications.toggled(feature);
+				Profiles.save();
+			}
+			if (feature.isEnabled()) {
+				feature.cost.begin();
+				feature.tick();
+				feature.cost.end();
+			}
+		}
+	}
+}
