@@ -37,7 +37,7 @@ abstract class ScreenMixin {
 			return;
 		}
 		Screen self = (Screen) (Object) this;
-		if (feature.draw(self, g, minecraft.level != null, mouseX, mouseY, () -> renderPanorama(g, partialTick), () -> renderBlurredBackground(partialTick))) {
+		if (feature.draw(self, g, self instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>, mouseX, mouseY, () -> renderPanorama(g, partialTick), () -> renderBlurredBackground(partialTick))) {
 
 			ci.cancel();
 		}

@@ -69,6 +69,8 @@ public final class Draw {
 		}
 		// The glass shader reads overall opacity from the line width slot, which it has no other use for.
 		int opaque = tint | 0x01000000;
+		// Native 1.21.1 GUI drawing is buffered. Capture the background only after it is submitted.
+		g.flush();
 		submit(g, JacPipelines.GLASS, BlurEngine.request(), x, y, w, h, radius, 0f, Math.min(1f, opacity), opaque, opaque, opaque, opaque);
 	}
 

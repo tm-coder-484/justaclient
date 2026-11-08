@@ -55,42 +55,51 @@ public final class ModManager {
 		Set<Path> folders = new LinkedHashSet<>();
 		folders.add(modsFolder);
 		for (ModContainer container : loader.getAllMods()) {
-			ModMetadata meta = container.getMetadata();
-			if (container.getContainingMod().isPresent() || meta.getType().equals("builtin")) {
-				continue;
+			try {
+				ModMetadata meta = container.getMetadata();
+				if (meta.getType().equals("builtin") || container.getContainingMod().isPresent()) {
+					continue;
+				}
+				Set<String> provided = new LinkedHashSet<>();
+				Set<String> required = new LinkedHashSet<>();
+				collectIds(container, provided, required);
+				required.removeAll(provided);
+				Path jar = singleJar(container.getOrigin());
+				if (jar == null || !jar.startsWith(modsFolder)) {
+					result.add(locked(meta, "Not a jar in the mods folder", provided, required));
+					continue;
+				}
+				loadedJars.put(jar.toString(), jar);
+				folders.add(jar.getParent());
+				if (meta.getId().equals(SELF)) {
+					result.add(locked(meta, "This is the client itself", provided, required));
+					continue;
+				}
+				Path disabled = ModFiles.disabledPath(jar);
+				ModStatus status;
+				Path file;
+				if (DeferredRenames.isPending(jar)) {
+					status = ModStatus.DISABLE_PENDING;
+					file = jar;
+				} else if (Files.exists(jar)) {
+					status = ModStatus.ENABLED;
+					file = jar;
+				} else if (Files.exists(disabled)) {
+					status = ModStatus.DISABLE_PENDING;
+					file = disabled;
+				} else {
+					result.add(locked(meta, "The file " + jar.getFileName() + " is gone", provided, required));
+					continue;
+				}
+				result.add(fromLoader(meta, status, file, jar, null, provided, required));
+			} catch (RuntimeException | LinkageError | java.util.ServiceConfigurationError e) {
+				String id=container.info().getModId();
+				LOG.warn("Could not read NeoForge metadata for {}", id, e);
+				result.add(new ManagedMod(id, container.info().getDisplayName(), "?",
+					"Could not read this mod's metadata ("+e.getClass().getSimpleName()+"). See latest.log for details.",
+					List.of(), Map.of(), null, ModStatus.LOCKED, null, null,
+					"Metadata unavailable; switching disabled", Set.of(id), Set.of(), true, false));
 			}
-			Set<String> provided = new LinkedHashSet<>();
-			Set<String> required = new LinkedHashSet<>();
-			collectIds(container, provided, required);
-			required.removeAll(provided);
-			Path jar = singleJar(container.getOrigin());
-			if (jar == null || !jar.startsWith(modsFolder)) {
-				result.add(locked(meta, "Not a jar in the mods folder", provided, required));
-				continue;
-			}
-			loadedJars.put(jar.toString(), jar);
-			folders.add(jar.getParent());
-			if (meta.getId().equals(SELF)) {
-				result.add(locked(meta, "This is the client itself", provided, required));
-				continue;
-			}
-			Path disabled = ModFiles.disabledPath(jar);
-			ModStatus status;
-			Path file;
-			if (DeferredRenames.isPending(jar)) {
-				status = ModStatus.DISABLE_PENDING;
-				file = jar;
-			} else if (Files.exists(jar)) {
-				status = ModStatus.ENABLED;
-				file = jar;
-			} else if (Files.exists(disabled)) {
-				status = ModStatus.DISABLE_PENDING;
-				file = disabled;
-			} else {
-				result.add(locked(meta, "The file " + jar.getFileName() + " is gone", provided, required));
-				continue;
-			}
-			result.add(fromLoader(meta, status, file, jar, null, provided, required));
 		}
 		for (Path folder : folders) {
 			for (Path path : list(folder)) {
@@ -236,11 +245,6 @@ public final class ModManager {
 
 	private static void collectIds(ModContainer container, Set<String> provided, Set<String> required) {
 		ModMetadata meta = container.getMetadata();
-        Path file=singleJar(container.getOrigin());
-        if(file!=null) {
-            JarMetadata metadata=JarMetadata.read(file);
-            if(metadata!=null) { provided.addAll(metadata.providedIds());required.addAll(metadata.requiredIds()); }
-        }
 		provided.add(meta.getId());
 		provided.addAll(meta.getProvides());
 		for (ModDependency dependency : meta.getDependencies()) {

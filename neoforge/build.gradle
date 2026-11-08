@@ -13,11 +13,18 @@ repositories {
     mavenCentral()
     maven { url = 'https://api.modrinth.com/maven' }
 }
+def packagedSmoke = project.hasProperty('jacPackagedJar') ? sourceSets.create('packagedSmoke') : null
 neoForge {
     version = project.neo_version
+    if (packagedSmoke != null) addModdingDependenciesTo(packagedSmoke)
     runs {
         client {
             client()
+            if (packagedSmoke != null) {
+                loadedMods = []
+                sourceSet = packagedSmoke
+            }
+            if (project.hasProperty('jacMenuRegression')) systemProperty 'justaclient.menuRegression', project.property('jacMenuRegression').toString()
             if (project.hasProperty('jacSmokeWorld')) systemProperty 'justaclient.smokeWorld', 'true'
             if (project.hasProperty('jacSmokeSpatial')) systemProperty 'justaclient.smokeSpatial', 'true'
             if (project.hasProperty('jacSelfTest')) systemProperty 'justaclient.selftest', 'true'
@@ -82,3 +89,13 @@ sharedJava.exclude('dev/justaclient/common/mods/ModManager.java',
     'dev/justaclient/common/mods/Relauncher.java',
     'dev/justaclient/common/mods/JarMetadata.java')
 sourceSets.main.java.source(sharedJava)
+
+if (packagedSmoke != null) {
+    def packagedJar = tasks.register('preparePackagedSmokeJar', Copy) {
+        dependsOn tasks.named('jar')
+        from tasks.named('jar').flatMap { it.archiveFile }
+        into layout.projectDirectory.dir('run/mods')
+        rename { 'justaclient-packaged-smoke.jar' }
+    }
+    neoForge.runs.client.taskBefore(packagedJar)
+}

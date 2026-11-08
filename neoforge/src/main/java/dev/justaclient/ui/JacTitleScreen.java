@@ -151,6 +151,7 @@ public final class JacTitleScreen extends dev.justaclient.platform.PlatformScree
 
 	@Override
 	public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+		renderBackground(g, mouseX, mouseY, partialTick);
 		boolean pushed = canvas.push(g);
 		drawScreen(g, canvas.in(mouseX), canvas.in(mouseY), partialTick);
 		canvas.pop(g, pushed);

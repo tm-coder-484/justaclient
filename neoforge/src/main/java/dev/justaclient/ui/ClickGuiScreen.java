@@ -341,6 +341,7 @@ public final class ClickGuiScreen extends dev.justaclient.platform.PlatformScree
 			minecraft.setScreen(closeTo);
 			return;
 		}
+		renderBackground(g, mouseX, mouseY, partialTick);
 		float fit = Math.min(1f, Math.min((width - 16f) / W, (height - 16f) / H));
 		scale = fit * (0.94f + 0.06f * t);
 		originX = (width - W * scale) / 2f;

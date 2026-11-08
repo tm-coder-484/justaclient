@@ -389,6 +389,7 @@ public final class WorldMapScreen extends dev.justaclient.platform.PlatformScree
 		double mx = (mouseX - originX) / scale;
 		double my = (mouseY - originY) / scale;
 
+		if (!dev.justaclient.render.SpatialMenus.drawing()) renderBackground(g, mouseX, mouseY, partialTick);
 		g.pose().pushPose();
 		g.pose().translate(originX, originY, 0);
 		g.pose().scale(scale, scale, 1);

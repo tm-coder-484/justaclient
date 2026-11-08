@@ -35,7 +35,7 @@ public final class HandFx {
 			}
 			target = new TextureTarget(main.width, main.height, true, Minecraft.ON_OSX);
 		}
-		target.setClearColor(0,0,0,0); target.clear(Minecraft.ON_OSX); target.bindWrite(true);
+		target.setClearColor(0,0,0,0); FullScreen.clear(target); target.bindWrite(true);
 
 
 		capturing = true;

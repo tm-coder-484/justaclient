@@ -22,7 +22,7 @@ macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3, `./star
 
 ### Minecraft 1.21.1 / NeoForge (Create Aeronautics)
 
-Use `justaclient-0.12.5+1.21.1-neoforge.jar` in a Minecraft **1.21.1** instance with
+Use `justaclient-0.12.6+1.21.1-neoforge.jar` in a Minecraft **1.21.1** instance with
 **NeoForge 21.1.265 or newer** and **Java 21 or newer**. Install Create, Sable and
 Create Aeronautics separately when using that modpack; Justaclient does not require
 those mods for ordinary play. This build does not use Fabric API or Sinytra Connector.

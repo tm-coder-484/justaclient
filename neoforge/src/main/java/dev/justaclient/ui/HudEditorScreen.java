@@ -102,6 +102,7 @@ public final class HudEditorScreen extends dev.justaclient.platform.PlatformScre
 
 	@Override
 	public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+		renderBackground(g, mouseX, mouseY, partialTick);
 		float t = open.animateTo(1f).get();
 		Draw.rect(g, 0, 0, width, height, 0, Colors.fade(0x50000000, t));
 		// Faint centre lines help line things up even before a snap kicks in.

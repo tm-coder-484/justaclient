@@ -6,6 +6,7 @@ import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforgespi.language.IModInfo;
+import net.neoforged.neoforgespi.locating.IModFile;
 
 /** Loader metadata used by the client, backed by NeoForge's installed mod list. */
 public final class PlatformLoader {
@@ -22,12 +23,37 @@ public final class PlatformLoader {
     public record ModContainer(IModInfo info) {
         public ModMetadata getMetadata() { return new ModMetadata(info); }
         public ModOrigin getOrigin() { return new ModOrigin(List.of(info.getOwningFile().getFile().getFilePath())); }
-        public Optional<ModContainer> getContainingMod() { return Optional.empty(); }
-        public Collection<ModContainer> getContainedMods() { return List.of(); }
+        public Optional<ModContainer> getContainingMod() { return parentOf(info).map(ModContainer::new); }
+        public Collection<ModContainer> getContainedMods() { return childrenOf(info,ModList.get().getMods()).stream().map(ModContainer::new).toList(); }
         public Optional<Path> findPath(String path) {
             Path found = info.getOwningFile().getFile().findResource(path);
             return Files.exists(found) ? Optional.of(found) : Optional.empty();
         }
+    }
+    /** Uses the loader's jar-in-jar graph; never reopens or inflates installed archives. */
+    static Optional<IModInfo> parentOf(IModInfo info) {
+        var owning=info.getOwningFile();
+        if(owning==null) return Optional.empty();
+        var siblings=owning.getMods();
+        if(!siblings.isEmpty() && siblings.getFirst()!=info) return Optional.of(siblings.getFirst());
+        IModFile file=owning.getFile();
+        if(file==null || file.getDiscoveryAttributes()==null || file.getDiscoveryAttributes().parent()==null) return Optional.empty();
+        Set<IModFile> visited=Collections.newSetFromMap(new IdentityHashMap<>());
+        while(file!=null && visited.add(file)) {
+            var discovery=file.getDiscoveryAttributes();
+            file=discovery==null?null:discovery.parent();
+            if(file!=null && !file.getModInfos().isEmpty()) return Optional.of(file.getModInfos().getFirst());
+        }
+        return Optional.empty();
+    }
+    static List<IModInfo> childrenOf(IModInfo owner,List<IModInfo> all) {
+        List<IModInfo> children=new ArrayList<>();
+        for(var child:all) try {
+            if(child!=owner && parentOf(child).orElse(null)==owner) children.add(child);
+        } catch(RuntimeException | LinkageError ignored) {
+            // The Mods scanner reports the broken entry separately; it cannot invalidate other owners.
+        }
+        return children;
     }
     public record ModOrigin(List<Path> getPaths) {
         public enum Kind { PATH, NESTED }
@@ -47,14 +73,19 @@ public final class PlatformLoader {
         public Version getVersion() { return new Version(info.getVersion().toString()); }
         public String getDescription() { return info.getDescription(); }
         public String getType() { return Set.of("minecraft", "neoforge", "java", "fml").contains(getId()) ? "builtin" : "mod"; }
-        public List<String> getProvides() { return List.of(); }
+        public List<String> getProvides() { return info.getOwningFile()==null?List.of():info.getOwningFile().getMods().stream().filter(mod->mod!=info).map(IModInfo::getModId).toList(); }
         public List<Person> getAuthors() {
-            return info.getConfig().<String>getConfigElement("authors").map(s -> Arrays.stream(s.split(",")).map(String::trim).map(Person::new).toList()).orElse(List.of());
+            Object authors=info.getConfig().getConfigElement("authors").orElse(null);
+            java.util.stream.Stream<String> names;
+            if(authors instanceof String text) names=Arrays.stream(text.split(","));
+            else if(authors instanceof Collection<?> values) names=values.stream().filter(String.class::isInstance).map(String.class::cast);
+            else return List.of();
+            return names.map(String::trim).filter(s->!s.isEmpty()).map(Person::new).toList();
         }
         public ContactInformation getContact() {
             Map<String, String> map = new HashMap<>();
             info.getModURL().ifPresent(url -> map.put("homepage", url.toString()));
-            info.getOwningFile().getConfig().<String>getConfigElement("issueTrackerURL").ifPresent(url -> map.put("issues", url));
+            info.getOwningFile().getConfig().getConfigElement("issueTrackerURL").filter(String.class::isInstance).map(String.class::cast).ifPresent(url -> map.put("issues", url));
             return new ContactInformation(map);
         }
         public Optional<String> getIconPath(int size) { return info.getLogoFile(); }

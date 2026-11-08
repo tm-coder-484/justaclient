@@ -311,7 +311,7 @@ public final class SpatialMenus {
 			return;
 		}
 		RenderTarget t = target(Minecraft.getInstance().getMainRenderTarget());
-		t.setClearColor(0,0,0,0);t.clear(Minecraft.ON_OSX);t.bindWrite(true);
+		t.setClearColor(0,0,0,0);FullScreen.clear(t);t.bindWrite(true);
 	}
 
 	/** Should vanilla's blur of the world run before the screen draws? Only when asked for in the settings. */

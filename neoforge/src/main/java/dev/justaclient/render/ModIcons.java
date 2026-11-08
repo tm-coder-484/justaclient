@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ServiceConfigurationError;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import javax.imageio.ImageIO;
@@ -36,7 +37,9 @@ public final class ModIcons {
 
 	/** Draws {@code mod}'s icon in a {@code size} square. */
 	public static void draw(GuiGraphics g, ManagedMod mod, float x, float y, float size, float alpha) {
-		ResourceLocation id = LOADED.computeIfAbsent(mod.key(), k -> load(mod));
+		String key = mod.key();
+		if (!LOADED.containsKey(key)) LOADED.put(key, load(mod));
+		ResourceLocation id = LOADED.get(key);
 		if (id == null) {
 			Draw.rect(g, x, y, size, size, Math.min(4f, size / 4f), dev.justaclient.anim.Colors.fade(0x1FFFFFFF, alpha));
 			float s = size * 0.55f;
@@ -74,7 +77,8 @@ public final class ModIcons {
 			ResourceLocation id = Justaclient.id("mod_icon/" + (next++) + "_" + mod.id().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_"));
 			Minecraft.getInstance().getTextureManager().register(id, tex);
 			return id;
-		} catch (IOException | RuntimeException e) {
+		} catch (IOException | RuntimeException | LinkageError | ServiceConfigurationError e) {
+			Justaclient.LOGGER.warn("Could not load icon for {}", mod.id(), e);
 			return null;
 		}
 	}

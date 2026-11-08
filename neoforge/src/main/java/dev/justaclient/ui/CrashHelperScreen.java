@@ -123,13 +123,14 @@ public final class CrashHelperScreen extends dev.justaclient.platform.PlatformSc
 			fittedFor = cardH;
 			canvas.fit(this, W + 24f, fittedFor + 24f);
 		}
+		renderBackground(g, mouseX, mouseY, partialTick);
 		boolean pushed = canvas.push(g);
 		drawCard(g, canvas.in(mouseX), canvas.in(mouseY), partialTick);
 		canvas.pop(g, pushed);
 	}
 
 	private void drawCard(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-		super.render(g, mouseX, mouseY, partialTick);
+		for (var renderable : renderables) renderable.render(g, mouseX, mouseY, partialTick);
 		float t = in.animateTo(1f).get();
 		float inner = W - PAD * 2;
 		List<String> explanation = wrap(crash.info().explanation(), Theme.LABEL + 1f, inner);

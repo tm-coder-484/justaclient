@@ -16,7 +16,7 @@ NeoForge 1.21.1 ModDevGradle template. From this directory:
 ```
 
 From the repository root, use `./start.sh 1.21.1 build` or Windows `start.bat`
-version 3. Output: `build/libs/justaclient-0.12.5+1.21.1-neoforge.jar` relative
+version 3. Output: `build/libs/justaclient-0.12.6+1.21.1-neoforge.jar` relative
 to this directory. Install into a NeoForge 1.21.1 instance, not a Fabric instance.
 
 ## Implementation
@@ -38,16 +38,19 @@ to this directory. Install into a NeoForge 1.21.1 instance, not a Fabric instanc
 
 ## Validation
 
-- Gradle 9.2.1 build succeeds; all 256 JUnit tests pass.
+- Gradle 9.2.1 build succeeds; all 270 JUnit tests pass.
 - Live client loads Create 6.0.10, Sable 2.0.6 and Create Aeronautics 1.3.2,
   including their bundled Flywheel, Ponder, Veil and companion modules.
-- A real singleplayer world loads and saves with rendering effects enabled: sky,
+- The packaged jar loads and saves a real singleplayer world with rendering effects enabled: sky,
   lightmap, hitboxes, hand effects, ambient particles, minimap and post-processing.
 - The complete in-world UI tour produces 49 screen captures, including every
   settings category, panels, helpers, vanilla menus and containers. Title screens
   were checked separately. Classic settings, Mods, ring and curved spatial menus
   also render at GUI scales 2 and 4. Real mouse clicks and slider drags were verified
   on a curved panel with Veil active. Both startup and in-world runtime self-tests pass.
+- Version 0.12.6 adds 57 live GPU/menu regression checks, including a deliberately
+  missing background as a negative control, per-frame repaint checks, close/return
+  paths, both Mods menus, native config screens, and framebuffer clip/mask handling.
 - Validation uses Java 21 and Mesa software OpenGL on Linux. Multiplayer, shader
   packs, other mod combinations, and building/flying Aeronautics vehicles have
   not been exhaustively tested. Windows launch scripts were reviewed but cannot
@@ -55,11 +58,27 @@ to this directory. Install into a NeoForge 1.21.1 instance, not a Fabric instanc
 
 ![NeoForge Mods screen with Create Aeronautics loaded](../docs/screenshots/neoforge-mods.png)
 
+![Repainted title after closing Mods](../docs/screenshots/neoforge-title-return.png)
+
 ![Spatial menu after the Veil compatibility fix](../docs/screenshots/neoforge-spatial.png)
+
+## 0.12.6 fixes
+
+Menus outside a world now repaint their backgrounds every frame. Blur capture
+flushes buffered drawing first, and full-screen passes isolate GUI clipping and
+restore render state. Reused hand/menu textures are cleared outside GUI clips.
+The Mods panel uses NeoForge's loaded jar-in-jar graph instead of repeatedly
+inflating installed archives. Metadata, config-factory and icon-provider failures
+are isolated to their individual entries.
+
+The reported immediate Mods crash did not reproduce with Create, Sable and
+Aeronautics alone. The affected instance's exception trace is still needed to
+identify which path failed in that modpack.
 
 Developer checks (all opt-in; normal users do not run these):
 
 ```sh
+./gradlew runClient -PjacPackagedJar -PjacMenuRegression=/tmp/jac-menu-regression
 ./gradlew runClient -PjacSelfTest -PjacUiTour=/tmp/jac-tour -PjacUiScales=2,4
 ./gradlew runClient -PjacSmokeWorld -PjacSelfTest -PjacUiTour=/tmp/jac-world-tour
 ./gradlew runClient -PjacSmokeWorld -PjacSmokeSpatial -PjacUiTour=/tmp/jac-spatial-tour
@@ -69,3 +88,8 @@ Developer checks (all opt-in; normal users do not run these):
 `run/saves/` and enables a set of visual effects in that test instance. UI tours
 save screenshots and quit when finished. Additional filters: `-PjacUiOnly=mods,hud`
 and `-PjacUiWait=3500` (milliseconds).
+
+`jacPackagedJar` builds and copies the jar into `run/mods/` and launches an empty
+source set with only Minecraft/NeoForge dependencies. Development classes and
+image libraries cannot hide missing dependencies in the bundled jar. Remove
+`run/mods/justaclient-packaged-smoke.jar` before returning to an ordinary source run.

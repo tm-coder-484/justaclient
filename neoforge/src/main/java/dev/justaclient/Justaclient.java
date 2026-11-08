@@ -94,6 +94,7 @@ public final class Justaclient {
 		Features.get(dev.justaclient.feature.impl.ProfileBackupFeature.class).launched();
 		dev.justaclient.debug.SelfTest.maybeRunAtStartup();
 		dev.justaclient.debug.UiTour.init();
+		dev.justaclient.debug.MenuRegression.init();
 		HudRenderer.init();
 		HotbarFeature.init();
 		BlockHighlightFeature.init();
@@ -163,6 +164,7 @@ public final class Justaclient {
 			LifetimeStats.tick();
 			Features.tick(client);
 			dev.justaclient.debug.NativeSmoke.tick(client);
+			dev.justaclient.debug.MenuRegression.tick(client);
             dev.justaclient.debug.UiTour.tick(client);
 			while (OPEN_MENU.consumeClick()) {
 				if (client.screen == null) {
