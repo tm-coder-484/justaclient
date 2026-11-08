@@ -3,7 +3,6 @@
 uniform mat4 ModelViewMat;
 uniform vec4 ColorModulator;
 uniform vec2 ScreenSize;
-uniform float GameTime;
 #moj_import <justaclient:sdf.glsl>
 
 uniform sampler2D Sampler0;

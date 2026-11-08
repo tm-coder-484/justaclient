@@ -164,6 +164,7 @@ public final class SpatialMenus {
 	}
 
 	public static void resetFrame() {
+		frame++;
 		splitTaken = false;
 	}
 
@@ -199,7 +200,7 @@ public final class SpatialMenus {
 			g.fill(0, 0, g.guiWidth(), g.guiHeight(), Math.round(dim * 255) << 24);
 		}
 		g.flush();
-		
+
 		splitTaken = true;
 		frameActive = true;
 	}
@@ -229,8 +230,9 @@ public final class SpatialMenus {
 			turn += Math.sin(t * 0.6 + 1.3) * 0.3;
 		}
 		if (f.followMouse.on()) {
-			double mx = mc.mouseHandler.xpos() / Math.max(1, mc.getWindow().getScreenWidth()) * 2 - 1;
-			double my = 1 - mc.mouseHandler.ypos() / Math.max(1, mc.getWindow().getScreenHeight()) * 2;
+			var mouse = (dev.justaclient.mixin.MouseHandlerAccessor) mc.mouseHandler;
+			double mx = mouse.justaclient$rawX() / Math.max(1, mc.getWindow().getScreenWidth()) * 2 - 1;
+			double my = 1 - mouse.justaclient$rawY() / Math.max(1, mc.getWindow().getScreenHeight()) * 2;
 			tiltX += (float) ((Math.max(-1, Math.min(1, mx)) * 3.5 - tiltX) * 0.12);
 			tiltY += (float) ((Math.max(-1, Math.min(1, my)) * 2.5 - tiltY) * 0.12);
 			turn += tiltX;
@@ -305,7 +307,6 @@ public final class SpatialMenus {
 
 	/** Called as the GUI renderer starts drawing: empties the offscreen target for this frame's screen. */
 	public static void beginDraw() {
-		frame++;
 		if (!frameActive) {
 			return;
 		}

@@ -30,6 +30,3 @@ public final class LegacyImages {
         g.flush();g.enableScissor((int)Math.floor(Math.min(a.x,b.x)),(int)Math.floor(Math.min(a.y,b.y)),(int)Math.ceil(Math.max(a.x,b.x)),(int)Math.ceil(Math.max(a.y,b.y)));
     }
 }
-
-
-

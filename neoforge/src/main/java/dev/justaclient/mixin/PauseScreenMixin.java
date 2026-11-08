@@ -19,7 +19,7 @@ abstract class PauseScreenMixin extends Screen {
 		super(title);
 	}
 
-	@Inject(method = "createPauseMenu", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/layouts/GridLayout$RowHelper;addChild(Lnet/minecraft/client/gui/layouts/LayoutElement;ILnet/minecraft/client/gui/layouts/LayoutSettings;)Lnet/minecraft/client/gui/layouts/LayoutElement;", ordinal = 0, shift = At.Shift.AFTER), require = 0)
+	@Inject(method = "createPauseMenu", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/layouts/GridLayout$RowHelper;addChild(Lnet/minecraft/client/gui/layouts/LayoutElement;ILnet/minecraft/client/gui/layouts/LayoutSettings;)Lnet/minecraft/client/gui/layouts/LayoutElement;", ordinal = 0, shift = At.Shift.AFTER))
 	private void justaclient$serversButton(CallbackInfo ci, @Local GridLayout.RowHelper rows) {
 		ServersFeature feature = ServersFeature.get();
 		if (feature == null || !feature.pauseButton()) {

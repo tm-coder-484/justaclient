@@ -18,13 +18,16 @@ public final class NativeSmoke {
     private static final String WORLD = "Justaclient-Port-Smoke";
     private static boolean opening, prepared;
     private static long readyAt;
-
     public static boolean ready() {
         return !Boolean.getBoolean("justaclient.smokeWorld") || prepared && System.currentTimeMillis() >= readyAt;
     }
 
     public static void tick(Minecraft mc) {
         if (!Boolean.getBoolean("justaclient.smokeWorld")) return;
+        if (mc.screen instanceof dev.justaclient.ui.CrashHelperScreen || mc.screen instanceof net.minecraft.client.gui.screens.AccessibilityOnboardingScreen) {
+            mc.screen.onClose();
+            return;
+        }
         if (!opening && mc.isGameLoadFinished() && mc.getOverlay() == null && (mc.screen instanceof TitleScreen || mc.screen instanceof dev.justaclient.ui.JacTitleScreen)) {
             opening = true;
             mc.options.renderDistance().set(3);
@@ -45,6 +48,7 @@ public final class NativeSmoke {
         readyAt = System.currentTimeMillis() + 8000;
         Set<String> effects = Set.of("sky", "fog", "light_color", "fullbright", "glint", "hand", "hand_glow", "trails", "jump_circles", "ambient_particles", "cosmetics", "hats", "end_crystal", "hitboxes", "color_grading", "motion_blur", "waypoints", "minimap", "food_info", "crafting_helper", "furnace_info", "potion_guide", "anvil_helper");
         for (Feature feature : Features.all()) if (effects.contains(feature.id)) feature.setEnabled(true);
+        Features.get(dev.justaclient.feature.impl.SpatialMenusFeature.class).setEnabled(Boolean.getBoolean("justaclient.smokeSpatial"));
         mc.getEntityRenderDispatcher().setRenderHitBoxes(true);
         var server = mc.getSingleplayerServer();
         server.execute(() -> {

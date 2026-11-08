@@ -36,8 +36,8 @@ public final class HandFx {
 			target = new TextureTarget(main.width, main.height, true, Minecraft.ON_OSX);
 		}
 		target.setClearColor(0,0,0,0); target.clear(Minecraft.ON_OSX); target.bindWrite(true);
-		
-		
+
+
 		capturing = true;
 		glow.cost.end();
 	}
@@ -49,7 +49,7 @@ public final class HandFx {
 		}
 		capturing = false;
 		Minecraft.getInstance().getMainRenderTarget().bindWrite(true);
-		
+
 		HandGlowFeature glow = Features.get(HandGlowFeature.class);
 		glow.cost.begin();
         int c0=glow.colorStart(),c1=glow.colorEnd();

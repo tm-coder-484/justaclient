@@ -78,4 +78,3 @@ abstract class GameRendererMixin {
     @Inject(method="renderConfusionOverlay",at=@At("HEAD"),cancellable=true)
     private void justaclient$hideNausea(CallbackInfo ci) { if(Features.get(OverlaysFeature.class).hidesNausea())ci.cancel(); }
 }
-

@@ -20,4 +20,3 @@ public abstract class JacRenderTypes extends RenderType {
                 .setCullState(NO_CULL).createCompositeState(false)));
     }
 }
-

@@ -19,6 +19,7 @@ neoForge {
         client {
             client()
             if (project.hasProperty('jacSmokeWorld')) systemProperty 'justaclient.smokeWorld', 'true'
+            if (project.hasProperty('jacSmokeSpatial')) systemProperty 'justaclient.smokeSpatial', 'true'
             if (project.hasProperty('jacSelfTest')) systemProperty 'justaclient.selftest', 'true'
             if (project.hasProperty('jacUiTour')) {
                 systemProperty 'justaclient.uiTour', project.property('jacUiTour').toString()
@@ -50,7 +51,7 @@ dependencies {
     testImplementation platform('org.junit:junit-bom:5.13.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    implementation 'org.jspecify:jspecify:1.0.0' 
+    implementation 'org.jspecify:jspecify:1.0.0'
     implementation 'com.twelvemonkeys.imageio:imageio-webp:3.12.0'
     jarJar('com.twelvemonkeys.imageio:imageio-webp:3.12.0')
     jarJar('com.twelvemonkeys.imageio:imageio-core:3.12.0')

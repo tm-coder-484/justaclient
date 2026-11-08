@@ -29,6 +29,9 @@ abstract class MouseHandlerMixin {
 	@Shadow
 	private double ypos;
 
+	@Shadow private double accumulatedDX;
+	@Shadow private double accumulatedDY;
+
 	@Inject(method = "onPress", at = @At("HEAD"))
 	private void justaclient$countClicks(long window, int button, int action, int modifiers, CallbackInfo ci) {
 		if (action == GLFW.GLFW_PRESS && minecraft.screen == null && window == minecraft.getWindow().getWindow()) {
@@ -62,9 +65,25 @@ abstract class MouseHandlerMixin {
 		double[] at = SpatialMenus.mapMouse(xpos, ypos);
 		return at == null ? y : at[1]*minecraft.getWindow().getScreenHeight()/minecraft.getWindow().getGuiScaledHeight();
 	}
-    @ModifyExpressionValue(method={"onPress","onScroll","onMove"},at=@At(value="FIELD",target="Lnet/minecraft/client/MouseHandler;xpos:D",opcode=180))
+    @ModifyExpressionValue(method={"onPress","onScroll","handleAccumulatedMovement"},at=@At(value="FIELD",target="Lnet/minecraft/client/MouseHandler;xpos:D",opcode=180))
     private double justaclient$eventX(double x) { return justaclient$spatialX(x); }
-    @ModifyExpressionValue(method={"onPress","onScroll","onMove"},at=@At(value="FIELD",target="Lnet/minecraft/client/MouseHandler;ypos:D",opcode=180))
+    @ModifyExpressionValue(method={"onPress","onScroll","handleAccumulatedMovement"},at=@At(value="FIELD",target="Lnet/minecraft/client/MouseHandler;ypos:D",opcode=180))
     private double justaclient$eventY(double y) { return justaclient$spatialY(y); }
-}
 
+    // Keep GLFW's accumulated motion in window pixels. Only the dispatched GUI delta
+    // is transformed, using both endpoints on the same curved panel.
+    @ModifyExpressionValue(method="handleAccumulatedMovement",at=@At(value="FIELD",target="Lnet/minecraft/client/MouseHandler;accumulatedDX:D",opcode=180))
+    private double justaclient$dragX(double dx) { return justaclient$dragDelta(dx,true); }
+    @ModifyExpressionValue(method="handleAccumulatedMovement",at=@At(value="FIELD",target="Lnet/minecraft/client/MouseHandler;accumulatedDY:D",opcode=180))
+    private double justaclient$dragY(double dy) { return justaclient$dragDelta(dy,false); }
+
+    @org.spongepowered.asm.mixin.Unique
+    private double justaclient$dragDelta(double original,boolean horizontal) {
+        double[] current=SpatialMenus.mapMouse(xpos,ypos);
+        double[] previous=SpatialMenus.mapMouse(xpos-accumulatedDX,ypos-accumulatedDY);
+        if(current==null || previous==null) return original;
+        var window=minecraft.getWindow();
+        return horizontal ? (current[0]-previous[0])*window.getScreenWidth()/window.getGuiScaledWidth()
+            : (current[1]-previous[1])*window.getScreenHeight()/window.getGuiScaledHeight();
+    }
+}

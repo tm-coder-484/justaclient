@@ -28,7 +28,7 @@ abstract class ScreenMixin {
 	private void justaclient$background(GuiGraphics g, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
 		if (SpatialMenus.drawing()) {
 			// The menu floats: the world shows around it (dimmed flat behind it by Spatial menus), so no background.
-			
+
 			ci.cancel();
 			return;
 		}
@@ -38,7 +38,7 @@ abstract class ScreenMixin {
 		}
 		Screen self = (Screen) (Object) this;
 		if (feature.draw(self, g, minecraft.level != null, mouseX, mouseY, () -> renderPanorama(g, partialTick), () -> renderBlurredBackground(partialTick))) {
-			
+
 			ci.cancel();
 		}
 	}

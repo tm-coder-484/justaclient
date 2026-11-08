@@ -38,6 +38,7 @@
     "LivingEntityMixin",
     "MinecraftMixin",
     "MouseHandlerMixin",
+    "MouseHandlerAccessor",
     "MultiPlayerGameModeAccessor",
     "MultiPlayerGameModeMixin",
     "OptionsMixin",

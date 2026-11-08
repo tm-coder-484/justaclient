@@ -38,7 +38,10 @@ vec2 trace(vec3 d) {
         }
         float s = sqrt(disc);
         for (int i = 0; i < 2; i++) {
-            float t = (-qb + (i == 0 ? -s : s)) / (2.0 * qa);
+            // Veil rewrites shader ASTs; avoid a ternary inside arithmetic.
+            float root = -s;
+            if (i != 0) root = s;
+            float t = (-qb + root) / (2.0 * qa);
             if (t <= 0.0) {
                 continue;
             }
