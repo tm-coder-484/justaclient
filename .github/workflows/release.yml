@@ -1,6 +1,6 @@
 name: Release
 
-# Push a tag such as 0.12.3-1.21.11 and this builds both jars (1.21.11 and 26.3) from that commit and publishes a
+# Push a tag such as 0.12.3-1.21.11 and this builds all three jars (Fabric 1.21.11 / 26.3 and NeoForge 1.21.1) from that commit and publishes a
 # GitHub release with them. Release notes come from docs/releases/<tag>.md when that file exists.
 on:
   push:
@@ -26,6 +26,9 @@ jobs:
         run: JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build
       - name: Build 26.3
         run: JAVA_HOME="$JAVA_HOME_25_X64" ./gradlew -p mc26.3 build
+      - name: Build 1.21.1 NeoForge
+        working-directory: neoforge
+        run: JAVA_HOME="$JAVA_HOME_21_X64" ./gradlew build
       - name: Release notes
         run: |
           if [ -f "docs/releases/${GITHUB_REF_NAME}.md" ]; then
@@ -40,4 +43,5 @@ jobs:
           files: |
             build/libs/justaclient-*+1.21.11.jar
             mc26.3/build/libs/justaclient-*+26.3.jar
+            neoforge/build/libs/justaclient-*+1.21.1-neoforge.jar
           fail_on_unmatched_files: true

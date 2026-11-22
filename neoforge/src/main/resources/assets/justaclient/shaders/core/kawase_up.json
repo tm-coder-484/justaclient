@@ -1,0 +1,14 @@
+{
+  "vertex": "justaclient:screenquad",
+  "fragment": "justaclient:post/kawase_up",
+  "attributes": [
+    "Position",
+    "UV0"
+  ],
+  "samplers": [
+    {
+      "name": "InSampler"
+    }
+  ],
+  "uniforms": []
+}

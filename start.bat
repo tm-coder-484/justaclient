@@ -4,15 +4,23 @@ title Justaclient
 cd /d "%~dp0"
 
 echo.
-echo   Justaclient - visuals for Minecraft (Fabric + Sodium)
+echo   Justaclient - visuals for Minecraft (Fabric / NeoForge)
 echo   ----------------------------------------------------
 echo.
 echo   Which Minecraft version?
 echo   [1] 1.21.11  ^(needs Java 21 or newer^)
 echo   [2] 26.3     ^(needs Java 25 or newer^)
+echo   [3] 1.21.1 NeoForge ^(Create Aeronautics, Java 21 or newer^)
 echo.
-choice /c 12 /n /m "  Pick 1 or 2: "
-if errorlevel 2 (
+set WRAPPER=gradlew.bat
+choice /c 123 /n /m "  Pick 1, 2 or 3: "
+if errorlevel 3 (
+    set MC=1.21.1
+    set NEED=21
+    set PROJECT=-p neoforge
+    set WRAPPER=neoforge\gradlew.bat
+    set LIBS=neoforge\build\libs
+) else if errorlevel 2 (
     set MC=26.3
     set NEED=25
     set PROJECT=-p mc26.3
@@ -48,17 +56,21 @@ if errorlevel 2 goto build
 
 echo.
 echo   Starting... the first launch downloads Minecraft and takes a few minutes.
-call gradlew.bat !PROJECT! runClient
+call !WRAPPER! !PROJECT! runClient
 goto end
 
 :build
 echo.
-call gradlew.bat !PROJECT! build
+call !WRAPPER! !PROJECT! build
 if errorlevel 1 goto end
 echo.
 echo   Done. Copy this into your .minecraft\mods folder:
-dir /b !LIBS!\justaclient-*+!MC!.jar
-echo     plus Fabric API and Sodium for !MC! from Modrinth.
+dir /b !LIBS!\justaclient-*+!MC!*.jar
+if "!MC!"=="1.21.1" (
+    echo     Use Minecraft 1.21.1 with NeoForge. Install Create, Sable and Aeronautics separately.
+) else (
+    echo     plus Fabric API and Sodium for !MC! from Modrinth.
+)
 explorer !LIBS!
 
 :end

@@ -58,3 +58,28 @@ jobs:
           path: |
             mc26.3/build/libs/*.jar
             !mc26.3/build/libs/*-sources.jar
+
+  build-neoforge:
+    name: Minecraft 1.21.1 NeoForge
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build and test
+        working-directory: neoforge
+        run: ./gradlew build
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-1.21.1-neoforge
+          path: neoforge/build/reports/tests/test
+      - name: Upload mod jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: justaclient-jar-1.21.1-neoforge
+          path: neoforge/build/libs/justaclient-*+1.21.1-neoforge.jar

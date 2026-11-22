@@ -1,26 +1,39 @@
 # Justaclient
 
-A visuals-only Fabric client for Minecraft Java **1.21.11** and **26.3**. Smooth animated UI, frosted-glass panels, crisp fonts and a
+A visuals-only client for Minecraft Java **1.21.11** and **26.3** on Fabric, and **1.21.1** on NeoForge (Create Aeronautics). Smooth animated UI, frosted-glass panels, crisp fonts and a
 look you can fully re-theme. No cheats: nothing that reveals hidden information or automates play.
 
-Requires **Fabric API** and **Sodium**.
+The Fabric builds require **Fabric API** and **Sodium**. The NeoForge build uses NeoForge directly.
 
 ![The Justaclient menu over the world, default dark glass look](docs/screenshots/menu.png)
 
 ## Quick start (Windows)
 
-1. Install Java (Temurin): **Java 25** runs both versions: https://adoptium.net/temurin/releases/?version=25
-   (Java 21 is enough if you only want 1.21.11.)
-2. Double-click **`start.bat`**, pick the Minecraft version (**1** = 1.21.11, **2** = 26.3), then:
-   - **1 Play**: launches Minecraft with Justaclient, Fabric API and Sodium already loaded. The first launch downloads
+1. Install Java (Temurin): **Java 25** runs all three versions: https://adoptium.net/temurin/releases/?version=25
+   (Java 21 is enough for 1.21.11 and 1.21.1.)
+2. Double-click **`start.bat`**, pick the Minecraft version (**1** = 1.21.11, **2** = 26.3, **3** = 1.21.1 NeoForge), then:
+   - **1 Play**: launches Minecraft with Justaclient (plus Fabric API and Sodium on the Fabric builds). The first launch downloads
      Minecraft and takes a few minutes; later launches are quick. It runs offline as a dev player, so use singleplayer.
-   - **2 Build**: makes the mod jar for your normal launcher (`build\libs\` for 1.21.11, `mc26.3\build\libs\` for 26.3).
+   - **2 Build**: makes the mod jar for your normal launcher (`build\libs\` for 1.21.11, `mc26.3\build\libs\` for 26.3, `neoforge\build\libs\` for 1.21.1).
 3. In game (or on the title screen), press **Right Shift** to open the Justaclient menu. Hold **C** to zoom.
 
-macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3; add `build` to build instead
+macOS / Linux: `./start.sh` plays 1.21.11, `./start.sh 26.3` plays 26.3, `./start.sh 1.21.1` plays NeoForge 1.21.1; add `build` to build instead
 (`./start.sh 26.3 build`).
 
-## Install into your own launcher
+### Minecraft 1.21.1 / NeoForge (Create Aeronautics)
+
+Use `justaclient-0.12.7+1.21.1-neoforge.jar` in a Minecraft **1.21.1** instance with
+**NeoForge 21.1.265 or newer** and **Java 21 or newer**. Install Create, Sable and
+Create Aeronautics separately when using that modpack; Justaclient does not require
+those mods for ordinary play. This build does not use Fabric API or Sinytra Connector.
+
+- Windows: `start.bat`, version **3**, then Play or Build.
+- Linux/macOS: `./start.sh 1.21.1` or `./start.sh 1.21.1 build`.
+- Direct build: `cd neoforge && ./gradlew build`; jar output is `neoforge/build/libs/`.
+- The development client loads additional mods from `neoforge/run/mods/`.
+- [Port details and validation](neoforge/PORTING.md).
+
+## Install the Fabric build into your own launcher
 
 1. Build with `start.bat` option 2 (or `gradlew build` for 1.21.11, `gradlew -p mc26.3 build` for 26.3).
 2. Copy `justaclient-<version>+<minecraft version>.jar` (not the `-sources` jar) into your `.minecraft/mods` folder.
@@ -122,7 +135,7 @@ Both are off by default and have their own switches, in both the 1.21.11 and 26.
   (off by default) goes to third person when a menu opens and back to first person when it closes, unless you changed
   the view yourself in between.
 - **Modrinth browser** (Tools, `/jmodrinth`, or **Browse Modrinth** in the Mods panel): search Modrinth for mods,
-  shaders, resource packs and data packs, filtered to this Minecraft version and Fabric. Install puts each file in the
+  shaders, resource packs and data packs, filtered to this Minecraft version and loader. Install puts each file in the
   right folder (`mods`, `shaderpacks`, `resourcepacks`, or a world's `datapacks`: it asks which world) after checking
   its hash, adds required dependencies, offers Iris when a shader pack needs it, can turn a new resource pack on
   straight away, and shows what is installed, loaded or has an update. Mods take effect after a restart, using the same
@@ -480,7 +493,7 @@ The world effects (sky, fog, trails, jump circles, hit sounds) start off; turn t
 
 | Path | What it holds |
 | --- | --- |
-| `common/src/main/java/` | Plain Java shared by both builds (frame stats, stopwatch, durations, world keys) |
+| `common/src/main/java/` | Plain Java shared by all three builds (frame stats, stopwatch, durations, world keys) |
 | `src/main/java/dev/justaclient/world/` | Per-world store (`config/justaclient/worlds/<world>/`) |
 | `src/main/java/dev/justaclient/render/` | Shape kit (`Draw`), blur (`BlurEngine`), pipelines, world effects (`WorldFx`) |
 | `src/main/java/dev/justaclient/render/text/` | MSDF font loader and text renderer (`JacText`) |
@@ -516,7 +529,7 @@ around both, `mc26.3/` is its own Gradle build with a ported copy of the Java so
 - A change to a feature usually needs making in both trees. The render code differs most: `render/` (pipelines,
   post FX, hand glow, blur, world effects) and the mixins are rewritten for 26.3, most of the rest is the same with
   renamed Minecraft classes.
-- Release jars are named `justaclient-<version>+<minecraft version>.jar`. CI builds both.
+- Release jars are named `justaclient-<version>+<minecraft version>.jar`. CI builds all three targets (including the NeoForge build described above).
 
 ## Credits
 
