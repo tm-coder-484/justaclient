@@ -104,6 +104,8 @@ import net.minecraft.client.Minecraft;
 /** Every feature in the client, in the order the GUI lists them. */
 public final class Features {
 	private static final List<Feature> ALL = new ArrayList<>();
+	private static final List<HudFeature> HUD = new ArrayList<>();
+	private static final List<HudFeature> HUD_VIEW = Collections.unmodifiableList(HUD);
 	private static final Map<Class<?>, Feature> BY_TYPE = new HashMap<>();
 	private static final Map<Feature, Boolean> KEY_WAS_DOWN = new HashMap<>();
 
@@ -232,6 +234,9 @@ public final class Features {
 
 	private static void register(Feature feature) {
 		ALL.add(feature);
+		if (feature instanceof HudFeature hud) {
+			HUD.add(hud);
+		}
 		BY_TYPE.put(feature.getClass(), feature);
 	}
 
@@ -244,7 +249,7 @@ public final class Features {
 	}
 
 	public static List<HudFeature> hud() {
-		return ALL.stream().filter(f -> f instanceof HudFeature).map(f -> (HudFeature) f).toList();
+		return HUD_VIEW;
 	}
 
 	@SuppressWarnings("unchecked")

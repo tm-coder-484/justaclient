@@ -47,6 +47,7 @@ public final class ExploredMap {
 	private static final int MAX_LOADED = 96;
 	/** Chunks recorded per tick, so joining a world does not stall a frame. */
 	private static final int CHUNKS_PER_TICK = 24;
+	private static final long RECORD_BUDGET_NANOS = 1_000_000L;
 	private static final Path ROOT = PlatformLoader.getInstance().getConfigDir().resolve("justaclient").resolve("maps");
 	private static final ExecutorService IO = Executors.newSingleThreadExecutor(r -> {
 		Thread t = new Thread(r, "Justaclient map saver");
@@ -136,6 +137,7 @@ public final class ExploredMap {
 				}
 			}
 		}
+		long started = System.nanoTime();
 		int floorFrom = player.getBlockY() + 1;
 		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 		for (int budget = CHUNKS_PER_TICK; budget > 0 && !queue.isEmpty(); budget--) {
@@ -145,6 +147,9 @@ public final class ExploredMap {
 			int cz = (int) k;
 			if (level.getChunkSource().hasChunk(cx, cz)) {
 				record(level, pos, floorFrom, cx, cz);
+			}
+			if (System.nanoTime() - started >= RECORD_BUDGET_NANOS) {
+				break;
 			}
 		}
 		if (ms - lastSave > 30_000) {

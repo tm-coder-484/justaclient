@@ -12,9 +12,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.PauseScreen;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ServerData;
-import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 
 /** Asks before the pause menu's Save and Quit or Disconnect button leaves the world. */
@@ -38,11 +36,11 @@ public final class ExitConfirmFeature extends Feature {
 			}
 			Component label = Component.translatable(local ? "menu.returnToMenu" : "menu.disconnect");
 			for (AbstractWidget widget : Screens.getButtons(screen)) {
-				if (widget instanceof Button original && original.getMessage().equals(label) && original.visible) {
+				if (widget instanceof Button original && original.getMessage().equals(label) && original.visible && original.active) {
 					// Hide the vanilla button and put one that asks first in its place.
 					original.visible = false;
 					original.active = false;
-					Button ask = Button.builder(label, b -> ask(client, pause))
+					Button ask = Button.builder(label, b -> ask(client, pause, original))
 						.bounds(original.getX(), original.getY(), original.getWidth(), original.getHeight()).build();
 					Screens.getButtons(screen).add(ask);
 					return;
@@ -51,7 +49,7 @@ public final class ExitConfirmFeature extends Feature {
 		});
 	}
 
-	private static void ask(Minecraft client, PauseScreen pause) {
+	private static void ask(Minecraft client, PauseScreen pause, Button original) {
 		boolean local = client.isLocalServer();
 		ServerData server = client.getCurrentServer();
 		String title = local ? "Save and quit?" : "Disconnect?";
@@ -59,7 +57,7 @@ public final class ExitConfirmFeature extends Feature {
 			: "You leave " + (server == null ? "this server" : server.name) + " and go back to the server list.";
 		client.setScreen(new JacConfirmScreen(pause, Icons.LOG_OUT, title, message, local ? "Save and quit" : "Disconnect", () -> {
 			client.setScreen(pause);
-			client.getReportingContext().draftReportHandled(client, pause, () -> client.disconnect(), true);
+			original.onPress();
 		}));
 	}
 }

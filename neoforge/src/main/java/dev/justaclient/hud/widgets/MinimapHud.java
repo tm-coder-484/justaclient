@@ -13,7 +13,7 @@ import dev.justaclient.render.Draw;
 import dev.justaclient.render.ExploredMap;
 import dev.justaclient.render.Icons;
 import dev.justaclient.render.MapEntities;
-import dev.justaclient.render.TerrainMap;
+import dev.justaclient.render.MinimapTerrain;
 import dev.justaclient.render.text.JacText;
 import dev.justaclient.ui.Theme;
 import dev.justaclient.waypoint.Waypoints;
@@ -21,14 +21,12 @@ import dev.justaclient.waypoint.Waypoints.Waypoint;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.ChatScreen;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
-import org.joml.Matrix3x2f;
 import org.joml.Vector2f;
 import org.jspecify.annotations.Nullable;
 
@@ -93,13 +91,7 @@ public final class MinimapHud extends HudFeature {
 	private final BoolSetting sameLayer = bool("same_layer", "Only mobs on your layer (surface or underground)", true).visibleWhen(entities::on);
 	private final BoolSetting coords = bool("coords", "Coordinates under the map", true);
 	private @Nullable DynamicTexture texture;
-	private int centerX = Integer.MIN_VALUE;
-	private int centerZ;
-	private int builtZoom;
-	private boolean builtCave;
-	private int builtY;
-	private long lastBuild;
-	private @Nullable ClientLevel builtLevel;
+	private final MinimapTerrain terrain = new MinimapTerrain();
 
 	public MinimapHud() {
 		super("minimap", "Minimap", "Top-down terrain map with waypoints, players and mobs", Icons.GLOBE, false, 1f, 0f);
@@ -121,6 +113,7 @@ public final class MinimapHud extends HudFeature {
 		Minecraft mc = Minecraft.getInstance();
 		LocalPlayer player = mc.player;
 		if (player == null || mc.level == null) {
+			releaseTerrain();
 			return;
 		}
 		int blocks = zoom.get().blocks;
@@ -131,36 +124,27 @@ public final class MinimapHud extends HudFeature {
 			case OFF -> false;
 			case AUTO -> MapEntities.playerUnderground();
 		};
-		// Rebuild after moving a couple of pixels' worth (or a couple of blocks up or down in a cave), when the zoom,
-		// mode or world changes, or every few seconds for new chunks.
-		boolean moved = Math.abs(px - centerX) >= 2 * blocks || Math.abs(pz - centerZ) >= 2 * blocks || cave && Math.abs(player.getBlockY() - builtY) >= 2;
-		if (moved || blocks != builtZoom || cave != builtCave || mc.level != builtLevel || System.currentTimeMillis() - lastBuild > 3000) {
-			build(mc.level, player, px, pz, blocks, cave);
+		if (texture == null) {
+			texture = new DynamicTexture(MinimapTerrain.SIZE, MinimapTerrain.SIZE, true);
+			mc.getTextureManager().register(TEXTURE, texture);
+		}
+		NativeImage image = texture.getPixels();
+		if (image != null && terrain.update(image, mc.level, px, player.getBlockY(), pz, blocks, cave)) {
+			texture.upload();
 		}
 	}
 
-	private void build(ClientLevel level, LocalPlayer player, int cx, int cz, int blocks, boolean cave) {
-		if (texture == null) {
-			texture = new DynamicTexture(SIZE, SIZE, true);
-			Minecraft.getInstance().getTextureManager().register(TEXTURE, texture);
+	@Override
+	protected void onDisable() {
+		releaseTerrain();
+	}
+
+	private void releaseTerrain() {
+		if (texture != null) {
+			Minecraft.getInstance().getTextureManager().release(TEXTURE);
+			texture = null;
+			terrain.close();
 		}
-		NativeImage image = texture.getPixels();
-		if (image == null) {
-			return;
-		}
-		if (cave) {
-			TerrainMap.fillCave(image, SIZE, level, player.getBlockY(), cx, cz, blocks);
-		} else {
-			TerrainMap.fill(image, SIZE, level, player.getBlockY() + 1, cx, cz, blocks);
-		}
-		texture.upload();
-		builtCave = cave;
-		builtY = player.getBlockY();
-		centerX = cx;
-		centerZ = cz;
-		builtZoom = blocks;
-		builtLevel = level;
-		lastBuild = System.currentTimeMillis();
 	}
 
 	@Override
@@ -170,7 +154,7 @@ public final class MinimapHud extends HudFeature {
 		panel(g, s, s);
 		Minecraft mc = Minecraft.getInstance();
 		LocalPlayer player = mc.player;
-		if (preview || player == null || texture == null) {
+		if (preview || player == null || texture == null || !terrain.ready(mc.level)) {
 			Draw.verticalGradient(g, 3, 3, s - 6, s - 6, Math.max(0f, radius - 2f), 0xFF4D7A3A, 0xFF35602A);
 			drawPlayer(g, s / 2f, s / 2f, 0f);
 			drawCoords(g, preview, s);
@@ -179,7 +163,7 @@ public final class MinimapHud extends HudFeature {
 		float partial = mc.getTimer().getGameTimeDeltaPartialTick(false);
 		double px = player.getX(partial);
 		double pz = player.getZ(partial);
-		int blocks = builtZoom;
+		int blocks = terrain.blocksPerPixel();
 		float scale = (s - 6f) / (SIZE * 0.68f);
 		float yaw = player.getViewYRot(partial);
 		float angle = rotate.on() ? (float) Math.toRadians(180f - yaw) : 0f;
@@ -189,8 +173,8 @@ public final class MinimapHud extends HudFeature {
 		g.pose().scale(scale, scale, 1);
 		g.pose().mulPose(new org.joml.Quaternionf().rotationZ(angle));
 		// The texture is centred on the block the map was built at; shift by how far the player has moved since.
-		g.pose().translate((float) (-(px - centerX - 0.5) / blocks) - SIZE / 2f, (float) (-(pz - centerZ - 0.5) / blocks) - SIZE / 2f, 0);
-		dev.justaclient.render.LegacyImages.blit(g, TEXTURE, 0, 0, 0f, 0f, SIZE, SIZE, SIZE, SIZE);
+		g.pose().translate((float) (-(px - terrain.centerX() - 0.5) / blocks) - MinimapTerrain.SIZE / 2f, (float) (-(pz - terrain.centerZ() - 0.5) / blocks) - MinimapTerrain.SIZE / 2f, 0);
+		dev.justaclient.render.LegacyImages.blit(g, TEXTURE, 0, 0, 0f, 0f, MinimapTerrain.SIZE, MinimapTerrain.SIZE, MinimapTerrain.SIZE, MinimapTerrain.SIZE);
 		g.pose().popPose();
 		if (waypoints.on()) {
 			for (Waypoint w : Waypoints.here()) {
@@ -220,14 +204,14 @@ public final class MinimapHud extends HudFeature {
 			float limit = s / 2f - 4f;
 			float best = 4.5f * 4.5f;
 			for (LivingEntity e : MapEntities.visible()) {
-				if (sameLayer.on() && !(e instanceof AbstractClientPlayer) && !MapEntities.onPlayerLayer(e)) {
-					continue;
-				}
 				float dx = (float) ((e.getX(partial) - px) / blocks * scale);
 				float dz = (float) ((e.getZ(partial) - pz) / blocks * scale);
 				float rx = dx * c - dz * sn;
 				float rz = dx * sn + dz * c;
 				if (Math.abs(rx) > limit || Math.abs(rz) > limit) {
+					continue;
+				}
+				if (sameLayer.on() && !(e instanceof AbstractClientPlayer) && !MapEntities.onPlayerLayer(e)) {
 					continue;
 				}
 				float x = s / 2f + rx;

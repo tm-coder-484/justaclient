@@ -11,12 +11,13 @@ public final class BlurEngine {
     private static final List<TextureTarget> down=new ArrayList<>(),up=new ArrayList<>();
     private static int width=-1,height=-1,idleFrames;
     private static boolean captured;
+    private static int outputLevel;
     public static void beginFrame() {
         captured=false;
         if (++idleFrames>600 && PerformanceModeFeature.freeMemory()) close();
     }
     public static int request() { capture(); return output(); }
-    public static int output() { return up.isEmpty()?0:up.getFirst().getColorTextureId(); }
+    public static int output() { return up.isEmpty()?0:up.get(outputLevel).getColorTextureId(); }
     public static void capture() {
         if (captured) return;
         captured=true;idleFrames=0;
@@ -30,10 +31,21 @@ public final class BlurEngine {
             }
         }
         int passes=Math.max(1,Math.min(Math.min(MAX_PASSES,PerformanceModeFeature.maxBlurPasses()),JacConfig.get().style.blurStrength));
-        int source=main.getColorTextureId();
-        for(int i=0;i<passes;i++) { blit(JacPipelines.BLUR_DOWN,source,down.get(i));source=down.get(i).getColorTextureId(); }
-        for(int i=passes-2;i>=0;i--) { blit(JacPipelines.BLUR_UP,source,up.get(i));source=up.get(i).getColorTextureId(); }
-        if(passes==1) blit(JacPipelines.BLUR_UP,source,up.getFirst());
+        // In gameplay the blur only shows through small tinted HUD panels. Skip the half-size
+        // targets there while retaining the smallest sample level selected by the blur strength.
+        outputLevel = Minecraft.getInstance().screen == null && passes > 1 ? 1 : 0;
+        int source = main.getColorTextureId();
+        for (int i = outputLevel; i < passes; i++) {
+            blit(JacPipelines.BLUR_DOWN, source, down.get(i));
+            source = down.get(i).getColorTextureId();
+        }
+        for (int i = passes - 2; i >= outputLevel; i--) {
+            blit(JacPipelines.BLUR_UP, source, up.get(i));
+            source = up.get(i).getColorTextureId();
+        }
+        if (passes == outputLevel + 1) {
+            blit(JacPipelines.BLUR_UP, source, up.get(outputLevel));
+        }
         SpatialMenus.target(main).bindWrite(true);
     }
     private static void close() { down.forEach(RenderTarget::destroyBuffers);up.forEach(RenderTarget::destroyBuffers);down.clear();up.clear(); }

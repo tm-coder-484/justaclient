@@ -1,5 +1,6 @@
 package dev.justaclient.hud.widgets;
 
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.justaclient.anim.Colors;
 import dev.justaclient.config.JacConfig;
 import dev.justaclient.common.FrameStats;
@@ -15,6 +16,8 @@ import java.util.List;
 import java.util.Locale;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.RenderType;
+import org.joml.Matrix4f;
 
 /**
  * One overlay for performance: FPS, frame time, the 1% low, a stability meter, a frame-time graph, the client's own
@@ -108,6 +111,8 @@ public final class PerformanceHud extends HudFeature {
 		// A guide line at the average.
 		Draw.rect(g, x, y + h - h * (avg / top), w, 0.5f, 0, 0x40FFFFFF);
 		int accent = JacConfig.accent();
+		Matrix4f pose = g.pose().last().pose();
+		VertexConsumer quads = g.bufferSource().getBuffer(RenderType.gui());
 		for (int i = 0; i < bars; i++) {
 			float ms = preview ? 7f + (float) (Math.sin(i * 0.7) * 1.5 + (i % 37 == 0 ? 9 : 0)) : f.millisAgo(bars - 1 - i);
 			if (ms <= 0f) {
@@ -115,7 +120,13 @@ public final class PerformanceHud extends HudFeature {
 			}
 			float bh = Math.min(h - 1f, h * (ms / top));
 			int color = ms > avg * 2f ? 0xFFF43F5E : ms > avg * 1.4f ? 0xFFF5C542 : Colors.withAlpha(accent, 0xC0);
-			Draw.rect(g, x + i, y + h - bh, 1f, bh, 0, color);
+			float left = x + i;
+			float bottom = y + h;
+			quads.addVertex(pose, left, bottom - bh, 0).setColor(color);
+			quads.addVertex(pose, left, bottom, 0).setColor(color);
+			quads.addVertex(pose, left + 1f, bottom, 0).setColor(color);
+			quads.addVertex(pose, left + 1f, bottom - bh, 0).setColor(color);
 		}
+		g.flush();
 	}
 }

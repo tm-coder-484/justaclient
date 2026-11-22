@@ -16,7 +16,7 @@ NeoForge 1.21.1 ModDevGradle template. From this directory:
 ```
 
 From the repository root, use `./start.sh 1.21.1 build` or Windows `start.bat`
-version 3. Output: `build/libs/justaclient-0.12.6+1.21.1-neoforge.jar` relative
+version 3. Output: `build/libs/justaclient-0.12.7+1.21.1-neoforge.jar` relative
 to this directory. Install into a NeoForge 1.21.1 instance, not a Fabric instance.
 
 ## Implementation

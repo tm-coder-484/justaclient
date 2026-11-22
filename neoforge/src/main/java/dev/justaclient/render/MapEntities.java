@@ -3,6 +3,7 @@ package dev.justaclient.render;
 import dev.justaclient.anim.Colors;
 import dev.justaclient.render.text.JacText;
 import dev.justaclient.ui.Theme;
+import it.unimi.dsi.fastutil.ints.Int2BooleanOpenHashMap;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -31,7 +32,8 @@ public final class MapEntities {
 	public static final double RANGE = 128.0;
 	private static final int MAX = 160;
 	private static final List<LivingEntity> visible = new ArrayList<>();
-	private static final java.util.Set<Integer> buried = new java.util.HashSet<>();
+	private static final Int2BooleanOpenHashMap buried = new Int2BooleanOpenHashMap();
+	private static final BlockPos.MutableBlockPos groundPos = new BlockPos.MutableBlockPos();
 	private static boolean playerBuried;
 	private static long builtTick = Long.MIN_VALUE;
 	private static @Nullable ClientLevel builtLevel;
@@ -70,37 +72,32 @@ public final class MapEntities {
 		visible.sort(Comparator.comparingDouble(e -> e.distanceToSqr(player)));
 		// Mobs always show; other players only while you can see them. Line of sight is a raycast, so only the nearest
 		// few players are tested.
-		List<LivingEntity> shown = new ArrayList<>();
+		int shown = 0;
 		int tested = 0;
-		for (LivingEntity e : visible) {
-			if (shown.size() >= MAX) {
-				break;
-			}
+		for (int i = 0; i < visible.size() && shown < MAX; i++) {
+			LivingEntity e = visible.get(i);
 			if (e instanceof AbstractClientPlayer) {
 				if (tested++ >= 32 || !player.hasLineOfSight(e)) {
 					continue;
 				}
 			}
-			shown.add(e);
+			visible.set(shown++, e);
 		}
-		visible.clear();
-		visible.addAll(shown);
-		// Which layer each one is on (surface or underground), for the minimap's "only mobs on your layer".
+		visible.subList(shown, visible.size()).clear();
+		// Classify only the mobs drawn by a map that has layer filtering enabled.
 		buried.clear();
-		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-		for (LivingEntity e : visible) {
-			if (TerrainMap.underground(level, pos, e.getBlockX(), e.getBlockY(), e.getBlockZ())) {
-				buried.add(e.getId());
-			}
-		}
-		playerBuried = TerrainMap.underground(level, pos, player.getBlockX(), player.getBlockY(), player.getBlockZ());
+		playerBuried = playerUnderground();
 		return visible;
 	}
 
-	/** True if the player is underground (well below the ground of their column). Updated with {@link #visible}. */
+	/** Tests only the player's column, even when entity markers are switched off. */
 	public static boolean playerUnderground() {
-		visible();
-		return playerBuried;
+		Minecraft mc = Minecraft.getInstance();
+		LocalPlayer player = mc.player;
+		if (player == null || mc.level == null) {
+			return false;
+		}
+		return TerrainMap.underground(mc.level, groundPos, player.getBlockX(), player.getBlockY(), player.getBlockZ());
 	}
 
 	/**
@@ -112,7 +109,14 @@ public final class MapEntities {
 		if (mc.level == null || mc.player == null || mc.level.dimensionType().hasCeiling()) {
 			return true;
 		}
-		boolean under = buried.contains(e.getId());
+		int id = e.getId();
+		boolean under;
+		if (buried.containsKey(id)) {
+			under = buried.get(id);
+		} else {
+			under = TerrainMap.underground(mc.level, groundPos, e.getBlockX(), e.getBlockY(), e.getBlockZ());
+			buried.put(id, under);
+		}
 		if (under != playerBuried) {
 			return false;
 		}
